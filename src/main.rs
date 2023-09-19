@@ -14,29 +14,48 @@ pub struct App {
     rotation: f64,  // Rotation for the square.
 }
 
+enum Command {
+    Forward(f64),
+    Right(f64),
+    Left(f64),
+}
+
 impl App {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
-        let square = rectangle::square(0.0, 0.0, 50.0);
-        let rotation = self.rotation;
+        const CMDS: [Command; 8] = [
+            Command::Forward(100.),
+            Command::Right(90.),
+            Command::Forward(100.),
+            Command::Right(90.),
+            Command::Forward(100.),
+            Command::Right(90.),
+            Command::Forward(100.),
+            Command::Left(90.),
+        ];
+
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
-            clear(GREEN, gl);
+            clear(WHITE, gl);
 
-            let transform = c
-                .transform
-                .trans(x, y)
-                .rot_rad(rotation)
-                .trans(-25.0, -25.0);
+            let mut transform = c.transform.trans(x, y);
 
-            // Draw a box rotating around the middle of the screen.
-            rectangle(RED, square, transform, gl);
+            for cmd in &CMDS {
+                match cmd {
+                    Command::Forward(dist) => {
+                        line_from_to(BLACK, 1.0, [0., 0.], [*dist, 0.], transform, gl);
+                        transform = transform.trans(*dist, 0.);
+                    }
+                    Command::Right(deg) => transform = transform.rot_deg(*deg),
+                    Command::Left(deg) => transform = transform.rot_deg(-deg),
+                }
+            }
         });
     }
 
@@ -51,7 +70,7 @@ fn main() {
     let opengl = OpenGL::V3_2;
 
     // Create a Glutin window.
-    let mut window: Window = WindowSettings::new("spinning-square", [200, 200])
+    let mut window: Window = WindowSettings::new("spinning-square", [1000, 1000])
         .graphics_api(opengl)
         .exit_on_esc(true)
         .build()
