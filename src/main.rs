@@ -23,6 +23,17 @@ enum Command {
     Left(f64),
     PenDown,
     PenUp,
+    GoTo(f64, f64),
+}
+
+impl Command {
+    fn get_rotation(&self) -> f64 {
+        match self {
+            Command::Right(deg) => *deg,
+            Command::Left(deg) => -*deg,
+            _ => 0.,
+        }
+    }
 }
 
 impl Turtle {
@@ -38,12 +49,19 @@ impl Turtle {
             // Clear the screen.
             clear(WHITE, gl);
 
-            let mut transform = c.transform.trans(x, y);
+            let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
+            let mut full = true;
+            let mut deg: f64 = -90.;
 
             for cmd in 0..(self.which + 1) {
                 if cmd == self.which {
                     pct = self.percent;
+                    full = pct >= 1.;
+                }
+
+                if full {
+                    deg += self.cmds[cmd].get_rotation();
                 }
 
                 if cmd >= self.cmds.len() {
@@ -61,6 +79,10 @@ impl Turtle {
                     Command::Left(deg) => transform = transform.rot_deg(-deg * pct),
                     Command::PenDown => self.is_pen_down = true,
                     Command::PenUp => self.is_pen_down = false,
+                    Command::GoTo(xpos, ypos) => {
+                        self.percent = 1.;
+                        transform = c.transform.trans(*xpos + x, *ypos + y).rot_deg(deg);
+                    }
                 }
             }
 
@@ -78,8 +100,8 @@ impl Turtle {
             return;
         }
 
-        self.percent += args.dt * 60.;
-        if self.percent > 1. {
+        self.percent += args.dt * 30.;
+        if self.percent >= 1. {
             self.which += 1;
             self.percent = 0.
         }
@@ -97,26 +119,18 @@ fn main() {
         .build()
         .unwrap();
 
-    const _CMDS: [Command; 8] = [
-        Command::Forward(100.),
-        Command::Right(90.),
-        Command::Forward(100.),
-        Command::Right(90.),
-        Command::Forward(100.),
-        Command::Right(90.),
-        Command::Forward(100.),
-        Command::Left(90.),
-    ];
-
     let mut cmds = vec![
         Command::PenUp,
-        Command::Right(180.),
+        Command::Left(90.),
         Command::Forward(729. / 2.),
         Command::Right(180.),
         Command::PenDown,
     ];
 
-    spiky_fractal(&mut cmds, 4, 729.);
+    spiky_fractal(&mut cmds, 3, 729.);
+    cmds.push(Command::GoTo(-729. / 2., 0.));
+    square_fractal(&mut cmds, 3, 729.);
+    cmds.push(Command::GoTo(0., 0.));
 
     // Create a new game and run it.
     let mut app = Turtle {
@@ -150,5 +164,21 @@ fn spiky_fractal(cmds: &mut Vec<Command>, order: usize, length: f64) {
         spiky_fractal(cmds, order - 1, length / 3.);
         cmds.push(Command::Left(60.));
         spiky_fractal(cmds, order - 1, length / 3.);
+    }
+}
+
+fn square_fractal(cmds: &mut Vec<Command>, order: usize, length: f64) {
+    if order == 0 {
+        cmds.push(Command::Forward(length));
+    } else {
+        square_fractal(cmds, order - 1, length / 3.);
+        cmds.push(Command::Left(90.));
+        square_fractal(cmds, order - 1, length / 3.);
+        cmds.push(Command::Right(90.));
+        square_fractal(cmds, order - 1, length / 3.);
+        cmds.push(Command::Right(90.));
+        square_fractal(cmds, order - 1, length / 3.);
+        cmds.push(Command::Left(90.));
+        square_fractal(cmds, order - 1, length / 3.);
     }
 }
