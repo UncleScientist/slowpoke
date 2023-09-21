@@ -1,16 +1,28 @@
+use std::{
+    sync::mpsc::{self, Receiver, Sender},
+    thread::{self, JoinHandle},
+};
+
 use glutin_window::GlutinWindow;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     EventSettings, Events, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
 };
 
-pub struct Turtle {
+mod draw;
+
+pub struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
-    window: GlutinWindow,
     cmds: Vec<Command>,
-    which: usize,
+    current_command: Option<Command>,
     percent: f64,
     is_pen_down: bool,
+}
+
+pub struct Turtle {
+    issue_command: Sender<Command>,
+    command_complete: Receiver<()>,
+    join_handle: Option<JoinHandle<()>>,
 }
 
 impl Default for Turtle {
@@ -21,42 +33,67 @@ impl Default for Turtle {
 
 impl Turtle {
     pub fn new() -> Self {
-        // Change this to OpenGL::V2_1 if not working.
-        let opengl = OpenGL::V3_2;
+        let (issue_command, receive_command) = mpsc::channel();
+        let (finished, command_complete) = mpsc::channel();
 
-        // Create a Glutin window.
-        let window: GlutinWindow = WindowSettings::new("spinning-square", [1000, 1000])
-            .graphics_api(opengl)
-            .exit_on_esc(true)
-            .build()
-            .unwrap();
+        let join_handle = Some(thread::spawn(move || {
+            // Change this to OpenGL::V2_1 if not working.
+            let opengl = OpenGL::V3_2;
+
+            // Create a Glutin window.
+            let mut window: GlutinWindow = WindowSettings::new("spinning-square", [1000, 1000])
+                .graphics_api(opengl)
+                .exit_on_esc(true)
+                .build()
+                .unwrap();
+
+            let mut tt = TurtleTask {
+                gl: GlGraphics::new(opengl),
+                cmds: Vec::new(),
+                current_command: None,
+                percent: 0.,
+                is_pen_down: true,
+            };
+
+            let mut events = Events::new(EventSettings::new());
+            let mut command_complete = true;
+            while let Some(e) = events.next(&mut window) {
+                if let Ok(cmd) = receive_command.try_recv() {
+                    tt.current_command = Some(cmd);
+                    command_complete = false;
+                }
+
+                if !command_complete && tt.current_command.is_none() {
+                    command_complete = true;
+                    let _ = finished.send(());
+                }
+
+                if let Some(args) = e.render_args() {
+                    tt.render(&args);
+                }
+
+                if let Some(args) = e.update_args() {
+                    tt.update(&args);
+                }
+            }
+        }));
 
         Self {
-            gl: GlGraphics::new(opengl),
-            window,
-            cmds: Vec::new(),
-            is_pen_down: true,
-            which: 0,
-            percent: 0.,
+            issue_command,
+            command_complete,
+            join_handle,
         }
-    }
-
-    pub fn insert_commands(&mut self, cmds: Vec<Command>) {
-        self.cmds = cmds;
     }
 
     pub fn run(&mut self) {
-        let mut events = Events::new(EventSettings::new());
-        while let Some(e) = events.next(&mut self.window) {
-            if let Some(args) = e.render_args() {
-                self.render(&args);
-            }
-
-            if let Some(args) = e.update_args() {
-                self.update(&args);
-            }
+        if let Some(handle) = self.join_handle.take() {
+            let _ = handle.join();
         }
     }
+}
+
+impl TurtleTask {
+    pub fn run(&mut self) {}
 
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
@@ -73,36 +110,44 @@ impl Turtle {
             let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
             let mut full = true;
+            let mut done = false;
             let mut deg: f64 = -90.;
 
-            for cmd in 0..(self.which + 1) {
-                if cmd == self.which {
-                    pct = self.percent;
+            let mut index = 0;
+            while !done {
+                let cmd = if index < self.cmds.len() {
+                    index += 1;
+                    Some(self.cmds[index - 1])
+                } else {
+                    pct = self.percent.min(1.);
                     full = pct >= 1.;
-                }
+                    done = true;
+                    self.current_command
+                };
+
+                let Some(cmd) = cmd else {
+                    break;
+                };
 
                 if full {
-                    deg += self.cmds[cmd].get_rotation();
+                    deg += cmd.get_rotation();
+                    self.cmds.push(cmd);
+                    self.current_command = None;
                 }
 
-                if cmd >= self.cmds.len() {
-                    break;
-                }
-
-                match &self.cmds[cmd] {
+                match cmd {
                     Command::Forward(dist) => {
                         if self.is_pen_down {
-                            line_from_to(BLACK, 1.0, [0., 0.], [*dist * pct, 0.], transform, gl);
+                            line_from_to(BLACK, 1.0, [0., 0.], [dist * pct, 0.], transform, gl);
                         }
-                        transform = transform.trans(*dist * pct, 0.);
+                        transform = transform.trans(dist * pct, 0.);
                     }
-                    Command::Right(deg) => transform = transform.rot_deg(*deg * pct),
+                    Command::Right(deg) => transform = transform.rot_deg(deg * pct),
                     Command::Left(deg) => transform = transform.rot_deg(-deg * pct),
                     Command::PenDown => self.is_pen_down = true,
                     Command::PenUp => self.is_pen_down = false,
                     Command::GoTo(xpos, ypos) => {
-                        self.percent = 1.;
-                        transform = c.transform.trans(*xpos + x, *ypos + y).rot_deg(deg);
+                        transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
                     }
                 }
             }
@@ -113,22 +158,13 @@ impl Turtle {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        if self.cmds.is_empty() {
-            return;
-        }
-
-        if self.which == self.cmds.len() - 1 && self.percent >= 1. {
-            return;
-        }
-
-        self.percent += args.dt * 30.;
-        if self.percent >= 1. {
-            self.which += 1;
-            self.percent = 0.
+        if self.percent < 1. {
+            self.percent += args.dt * 10.;
         }
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub enum Command {
     Forward(f64),
     Right(f64),

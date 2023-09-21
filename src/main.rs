@@ -1,6 +1,7 @@
 use slowpoke::*;
 
 fn main() {
+    /*
     let mut cmds = vec![
         Command::PenUp,
         Command::Left(90.),
@@ -13,11 +14,18 @@ fn main() {
     cmds.push(Command::GoTo(-729. / 2., 0.));
     square_fractal(&mut cmds, 3, 729.);
     cmds.push(Command::GoTo(0., 0.));
+    */
 
     let mut turtle = Turtle::new();
-    turtle.insert_commands(cmds);
+    for _ in 0..4 {
+        turtle.forward(40.);
+        turtle.right(90.);
+    }
+
     turtle.run();
 }
+
+/*
 
 fn spiky_fractal(cmds: &mut Vec<Command>, order: usize, length: f64) {
     if order == 0 {
@@ -48,3 +56,4 @@ fn square_fractal(cmds: &mut Vec<Command>, order: usize, length: f64) {
         square_fractal(cmds, order - 1, length / 3.);
     }
 }
+*/
