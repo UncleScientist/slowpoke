@@ -1,7 +1,4 @@
-use std::{
-    sync::mpsc::{self, Receiver, Sender},
-    thread::{self, JoinHandle},
-};
+use std::sync::mpsc::{self, Receiver, Sender};
 
 use glutin_window::GlutinWindow;
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -22,72 +19,59 @@ pub struct TurtleTask {
 pub struct Turtle {
     issue_command: Sender<Command>,
     command_complete: Receiver<()>,
-    join_handle: Option<JoinHandle<()>>,
-}
-
-impl Default for Turtle {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Turtle {
-    pub fn new() -> Self {
+    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(func: F) {
         let (issue_command, receive_command) = mpsc::channel();
         let (finished, command_complete) = mpsc::channel();
 
-        let join_handle = Some(thread::spawn(move || {
-            // Change this to OpenGL::V2_1 if not working.
-            let opengl = OpenGL::V3_2;
+        // Change this to OpenGL::V2_1 if not working.
+        let opengl = OpenGL::V3_2;
 
-            // Create a Glutin window.
-            let mut window: GlutinWindow = WindowSettings::new("spinning-square", [1000, 1000])
-                .graphics_api(opengl)
-                .exit_on_esc(true)
-                .build()
-                .unwrap();
+        // Create a Glutin window.
+        let mut window: GlutinWindow = WindowSettings::new("spinning-square", [1000, 1000])
+            .graphics_api(opengl)
+            .exit_on_esc(true)
+            .build()
+            .unwrap();
 
-            let mut tt = TurtleTask {
-                gl: GlGraphics::new(opengl),
-                cmds: Vec::new(),
-                current_command: None,
-                percent: 0.,
-                is_pen_down: true,
-            };
+        let mut tt = TurtleTask {
+            gl: GlGraphics::new(opengl),
+            cmds: Vec::new(),
+            current_command: None,
+            percent: 0.,
+            is_pen_down: true,
+        };
 
-            let mut events = Events::new(EventSettings::new());
-            let mut command_complete = true;
-            while let Some(e) = events.next(&mut window) {
-                if let Ok(cmd) = receive_command.try_recv() {
-                    tt.current_command = Some(cmd);
-                    command_complete = false;
-                }
-
-                if !command_complete && tt.current_command.is_none() {
-                    command_complete = true;
-                    let _ = finished.send(());
-                }
-
-                if let Some(args) = e.render_args() {
-                    tt.render(&args);
-                }
-
-                if let Some(args) = e.update_args() {
-                    tt.update(&args);
-                }
-            }
-        }));
-
-        Self {
+        let mut turtle = Self {
             issue_command,
             command_complete,
-            join_handle,
-        }
-    }
+        };
 
-    pub fn run(&mut self) {
-        if let Some(handle) = self.join_handle.take() {
-            let _ = handle.join();
+        let _ = std::thread::spawn(move || func(&mut turtle));
+
+        let mut events = Events::new(EventSettings::new());
+        let mut command_complete = true;
+        while let Some(e) = events.next(&mut window) {
+            if let Ok(cmd) = receive_command.try_recv() {
+                tt.current_command = Some(cmd);
+                tt.percent = 0.;
+                command_complete = false;
+            }
+
+            if !command_complete && tt.current_command.is_none() {
+                command_complete = true;
+                let _ = finished.send(());
+            }
+
+            if let Some(args) = e.render_args() {
+                tt.render(&args);
+            }
+
+            if let Some(args) = e.update_args() {
+                tt.update(&args);
+            }
         }
     }
 }
@@ -109,7 +93,7 @@ impl TurtleTask {
 
             let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
-            let mut full = true;
+            let mut full = false;
             let mut done = false;
             let mut deg: f64 = -90.;
 
@@ -159,7 +143,7 @@ impl TurtleTask {
 
     fn update(&mut self, args: &UpdateArgs) {
         if self.percent < 1. {
-            self.percent += args.dt * 10.;
+            self.percent += args.dt * 30.;
         }
     }
 }
