@@ -101,7 +101,9 @@ impl TurtleTask {
             while !done {
                 let cmd = if index < self.cmds.len() {
                     index += 1;
-                    Some(self.cmds[index - 1])
+                    let cmd = self.cmds[index - 1];
+                    deg += cmd.get_rotation();
+                    Some(cmd)
                 } else {
                     pct = self.percent.min(1.);
                     full = pct >= 1.;
@@ -114,7 +116,6 @@ impl TurtleTask {
                 };
 
                 if full {
-                    deg += cmd.get_rotation();
                     self.cmds.push(cmd);
                     self.current_command = None;
                 }
