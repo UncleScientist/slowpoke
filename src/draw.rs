@@ -25,6 +25,10 @@ impl Turtle {
         self.do_command(Command::GoTo(xpos, ypos));
     }
 
+    pub fn home(&mut self) {
+        self.goto(0., 0.);
+    }
+
     fn do_command(&mut self, cmd: Command) {
         self.issue_command
             .send(cmd)

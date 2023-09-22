@@ -10,7 +10,7 @@ fn main() {
         turtle.pendown();
         turtle.forward(100.);
 
-        turtle.goto(0., 0.);
+        turtle.home();
         turtle.forward(100.);
 
         // _spiky_fractal(turtle, 3, 243.);
