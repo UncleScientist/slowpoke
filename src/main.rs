@@ -28,6 +28,7 @@ fn main() {
         turtle.home();
         println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
+        turtle.penwidth(5.);
         turtle.forward(100.);
         println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 

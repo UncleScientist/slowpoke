@@ -7,6 +7,10 @@ impl Turtle {
         self.do_command(Command::PenColor(r, g, b));
     }
 
+    pub fn penwidth(&mut self, width: f64) {
+        self.do_command(Command::PenWidth(width));
+    }
+
     pub fn forward(&mut self, distance: f64) {
         self.do_command(Command::Forward(distance));
     }
