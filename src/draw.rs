@@ -1,3 +1,5 @@
+use graphics::types::Vec2d;
+
 use crate::{Command, Turtle};
 
 impl Turtle {
@@ -29,10 +31,14 @@ impl Turtle {
         self.goto(0., 0.);
     }
 
+    pub fn pos(&self) -> Vec2d<isize> {
+        self.current_pos
+    }
+
     fn do_command(&mut self, cmd: Command) {
         self.issue_command
             .send(cmd)
             .expect("graphics window no longer exists");
-        self.command_complete.recv().expect("main window died!");
+        self.current_pos = self.command_complete.recv().expect("main window died!");
     }
 }

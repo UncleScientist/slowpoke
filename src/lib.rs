@@ -1,6 +1,7 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 
 use glutin_window::GlutinWindow;
+use graphics::types::Vec2d;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     EventSettings, Events, RenderArgs, RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
@@ -14,23 +15,41 @@ pub struct TurtleTask {
     current_command: Option<Command>,
     percent: f64,
     is_pen_down: bool,
+    pos: Vec2d<isize>,
+    size: Vec2d<f64>,
 }
 
 pub struct Turtle {
     issue_command: Sender<Command>,
-    command_complete: Receiver<()>,
+    command_complete: Receiver<Vec2d<isize>>,
+    current_pos: Vec2d<isize>,
 }
 
+// transform is [[f64; 3]; 2]
+// which looks like
+// | a b c |
+// | d e f |
+//
+// to transform (x, y), multiply by the transform like this
+// | a*x + b*y + c| -> new x coordinate
+// | d*x + e*y + f| -> new y coordinate
+//
 impl Turtle {
-    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(func: F) {
+    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static, S: Into<f64>>(
+        xsize: S,
+        ysize: S,
+        func: F,
+    ) {
         let (issue_command, receive_command) = mpsc::channel();
         let (finished, command_complete) = mpsc::channel();
+        let xsize: f64 = xsize.into();
+        let ysize: f64 = ysize.into();
 
         // Change this to OpenGL::V2_1 if not working.
         let opengl = OpenGL::V3_2;
 
         // Create a Glutin window.
-        let mut window: GlutinWindow = WindowSettings::new("spinning-square", [1000, 1000])
+        let mut window: GlutinWindow = WindowSettings::new("spinning-square", [xsize, ysize])
             .graphics_api(opengl)
             .exit_on_esc(true)
             .build()
@@ -42,11 +61,14 @@ impl Turtle {
             current_command: None,
             percent: 0.,
             is_pen_down: true,
+            pos: [0, 0],
+            size: [xsize, ysize],
         };
 
         let mut turtle = Self {
             issue_command,
             command_complete,
+            current_pos: [0, 0],
         };
 
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -62,7 +84,7 @@ impl Turtle {
 
             if !command_complete && tt.current_command.is_none() {
                 command_complete = true;
-                let _ = finished.send(());
+                let _ = finished.send(tt.pos);
             }
 
             if let Some(args) = e.render_args() {
@@ -136,6 +158,11 @@ impl TurtleTask {
                     }
                 }
             }
+
+            self.pos = [
+                (transform[0][2] * self.size[0] / 2.) as isize,
+                (transform[1][2] * self.size[1] / 2.) as isize,
+            ];
 
             let square = rectangle::square(0.0, 0.0, 10.0);
             ellipse(BLACK, square, transform.trans(-5., -5.), gl);
