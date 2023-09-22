@@ -39,6 +39,10 @@ impl Turtle {
         self.current_pos
     }
 
+    pub fn heading(&self) -> f64 {
+        self.angle
+    }
+
     pub fn clearscreen(&mut self) {
         self.do_command(Command::ClearScreen);
     }
@@ -47,6 +51,8 @@ impl Turtle {
         self.issue_command
             .send(cmd)
             .expect("graphics window no longer exists");
-        self.current_pos = self.command_complete.recv().expect("main window died!");
+        let (pos, angle) = self.command_complete.recv().expect("main window died!");
+        self.current_pos = pos;
+        self.angle = angle;
     }
 }

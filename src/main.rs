@@ -2,31 +2,37 @@ use slowpoke::*;
 
 fn main() {
     Turtle::start(800, 800, |turtle| {
-        println!("starting at {:?}", turtle.pos());
+        turtle.right(0.);
+        println!(
+            "starting at {:?}, heading of {:?}",
+            turtle.pos(),
+            turtle.heading()
+        );
 
         turtle.forward(100.);
-        println!("pos: {:?}", turtle.pos());
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         turtle.right(90.);
         turtle.penup();
 
         turtle.forward(100.);
-        println!("pos: {:?}", turtle.pos());
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         turtle.right(90.);
         turtle.pendown();
 
         turtle.forward(100.);
-        println!("pos: {:?}", turtle.pos());
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         turtle.home();
-        println!("pos: {:?}", turtle.pos());
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         turtle.forward(100.);
-        println!("pos: {:?}", turtle.pos());
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         turtle.right(90.);
         turtle.backward(100.);
+        println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
         println!("press return to continue");
         let mut s = String::new();

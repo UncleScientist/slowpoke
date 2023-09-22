@@ -16,13 +16,15 @@ pub struct TurtleTask {
     percent: f64,
     is_pen_down: bool,
     pos: Vec2d<isize>,
+    angle: f64,
     size: Vec2d<f64>,
 }
 
 pub struct Turtle {
     issue_command: Sender<Command>,
-    command_complete: Receiver<Vec2d<isize>>,
+    command_complete: Receiver<(Vec2d<isize>, f64)>,
     current_pos: Vec2d<isize>,
+    angle: f64,
 }
 
 // transform is [[f64; 3]; 2]
@@ -62,6 +64,7 @@ impl Turtle {
             percent: 0.,
             is_pen_down: true,
             pos: [0, 0],
+            angle: 0.,
             size: [xsize, ysize],
         };
 
@@ -69,6 +72,7 @@ impl Turtle {
             issue_command,
             command_complete,
             current_pos: [0, 0],
+            angle: 0.,
         };
 
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -80,7 +84,7 @@ impl Turtle {
                 match cmd {
                     Command::ClearScreen => {
                         tt.cmds.clear();
-                        let _ = finished.send(tt.pos);
+                        let _ = finished.send((tt.pos, tt.angle));
                     }
                     _ => {
                         tt.current_command = Some(cmd);
@@ -92,7 +96,7 @@ impl Turtle {
 
             if !command_complete && tt.current_command.is_none() {
                 command_complete = true;
-                let _ = finished.send(tt.pos);
+                let _ = finished.send((tt.pos, tt.angle));
             }
 
             if let Some(args) = e.render_args() {
@@ -132,7 +136,10 @@ impl TurtleTask {
                 let cmd = if index < self.cmds.len() {
                     index += 1;
                     let cmd = self.cmds[index - 1];
-                    deg += cmd.get_rotation();
+                    deg += cmd.get_rotation() % 360.;
+                    if deg < 0. {
+                        deg += 360.;
+                    }
                     Some(cmd)
                 } else {
                     pct = self.percent.min(1.);
@@ -172,6 +179,11 @@ impl TurtleTask {
                 (transform[0][2] * self.size[0] / 2.) as isize,
                 (transform[1][2] * self.size[1] / 2.) as isize,
             ];
+            self.angle = if deg + 90. >= 360. {
+                deg - 270.
+            } else {
+                deg + 90.
+            };
 
             let square = rectangle::square(0.0, 0.0, 10.0);
             ellipse(BLACK, square, transform.trans(-5., -5.), gl);
