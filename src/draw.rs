@@ -35,6 +35,10 @@ impl Turtle {
         self.current_pos
     }
 
+    pub fn clearscreen(&mut self) {
+        self.do_command(Command::ClearScreen);
+    }
+
     fn do_command(&mut self, cmd: Command) {
         self.issue_command
             .send(cmd)

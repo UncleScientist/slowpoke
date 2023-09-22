@@ -25,7 +25,13 @@ fn main() {
         turtle.forward(100.);
         println!("pos: {:?}", turtle.pos());
 
-        // _spiky_fractal(turtle, 3, 243.);
+        println!("press return to continue");
+        let mut s = String::new();
+        let _ = std::io::stdin().read_line(&mut s);
+
+        turtle.clearscreen();
+        _spiky_fractal(turtle, 3, 243.);
+
         // turtle.right(90.);
         // _square_fractal(turtle, 3, 243.);
     });

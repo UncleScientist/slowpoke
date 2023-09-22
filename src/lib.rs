@@ -77,9 +77,17 @@ impl Turtle {
         let mut command_complete = true;
         while let Some(e) = events.next(&mut window) {
             if let Ok(cmd) = receive_command.try_recv() {
-                tt.current_command = Some(cmd);
-                tt.percent = 0.;
-                command_complete = false;
+                match cmd {
+                    Command::ClearScreen => {
+                        tt.cmds.clear();
+                        let _ = finished.send(tt.pos);
+                    }
+                    _ => {
+                        tt.current_command = Some(cmd);
+                        tt.percent = 0.;
+                        command_complete = false;
+                    }
+                }
             }
 
             if !command_complete && tt.current_command.is_none() {
@@ -156,6 +164,7 @@ impl TurtleTask {
                     Command::GoTo(xpos, ypos) => {
                         transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
                     }
+                    Command::ClearScreen => panic!("{cmd:?} is not a drawing command"),
                 }
             }
 
@@ -184,6 +193,7 @@ pub enum Command {
     PenDown,
     PenUp,
     GoTo(f64, f64),
+    ClearScreen,
 }
 
 impl Command {
