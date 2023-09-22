@@ -9,6 +9,9 @@ use piston::{
 
 mod draw;
 
+const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
 pub struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
     cmds: Vec<Command>,
@@ -18,6 +21,7 @@ pub struct TurtleTask {
     pos: Vec2d<isize>,
     angle: f64,
     size: Vec2d<f64>,
+    bgcolor: [f32; 4],
 }
 
 pub struct Turtle {
@@ -66,6 +70,7 @@ impl Turtle {
             pos: [0, 0],
             angle: 0.,
             size: [xsize, ysize],
+            bgcolor: WHITE,
         };
 
         let mut turtle = Self {
@@ -82,8 +87,13 @@ impl Turtle {
         while let Some(e) = events.next(&mut window) {
             if let Ok(cmd) = receive_command.try_recv() {
                 match cmd {
+                    Command::Background(r, g, b) => {
+                        tt.bgcolor = [r, g, b, 1.];
+                        let _ = finished.send((tt.pos, tt.angle));
+                    }
                     Command::ClearScreen => {
                         tt.cmds.clear();
+                        tt.bgcolor = BLACK;
                         let _ = finished.send((tt.pos, tt.angle));
                     }
                     _ => {
@@ -116,14 +126,11 @@ impl TurtleTask {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
-            clear(WHITE, gl);
+            clear(self.bgcolor, gl);
 
             let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
@@ -186,7 +193,9 @@ impl TurtleTask {
                     Command::PenWidth(width) => {
                         pen_width = width;
                     }
-                    Command::ClearScreen => panic!("{cmd:?} is not a drawing command"),
+                    Command::Background(_, _, _) | Command::ClearScreen => {
+                        panic!("{cmd:?} is not a drawing command")
+                    }
                 }
             }
 
@@ -223,6 +232,7 @@ pub enum Command {
     ClearScreen,
     PenColor(f32, f32, f32),
     PenWidth(f64),
+    Background(f32, f32, f32),
 }
 
 impl Command {

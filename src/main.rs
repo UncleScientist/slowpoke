@@ -41,6 +41,7 @@ fn main() {
         let _ = std::io::stdin().read_line(&mut s);
 
         turtle.clearscreen();
+        turtle.bgcolor(0.3, 0.9, 0.3);
         _spiky_fractal(turtle, 3, 243.);
 
         // turtle.right(90.);
