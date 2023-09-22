@@ -7,6 +7,10 @@ impl Turtle {
         self.do_command(Command::Forward(distance));
     }
 
+    pub fn backward(&mut self, distance: f64) {
+        self.do_command(Command::Forward(-distance));
+    }
+
     pub fn right(&mut self, rotation: f64) {
         self.do_command(Command::Right(rotation));
     }

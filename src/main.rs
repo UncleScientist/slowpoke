@@ -25,6 +25,9 @@ fn main() {
         turtle.forward(100.);
         println!("pos: {:?}", turtle.pos());
 
+        turtle.right(90.);
+        turtle.backward(100.);
+
         println!("press return to continue");
         let mut s = String::new();
         let _ = std::io::stdin().read_line(&mut s);
