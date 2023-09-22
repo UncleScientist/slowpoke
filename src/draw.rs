@@ -3,6 +3,10 @@ use graphics::types::Vec2d;
 use crate::{Command, Turtle};
 
 impl Turtle {
+    pub fn pencolor(&mut self, r: f32, g: f32, b: f32) {
+        self.do_command(Command::PenColor(r, g, b));
+    }
+
     pub fn forward(&mut self, distance: f64) {
         self.do_command(Command::Forward(distance));
     }

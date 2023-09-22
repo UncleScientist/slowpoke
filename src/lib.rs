@@ -130,6 +130,7 @@ impl TurtleTask {
             let mut full = false;
             let mut done = false;
             let mut deg: f64 = -90.;
+            let mut pen_color = BLACK;
 
             let mut index = 0;
             while !done {
@@ -160,7 +161,7 @@ impl TurtleTask {
                 match cmd {
                     Command::Forward(dist) => {
                         if self.is_pen_down {
-                            line_from_to(BLACK, 1.0, [0., 0.], [dist * pct, 0.], transform, gl);
+                            line_from_to(pen_color, 1.0, [0., 0.], [dist * pct, 0.], transform, gl);
                         }
                         transform = transform.trans(dist * pct, 0.);
                     }
@@ -170,6 +171,9 @@ impl TurtleTask {
                     Command::PenUp => self.is_pen_down = false,
                     Command::GoTo(xpos, ypos) => {
                         transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
+                    }
+                    Command::PenColor(r, g, b) => {
+                        pen_color = [r, g, b, 1.];
                     }
                     Command::ClearScreen => panic!("{cmd:?} is not a drawing command"),
                 }
@@ -206,6 +210,7 @@ pub enum Command {
     PenUp,
     GoTo(f64, f64),
     ClearScreen,
+    PenColor(f32, f32, f32),
 }
 
 impl Command {

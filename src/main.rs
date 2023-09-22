@@ -21,6 +21,7 @@ fn main() {
         turtle.right(90.);
         turtle.pendown();
 
+        turtle.pencolor(0.5, 0.8, 0.4);
         turtle.forward(100.);
         println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
