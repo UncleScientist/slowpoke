@@ -216,7 +216,7 @@ impl TurtleTask {
 
     fn update(&mut self, args: &UpdateArgs) {
         if self.percent < 1. {
-            self.percent += args.dt * 30.;
+            self.percent += args.dt * 60.;
         }
     }
 }
