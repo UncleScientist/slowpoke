@@ -1,6 +1,6 @@
 use graphics::types::Vec2d;
 
-use crate::{Command, Turtle};
+use crate::{turtle::Turtle, Command};
 
 impl Turtle {
     pub fn bgcolor(&mut self, r: f32, g: f32, b: f32) {
@@ -48,23 +48,16 @@ impl Turtle {
     }
 
     pub fn pos(&self) -> Vec2d<isize> {
-        self.current_pos
+        // self.current_pos
+        Vec2d::default()
     }
 
     pub fn heading(&self) -> f64 {
-        self.angle
+        // self.angle
+        0.
     }
 
     pub fn clearscreen(&mut self) {
         self.do_command(Command::ClearScreen);
-    }
-
-    fn do_command(&mut self, cmd: Command) {
-        self.issue_command
-            .send(cmd)
-            .expect("graphics window no longer exists");
-        let (pos, angle) = self.command_complete.recv().expect("main window died!");
-        self.current_pos = pos;
-        self.angle = angle;
     }
 }
