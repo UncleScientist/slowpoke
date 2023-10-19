@@ -106,7 +106,7 @@ impl Turtle {
                         tt.data.bgcolor = BLACK;
                         let _ = resp.send(Response::Done);
                     }
-                    Command::OnKey(f, k) => {
+                    Command::OnKeyPress(f, k) => {
                         tt.data.onkeypress.insert(k, f);
                         let _ = resp.send(Response::Done);
                     }
@@ -239,7 +239,9 @@ impl TurtleTask {
                     Command::PenWidth(width) => {
                         pen_width = width;
                     }
-                    Command::OnKey(_, _) | Command::Background(_, _, _) | Command::ClearScreen => {
+                    Command::OnKeyPress(_, _)
+                    | Command::Background(_, _, _)
+                    | Command::ClearScreen => {
                         panic!("{cmd:?} is not a drawing command")
                     }
                 }
@@ -284,7 +286,7 @@ pub enum Command {
     PenColor(f32, f32, f32),
     PenWidth(f64),
     Background(f32, f32, f32),
-    OnKey(fn(&mut Turtle, Key), Key),
+    OnKeyPress(fn(&mut Turtle, Key), Key),
 }
 
 impl Command {
