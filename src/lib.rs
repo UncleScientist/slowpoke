@@ -42,6 +42,8 @@ struct TurtleData {
 
 pub enum Response {
     Done,
+    Heading(f64),
+    Position(Vec2d<isize>),
 }
 
 // transform is [[f64; 3]; 2]
@@ -102,6 +104,7 @@ impl Turtle {
                         turtle_id: req.turtle_id,
                     }),
                     Command::Input(cmd) => tt.input_cmd(cmd, req.turtle_id),
+                    Command::Data(cmd) => tt.data_cmd(cmd, req.turtle_id),
                 }
             }
 
@@ -181,6 +184,14 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
         }
+    }
+
+    fn data_cmd(&mut self, cmd: DataCmd, turtle_id: u64) {
+        let resp = self.data.responder.get(&turtle_id).unwrap();
+        let _ = resp.send(match cmd {
+            DataCmd::Position => Response::Position(self.data.pos),
+            DataCmd::Heading => Response::Heading(self.data.angle),
+        });
     }
 
     fn render(&mut self, args: &RenderArgs) {
@@ -313,10 +324,17 @@ pub enum InputCmd {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum DataCmd {
+    Position,
+    Heading,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum Command {
     Draw(DrawCmd),
     Screen(ScreenCmd),
     Input(InputCmd),
+    Data(DataCmd),
 }
 
 impl DrawCmd {

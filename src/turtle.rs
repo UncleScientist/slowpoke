@@ -1,6 +1,6 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{Command, DrawCmd, InputCmd, Request, Response, ScreenCmd};
+use crate::{Command, DataCmd, DrawCmd, InputCmd, Request, Response, ScreenCmd};
 
 pub struct Turtle {
     issue_command: Sender<Request>,
@@ -31,6 +31,10 @@ impl Turtle {
 
     pub(crate) fn do_input(&mut self, cmd: InputCmd) {
         let _ = self.do_command(Command::Input(cmd));
+    }
+
+    pub(crate) fn do_data(&mut self, cmd: DataCmd) -> Response {
+        self.do_command(Command::Data(cmd))
     }
 
     fn do_command(&mut self, cmd: Command) -> Response {

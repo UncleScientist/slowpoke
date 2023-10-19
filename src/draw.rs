@@ -1,6 +1,6 @@
 use graphics::types::Vec2d;
 
-use crate::{turtle::Turtle, DrawCmd, ScreenCmd};
+use crate::{turtle::Turtle, DataCmd, DrawCmd, Response, ScreenCmd};
 
 impl Turtle {
     /*
@@ -60,13 +60,19 @@ impl Turtle {
     /*
      * Info requests
      */
-    pub fn pos(&self) -> Vec2d<isize> {
-        // self.current_pos
-        Vec2d::default()
+    pub fn pos(&mut self) -> Vec2d<isize> {
+        if let Response::Position(pos) = self.do_data(DataCmd::Position) {
+            pos
+        } else {
+            panic!("invalid response from turtle");
+        }
     }
 
-    pub fn heading(&self) -> f64 {
-        // self.angle
-        0.
+    pub fn heading(&mut self) -> f64 {
+        if let Response::Heading(angle) = self.do_data(DataCmd::Heading) {
+            angle
+        } else {
+            panic!("invalid response from turtle");
+        }
     }
 }
