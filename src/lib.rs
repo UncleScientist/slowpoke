@@ -26,10 +26,10 @@ struct TurtleTask {
 
 #[derive(Default)]
 struct TurtleData {
-    cmds: Vec<Command>,
-    queue: VecDeque<Request>,
-    current_command: Option<Command>,
-    current_turtle: u64,
+    cmds: Vec<DrawCmd>,               // already-drawn elements
+    queue: VecDeque<DrawRequest>,     // new elements to draw
+    current_command: Option<DrawCmd>, // what we're drawing now
+    current_turtle_id: u64,           // which thread to notify on completion
     percent: f64,
     is_pen_down: bool,
     pos: Vec2d<isize>,
@@ -95,24 +95,13 @@ impl Turtle {
         let mut command_complete = true;
         while let Some(e) = events.next(&mut window) {
             if let Ok(req) = receive_command.try_recv() {
-                let resp = tt.data.responder.get(&req.turtle_id).unwrap();
                 match req.cmd {
-                    Command::Background(r, g, b) => {
-                        tt.data.bgcolor = [r, g, b, 1.];
-                        let _ = resp.send(Response::Done);
-                    }
-                    Command::ClearScreen => {
-                        tt.data.cmds.clear();
-                        tt.data.bgcolor = BLACK;
-                        let _ = resp.send(Response::Done);
-                    }
-                    Command::OnKeyPress(f, k) => {
-                        tt.data.onkeypress.insert(k, f);
-                        let _ = resp.send(Response::Done);
-                    }
-                    _ => {
-                        tt.data.queue.push_back(req);
-                    }
+                    Command::Screen(cmd) => tt.screen_cmd(cmd, req.turtle_id),
+                    Command::Draw(cmd) => tt.data.queue.push_back(DrawRequest {
+                        cmd,
+                        turtle_id: req.turtle_id,
+                    }),
+                    Command::Input(cmd) => tt.input_cmd(cmd, req.turtle_id),
                 }
             }
 
@@ -121,15 +110,15 @@ impl Turtle {
                 let _ = tt
                     .data
                     .responder
-                    .get(&tt.data.current_turtle)
+                    .get(&tt.data.current_turtle_id)
                     .unwrap()
                     .send(Response::Done);
             }
 
             if command_complete && !tt.data.queue.is_empty() {
-                let Request { turtle_id, cmd } = tt.data.queue.pop_front().unwrap();
+                let DrawRequest { cmd, turtle_id } = tt.data.queue.pop_front().unwrap();
                 tt.data.current_command = Some(cmd);
-                tt.data.current_turtle = turtle_id;
+                tt.data.current_turtle_id = turtle_id;
                 tt.data.percent = 0.;
                 command_complete = false;
             }
@@ -169,6 +158,31 @@ impl Turtle {
 }
 
 impl TurtleTask {
+    fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
+        let resp = self.data.responder.get(&turtle_id).unwrap();
+        match cmd {
+            ScreenCmd::Background(r, g, b) => {
+                self.data.bgcolor = [r, g, b, 1.];
+                let _ = resp.send(Response::Done);
+            }
+            ScreenCmd::ClearScreen => {
+                self.data.cmds.clear();
+                self.data.bgcolor = BLACK;
+                let _ = resp.send(Response::Done);
+            }
+        }
+    }
+
+    fn input_cmd(&mut self, cmd: InputCmd, turtle_id: u64) {
+        let resp = self.data.responder.get(&turtle_id).unwrap();
+        match cmd {
+            InputCmd::OnKeyPress(f, k) => {
+                self.data.onkeypress.insert(k, f);
+                let _ = resp.send(Response::Done);
+            }
+        }
+    }
+
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
@@ -213,7 +227,7 @@ impl TurtleTask {
                 }
 
                 match cmd {
-                    Command::Forward(dist) => {
+                    DrawCmd::Forward(dist) => {
                         if self.data.is_pen_down {
                             line_from_to(
                                 pen_color,
@@ -226,23 +240,18 @@ impl TurtleTask {
                         }
                         transform = transform.trans(dist * pct, 0.);
                     }
-                    Command::Right(deg) => transform = transform.rot_deg(deg * pct),
-                    Command::Left(deg) => transform = transform.rot_deg(-deg * pct),
-                    Command::PenDown => self.data.is_pen_down = true,
-                    Command::PenUp => self.data.is_pen_down = false,
-                    Command::GoTo(xpos, ypos) => {
+                    DrawCmd::Right(deg) => transform = transform.rot_deg(deg * pct),
+                    DrawCmd::Left(deg) => transform = transform.rot_deg(-deg * pct),
+                    DrawCmd::PenDown => self.data.is_pen_down = true,
+                    DrawCmd::PenUp => self.data.is_pen_down = false,
+                    DrawCmd::GoTo(xpos, ypos) => {
                         transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
                     }
-                    Command::PenColor(r, g, b) => {
+                    DrawCmd::PenColor(r, g, b) => {
                         pen_color = [r, g, b, 1.];
                     }
-                    Command::PenWidth(width) => {
+                    DrawCmd::PenWidth(width) => {
                         pen_width = width;
-                    }
-                    Command::OnKeyPress(_, _)
-                    | Command::Background(_, _, _)
-                    | Command::ClearScreen => {
-                        panic!("{cmd:?} is not a drawing command")
                     }
                 }
             }
@@ -275,25 +284,46 @@ pub struct Request {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum Command {
+pub enum DrawCmd {
     Forward(f64),
     Right(f64),
     Left(f64),
     PenDown,
     PenUp,
     GoTo(f64, f64),
-    ClearScreen,
     PenColor(f32, f32, f32),
     PenWidth(f64),
+}
+
+#[derive(Copy, Clone, Debug)]
+struct DrawRequest {
+    cmd: DrawCmd,
+    turtle_id: u64,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum ScreenCmd {
+    ClearScreen,
     Background(f32, f32, f32),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum InputCmd {
     OnKeyPress(fn(&mut Turtle, Key), Key),
 }
 
-impl Command {
+#[derive(Copy, Clone, Debug)]
+pub enum Command {
+    Draw(DrawCmd),
+    Screen(ScreenCmd),
+    Input(InputCmd),
+}
+
+impl DrawCmd {
     fn get_rotation(&self) -> f64 {
         match self {
-            Command::Right(deg) => *deg,
-            Command::Left(deg) => -*deg,
+            Self::Right(deg) => *deg,
+            Self::Left(deg) => -*deg,
             _ => 0.,
         }
     }

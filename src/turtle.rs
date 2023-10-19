@@ -1,6 +1,6 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{Command, Request, Response};
+use crate::{Command, DrawCmd, InputCmd, Request, Response, ScreenCmd};
 
 pub struct Turtle {
     issue_command: Sender<Request>,
@@ -21,13 +21,25 @@ impl Turtle {
         }
     }
 
-    pub(crate) fn do_command(&mut self, cmd: Command) {
+    pub(crate) fn do_draw(&mut self, cmd: DrawCmd) {
+        let _ = self.do_command(Command::Draw(cmd));
+    }
+
+    pub(crate) fn do_screen(&mut self, cmd: ScreenCmd) {
+        let _ = self.do_command(Command::Screen(cmd));
+    }
+
+    pub(crate) fn do_input(&mut self, cmd: InputCmd) {
+        let _ = self.do_command(Command::Input(cmd));
+    }
+
+    fn do_command(&mut self, cmd: Command) -> Response {
         self.issue_command
             .send(Request {
                 turtle_id: self.turtle_id,
                 cmd,
             })
             .expect("graphics window no longer exists");
-        let _ = self.command_complete.recv().expect("main window died!");
+        self.command_complete.recv().expect("main window died!")
     }
 }
