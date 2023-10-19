@@ -1,7 +1,7 @@
 use slowpoke::*;
 
 fn main() {
-    Turtle::start(800, 800, |turtle| {
+    Turtle::start(&TurtleArgs::default(), |turtle| {
         turtle.goto(-243. / 2., 243. / 2.);
         for _ in 0..4 {
             spiky_fractal(turtle, 3, 243.);

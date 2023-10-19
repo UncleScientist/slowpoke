@@ -2,7 +2,9 @@ use piston::Key;
 use slowpoke::*;
 
 fn main() {
-    Turtle::start(800, 800, |turtle| {
+    let ta = TurtleArgs::default();
+
+    Turtle::start(&ta, |turtle| {
         turtle.onkey(left, Key::H);
 
         loop {

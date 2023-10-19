@@ -5,6 +5,35 @@ use crate::{
     Response,
 };
 
+pub struct TurtleArgs {
+    pub(crate) size: [isize; 2],
+    pub(crate) title: String,
+}
+
+impl Default for TurtleArgs {
+    fn default() -> Self {
+        Self {
+            size: [800, 800],
+            title: "Turtle".to_string(),
+        }
+    }
+}
+
+impl TurtleArgs {
+    pub fn with_size(mut self, x: isize, y: isize) -> Self {
+        self.size = [x, y];
+        self
+    }
+    pub fn with_title<S: Into<String>>(mut self, title: S) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(&self, func: F) {
+        Turtle::start(self, func)
+    }
+}
+
 pub struct Turtle {
     issue_command: Sender<Request>,
     command_complete: Receiver<Response>,
@@ -12,7 +41,7 @@ pub struct Turtle {
 }
 
 impl Turtle {
-    pub(crate) fn new(
+    pub(crate) fn init(
         issue_command: Sender<Request>,
         command_complete: Receiver<Response>,
         turtle_id: u64,

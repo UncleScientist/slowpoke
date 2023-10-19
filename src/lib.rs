@@ -11,7 +11,7 @@ use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
     RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
 };
-pub use turtle::Turtle;
+pub use turtle::{Turtle, TurtleArgs};
 
 mod command;
 mod draw;
@@ -59,19 +59,19 @@ pub enum Response {
 // | d*x + e*y + f| -> new y coordinate
 //
 impl Turtle {
-    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static, S: Into<f64>>(
-        xsize: S,
-        ysize: S,
-        func: F,
-    ) {
-        let xsize: f64 = xsize.into();
-        let ysize: f64 = ysize.into();
+    pub fn new() -> TurtleArgs {
+        TurtleArgs::default()
+    }
+
+    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
+        let xsize: f64 = args.size[0] as f64;
+        let ysize: f64 = args.size[1] as f64;
 
         // Change this to OpenGL::V2_1 if not working.
         let opengl = OpenGL::V3_2;
 
         // Create a Glutin window.
-        let window: GlutinWindow = WindowSettings::new("spinning-square", [xsize, ysize])
+        let window: GlutinWindow = WindowSettings::new(&args.title, [xsize, ysize])
             .graphics_api(opengl)
             .exit_on_esc(true)
             .build()
@@ -99,7 +99,7 @@ impl TurtleTask {
         let mut turtle_id = 0;
 
         turtle_id += 1;
-        let mut turtle = Turtle::new(issue_command.clone(), command_complete, turtle_id);
+        let mut turtle = Turtle::init(issue_command.clone(), command_complete, turtle_id);
         self.data.responder.insert(turtle_id, finished);
 
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -157,7 +157,7 @@ impl TurtleTask {
                             let (finished, command_complete) = mpsc::channel();
                             turtle_id += 1;
                             let mut turtle =
-                                Turtle::new(issue_command.clone(), command_complete, turtle_id);
+                                Turtle::init(issue_command.clone(), command_complete, turtle_id);
                             self.data.responder.insert(turtle_id, finished);
                             let _ = std::thread::spawn(move || func(&mut turtle, key));
                         }
