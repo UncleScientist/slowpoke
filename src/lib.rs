@@ -23,6 +23,7 @@ const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
 struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
+    window: GlutinWindow,
     data: TurtleData,
 }
 
@@ -63,17 +64,14 @@ impl Turtle {
         ysize: S,
         func: F,
     ) {
-        let (issue_command, receive_command) = mpsc::channel();
-        let (finished, command_complete) = mpsc::channel();
         let xsize: f64 = xsize.into();
         let ysize: f64 = ysize.into();
-        let mut turtle_id = 0;
 
         // Change this to OpenGL::V2_1 if not working.
         let opengl = OpenGL::V3_2;
 
         // Create a Glutin window.
-        let mut window: GlutinWindow = WindowSettings::new("spinning-square", [xsize, ysize])
+        let window: GlutinWindow = WindowSettings::new("spinning-square", [xsize, ysize])
             .graphics_api(opengl)
             .exit_on_esc(true)
             .build()
@@ -81,6 +79,7 @@ impl Turtle {
 
         let mut tt = TurtleTask {
             gl: GlGraphics::new(opengl),
+            window,
             data: TurtleData {
                 is_pen_down: true,
                 size: [xsize, ysize],
@@ -89,51 +88,61 @@ impl Turtle {
             },
         };
 
+        tt.run(func);
+    }
+}
+
+impl TurtleTask {
+    fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
+        let (issue_command, receive_command) = mpsc::channel();
+        let (finished, command_complete) = mpsc::channel();
+        let mut turtle_id = 0;
+
         turtle_id += 1;
         let mut turtle = Turtle::new(issue_command.clone(), command_complete, turtle_id);
-        tt.data.responder.insert(turtle_id, finished);
+        self.data.responder.insert(turtle_id, finished);
 
         let _ = std::thread::spawn(move || func(&mut turtle));
 
         let mut events = Events::new(EventSettings::new());
         let mut command_complete = true;
-        while let Some(e) = events.next(&mut window) {
+        while let Some(e) = events.next(&mut self.window) {
             if let Ok(req) = receive_command.try_recv() {
                 match req.cmd {
-                    Command::Screen(cmd) => tt.screen_cmd(cmd, req.turtle_id),
-                    Command::Draw(cmd) => tt.data.queue.push_back(DrawRequest {
+                    Command::Screen(cmd) => self.screen_cmd(cmd, req.turtle_id),
+                    Command::Draw(cmd) => self.data.queue.push_back(DrawRequest {
                         cmd,
                         turtle_id: req.turtle_id,
                     }),
-                    Command::Input(cmd) => tt.input_cmd(cmd, req.turtle_id),
-                    Command::Data(cmd) => tt.data_cmd(cmd, req.turtle_id),
+                    Command::Input(cmd) => self.input_cmd(cmd, req.turtle_id),
+                    Command::Data(cmd) => self.data_cmd(cmd, req.turtle_id),
                 }
             }
 
-            if !command_complete && tt.data.current_command.is_none() {
+            if !command_complete && self.data.current_command.is_none() {
                 command_complete = true;
-                let _ = tt
+                let _ = self
                     .data
                     .responder
-                    .get(&tt.data.current_turtle_id)
+                    .get(&self.data.current_turtle_id)
                     .unwrap()
                     .send(Response::Done);
             }
 
-            if command_complete && !tt.data.queue.is_empty() {
-                let DrawRequest { cmd, turtle_id } = tt.data.queue.pop_front().unwrap();
-                tt.data.current_command = Some(cmd);
-                tt.data.current_turtle_id = turtle_id;
-                tt.data.percent = 0.;
+            if command_complete && !self.data.queue.is_empty() {
+                let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
+                self.data.current_command = Some(cmd);
+                self.data.current_turtle_id = turtle_id;
+                self.data.percent = 0.;
                 command_complete = false;
             }
 
             if let Some(args) = e.render_args() {
-                tt.render(&args);
+                self.render(&args);
             }
 
             if let Some(args) = e.update_args() {
-                tt.update(&args);
+                self.update(&args);
             }
 
             if let Some(args) = e.button_args() {
@@ -143,13 +152,13 @@ impl Turtle {
                         button: Button::Keyboard(key),
                         ..
                     } => {
-                        let func = tt.data.onkeypress.get_mut(&key);
+                        let func = self.data.onkeypress.get_mut(&key);
                         if let Some(func) = func.cloned() {
                             let (finished, command_complete) = mpsc::channel();
                             turtle_id += 1;
                             let mut turtle =
                                 Turtle::new(issue_command.clone(), command_complete, turtle_id);
-                            tt.data.responder.insert(turtle_id, finished);
+                            self.data.responder.insert(turtle_id, finished);
                             let _ = std::thread::spawn(move || func(&mut turtle, key));
                         }
                     }
