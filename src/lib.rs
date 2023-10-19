@@ -21,6 +21,11 @@ const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
 struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
+    data: TurtleData,
+}
+
+#[derive(Default)]
+struct TurtleData {
     cmds: Vec<Command>,
     queue: VecDeque<Request>,
     current_command: Option<Command>,
@@ -32,7 +37,7 @@ struct TurtleTask {
     size: Vec2d<f64>,
     bgcolor: [f32; 4],
     responder: HashMap<u64, Sender<Response>>,
-    onkey: HashMap<Key, fn(&mut Turtle, Key)>,
+    onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
 }
 
 pub enum Response {
@@ -72,23 +77,17 @@ impl Turtle {
 
         let mut tt = TurtleTask {
             gl: GlGraphics::new(opengl),
-            cmds: Vec::new(),
-            queue: VecDeque::new(),
-            current_command: None,
-            current_turtle: 0,
-            percent: 0.,
-            is_pen_down: true,
-            pos: [0, 0],
-            angle: 0.,
-            size: [xsize, ysize],
-            bgcolor: WHITE,
-            responder: HashMap::new(),
-            onkey: HashMap::new(),
+            data: TurtleData {
+                is_pen_down: true,
+                size: [xsize, ysize],
+                bgcolor: WHITE,
+                ..TurtleData::default()
+            },
         };
 
         turtle_id += 1;
         let mut turtle = Turtle::new(issue_command.clone(), command_complete, turtle_id);
-        tt.responder.insert(turtle_id, finished);
+        tt.data.responder.insert(turtle_id, finished);
 
         let _ = std::thread::spawn(move || func(&mut turtle));
 
@@ -96,41 +95,42 @@ impl Turtle {
         let mut command_complete = true;
         while let Some(e) = events.next(&mut window) {
             if let Ok(req) = receive_command.try_recv() {
-                let resp = tt.responder.get(&req.turtle_id).unwrap();
+                let resp = tt.data.responder.get(&req.turtle_id).unwrap();
                 match req.cmd {
                     Command::Background(r, g, b) => {
-                        tt.bgcolor = [r, g, b, 1.];
+                        tt.data.bgcolor = [r, g, b, 1.];
                         let _ = resp.send(Response::Done);
                     }
                     Command::ClearScreen => {
-                        tt.cmds.clear();
-                        tt.bgcolor = BLACK;
+                        tt.data.cmds.clear();
+                        tt.data.bgcolor = BLACK;
                         let _ = resp.send(Response::Done);
                     }
                     Command::OnKey(f, k) => {
-                        tt.onkey.insert(k, f);
+                        tt.data.onkeypress.insert(k, f);
                         let _ = resp.send(Response::Done);
                     }
                     _ => {
-                        tt.queue.push_back(req);
+                        tt.data.queue.push_back(req);
                     }
                 }
             }
 
-            if !command_complete && tt.current_command.is_none() {
+            if !command_complete && tt.data.current_command.is_none() {
                 command_complete = true;
                 let _ = tt
+                    .data
                     .responder
-                    .get(&tt.current_turtle)
+                    .get(&tt.data.current_turtle)
                     .unwrap()
                     .send(Response::Done);
             }
 
-            if command_complete && !tt.queue.is_empty() {
-                let Request { turtle_id, cmd } = tt.queue.pop_front().unwrap();
-                tt.current_command = Some(cmd);
-                tt.current_turtle = turtle_id;
-                tt.percent = 0.;
+            if command_complete && !tt.data.queue.is_empty() {
+                let Request { turtle_id, cmd } = tt.data.queue.pop_front().unwrap();
+                tt.data.current_command = Some(cmd);
+                tt.data.current_turtle = turtle_id;
+                tt.data.percent = 0.;
                 command_complete = false;
             }
 
@@ -144,22 +144,23 @@ impl Turtle {
 
             if let Some(args) = e.button_args() {
                 match args {
-                    ButtonArgs { state, button, .. } => {
-                        if let Button::Keyboard(key) = button {
-                            let func = if state == ButtonState::Press {
-                                tt.onkey.get_mut(&key)
-                            } else {
-                                None // tt.onkeyrelease.get_mut(&key)
-                            };
-                            if let Some(func) = func.cloned() {
-                                let (finished, command_complete) = mpsc::channel();
-                                turtle_id += 1;
-                                let mut turtle =
-                                    Turtle::new(issue_command.clone(), command_complete, turtle_id);
-                                tt.responder.insert(turtle_id, finished);
-                                let _ = std::thread::spawn(move || func(&mut turtle, key));
-                            }
+                    ButtonArgs {
+                        state: ButtonState::Press,
+                        button: Button::Keyboard(key),
+                        ..
+                    } => {
+                        let func = tt.data.onkeypress.get_mut(&key);
+                        if let Some(func) = func.cloned() {
+                            let (finished, command_complete) = mpsc::channel();
+                            turtle_id += 1;
+                            let mut turtle =
+                                Turtle::new(issue_command.clone(), command_complete, turtle_id);
+                            tt.data.responder.insert(turtle_id, finished);
+                            let _ = std::thread::spawn(move || func(&mut turtle, key));
                         }
+                    }
+                    ButtonArgs { state, button, .. } => {
+                        println!("state={state:?}, button={button:?}");
                     }
                 }
             }
@@ -175,7 +176,7 @@ impl TurtleTask {
 
         self.gl.draw(args.viewport(), |c, gl| {
             // Clear the screen.
-            clear(self.bgcolor, gl);
+            clear(self.data.bgcolor, gl);
 
             let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
@@ -187,19 +188,19 @@ impl TurtleTask {
 
             let mut index = 0;
             while !done {
-                let cmd = if index < self.cmds.len() {
+                let cmd = if index < self.data.cmds.len() {
                     index += 1;
-                    let cmd = self.cmds[index - 1];
+                    let cmd = self.data.cmds[index - 1];
                     deg += cmd.get_rotation() % 360.;
                     if deg < 0. {
                         deg += 360.;
                     }
                     Some(cmd)
                 } else {
-                    pct = self.percent.min(1.);
+                    pct = self.data.percent.min(1.);
                     full = pct >= 1.;
                     done = true;
-                    self.current_command
+                    self.data.current_command
                 };
 
                 let Some(cmd) = cmd else {
@@ -207,13 +208,13 @@ impl TurtleTask {
                 };
 
                 if full {
-                    self.cmds.push(cmd);
-                    self.current_command = None;
+                    self.data.cmds.push(cmd);
+                    self.data.current_command = None;
                 }
 
                 match cmd {
                     Command::Forward(dist) => {
-                        if self.is_pen_down {
+                        if self.data.is_pen_down {
                             line_from_to(
                                 pen_color,
                                 pen_width,
@@ -227,8 +228,8 @@ impl TurtleTask {
                     }
                     Command::Right(deg) => transform = transform.rot_deg(deg * pct),
                     Command::Left(deg) => transform = transform.rot_deg(-deg * pct),
-                    Command::PenDown => self.is_pen_down = true,
-                    Command::PenUp => self.is_pen_down = false,
+                    Command::PenDown => self.data.is_pen_down = true,
+                    Command::PenUp => self.data.is_pen_down = false,
                     Command::GoTo(xpos, ypos) => {
                         transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
                     }
@@ -244,11 +245,11 @@ impl TurtleTask {
                 }
             }
 
-            self.pos = [
-                (transform[0][2] * self.size[0] / 2.) as isize,
-                (transform[1][2] * self.size[1] / 2.) as isize,
+            self.data.pos = [
+                (transform[0][2] * self.data.size[0] / 2.) as isize,
+                (transform[1][2] * self.data.size[1] / 2.) as isize,
             ];
-            self.angle = if deg + 90. >= 360. {
+            self.data.angle = if deg + 90. >= 360. {
                 deg - 270.
             } else {
                 deg + 90.
@@ -260,8 +261,8 @@ impl TurtleTask {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        if self.percent < 1. {
-            self.percent += args.dt * 60.;
+        if self.data.percent < 1. {
+            self.data.percent += args.dt * 60.;
         }
     }
 }
