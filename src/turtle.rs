@@ -1,6 +1,9 @@
 use std::sync::mpsc::{Receiver, Sender};
 
-use crate::{Command, DataCmd, DrawCmd, InputCmd, Request, Response, ScreenCmd};
+use crate::{
+    command::Command, command::DataCmd, command::InputCmd, command::ScreenCmd, DrawCmd, Request,
+    Response,
+};
 
 pub struct Turtle {
     issue_command: Sender<Request>,

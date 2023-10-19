@@ -3,6 +3,7 @@ use std::{
     sync::mpsc::{self, Sender},
 };
 
+use command::{Command, DataCmd, DrawCmd, InputCmd, ScreenCmd};
 use glutin_window::GlutinWindow;
 use graphics::types::Vec2d;
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -12,6 +13,7 @@ use piston::{
 };
 pub use turtle::Turtle;
 
+mod command;
 mod draw;
 mod input;
 pub mod turtle;
@@ -294,55 +296,7 @@ pub struct Request {
     cmd: Command,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum DrawCmd {
-    Forward(f64),
-    Right(f64),
-    Left(f64),
-    PenDown,
-    PenUp,
-    GoTo(f64, f64),
-    PenColor(f32, f32, f32),
-    PenWidth(f64),
-}
-
-#[derive(Copy, Clone, Debug)]
 struct DrawRequest {
     cmd: DrawCmd,
     turtle_id: u64,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum ScreenCmd {
-    ClearScreen,
-    Background(f32, f32, f32),
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum InputCmd {
-    OnKeyPress(fn(&mut Turtle, Key), Key),
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum DataCmd {
-    Position,
-    Heading,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum Command {
-    Draw(DrawCmd),
-    Screen(ScreenCmd),
-    Input(InputCmd),
-    Data(DataCmd),
-}
-
-impl DrawCmd {
-    fn get_rotation(&self) -> f64 {
-        match self {
-            Self::Right(deg) => *deg,
-            Self::Left(deg) => -*deg,
-            _ => 0.,
-        }
-    }
 }

@@ -1,6 +1,6 @@
 use graphics::types::Vec2d;
 
-use crate::{turtle::Turtle, DataCmd, DrawCmd, Response, ScreenCmd};
+use crate::{command::DataCmd, command::DrawCmd, command::ScreenCmd, turtle::Turtle, Response};
 
 impl Turtle {
     /*
