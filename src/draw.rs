@@ -50,7 +50,7 @@ impl Turtle {
     }
 
     pub fn goto(&mut self, xpos: f64, ypos: f64) {
-        self.do_draw(DrawCmd::GoTo(xpos, ypos));
+        self.do_draw(DrawCmd::GoTo(xpos, -ypos));
     }
 
     pub fn home(&mut self) {
