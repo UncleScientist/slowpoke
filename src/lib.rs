@@ -91,6 +91,7 @@ impl Turtle {
                 is_pen_down: true,
                 size: [xsize, ysize],
                 bgcolor: WHITE,
+                percent: 2.,
                 ..TurtleData::default()
             },
         };
@@ -106,36 +107,9 @@ impl TurtleTask {
 
         let mut events = Events::new(EventSettings::new());
 
-        let mut command_complete = true;
         while let Some(e) = events.next(&mut self.window) {
-            if let Ok(req) = self.receive_command.try_recv() {
-                match req.cmd {
-                    Command::Screen(cmd) => self.screen_cmd(cmd, req.turtle_id),
-                    Command::Draw(cmd) => self.data.queue.push_back(DrawRequest {
-                        cmd,
-                        turtle_id: req.turtle_id,
-                    }),
-                    Command::Input(cmd) => self.input_cmd(cmd, req.turtle_id),
-                    Command::Data(cmd) => self.data_cmd(cmd, req.turtle_id),
-                }
-            }
-
-            if !command_complete && self.data.current_command.is_none() {
-                command_complete = true;
-                let _ = self
-                    .data
-                    .responder
-                    .get(&self.data.current_turtle_id)
-                    .unwrap()
-                    .send(Response::Done);
-            }
-
-            if command_complete && !self.data.queue.is_empty() {
-                let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
-                self.data.current_command = Some(cmd);
-                self.data.current_turtle_id = turtle_id;
-                self.data.percent = 0.;
-                command_complete = false;
+            while let Ok(req) = self.receive_command.try_recv() {
+                self.handle_command(req);
             }
 
             if let Some(args) = e.render_args() {
@@ -197,6 +171,18 @@ impl TurtleTask {
         });
     }
 
+    fn handle_command(&mut self, req: Request) {
+        match req.cmd {
+            Command::Screen(cmd) => self.screen_cmd(cmd, req.turtle_id),
+            Command::Draw(cmd) => self.data.queue.push_back(DrawRequest {
+                cmd,
+                turtle_id: req.turtle_id,
+            }),
+            Command::Input(cmd) => self.input_cmd(cmd, req.turtle_id),
+            Command::Data(cmd) => self.data_cmd(cmd, req.turtle_id),
+        }
+    }
+
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
@@ -208,7 +194,6 @@ impl TurtleTask {
 
             let mut transform = c.transform.trans(x, y).rot_deg(-90.);
             let mut pct = 1.;
-            let mut full = false;
             let mut done = false;
             let mut deg: f64 = -90.;
             let mut pen_color = BLACK;
@@ -226,7 +211,6 @@ impl TurtleTask {
                     Some(cmd)
                 } else {
                     pct = self.data.percent.min(1.);
-                    full = pct >= 1.;
                     done = true;
                     self.data.current_command
                 };
@@ -234,11 +218,6 @@ impl TurtleTask {
                 let Some(cmd) = cmd else {
                     break;
                 };
-
-                if full {
-                    self.data.cmds.push(cmd);
-                    self.data.current_command = None;
-                }
 
                 match cmd {
                     DrawCmd::Forward(dist) => {
@@ -287,7 +266,26 @@ impl TurtleTask {
 
     fn update(&mut self, args: &UpdateArgs) {
         if self.data.percent < 1. {
-            self.data.percent += args.dt * 60.;
+            self.data.percent += args.dt * 60.; // TODO: make this smarter
+        }
+
+        if self.data.percent >= 1. && self.data.current_command.is_some() {
+            self.data.cmds.push(self.data.current_command.unwrap());
+            self.data.current_command = None; // TODO: clean this up
+
+            let _ = self
+                .data
+                .responder
+                .get(&self.data.current_turtle_id)
+                .unwrap()
+                .send(Response::Done);
+        }
+
+        if self.data.current_command.is_none() && !self.data.queue.is_empty() {
+            let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
+            self.data.current_command = Some(cmd);
+            self.data.current_turtle_id = turtle_id;
+            self.data.percent = 0.;
         }
     }
 
