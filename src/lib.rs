@@ -13,6 +13,8 @@ use piston::{
 };
 pub use turtle::{Turtle, TurtleArgs};
 
+use crate::command::TurtleDrawState;
+
 mod command;
 mod draw;
 mod input;
@@ -37,7 +39,6 @@ struct TurtleData {
     current_turtle_id: u64,           // which thread to notify on completion
     turtle_id: u64,
     percent: f64,
-    is_pen_down: bool,
     pos: Vec2d<isize>,
     angle: f64,
     size: Vec2d<f64>,
@@ -88,7 +89,6 @@ impl Turtle {
             issue_command,
             receive_command,
             data: TurtleData {
-                is_pen_down: true,
                 size: [xsize, ysize],
                 bgcolor: WHITE,
                 percent: 2.,
@@ -188,29 +188,36 @@ impl TurtleTask {
 
         let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
 
-        self.gl.draw(args.viewport(), |c, gl| {
+        self.gl.draw(args.viewport(), |context, gl| {
             // Clear the screen.
             clear(self.data.bgcolor, gl);
 
-            let mut transform = c.transform.trans(x, y).rot_deg(-90.);
-            let mut pct = 1.;
-            let mut done = false;
-            let mut deg: f64 = -90.;
-            let mut pen_color = BLACK;
-            let mut pen_width = 1.0;
+            let mut ds = TurtleDrawState {
+                context,
+                x,
+                y,
+                is_pen_down: true,
+                transform: context.transform.trans(x, y).rot_deg(-90.),
+                pct: 1.,
+                deg: -90.,
+                pen_color: BLACK,
+                pen_width: 1.0,
+                gl,
+            };
 
             let mut index = 0;
+            let mut done = false;
             while !done {
                 let cmd = if index < self.data.cmds.len() {
                     index += 1;
                     let cmd = self.data.cmds[index - 1];
-                    deg += cmd.get_rotation() % 360.;
-                    if deg < 0. {
-                        deg += 360.;
+                    ds.deg += cmd.get_rotation() % 360.;
+                    if ds.deg < 0. {
+                        ds.deg += 360.;
                     }
                     Some(cmd)
                 } else {
-                    pct = self.data.percent.min(1.);
+                    ds.pct = self.data.percent.min(1.);
                     done = true;
                     self.data.current_command
                 };
@@ -219,48 +226,21 @@ impl TurtleTask {
                     break;
                 };
 
-                match cmd {
-                    DrawCmd::Forward(dist) => {
-                        if self.data.is_pen_down {
-                            line_from_to(
-                                pen_color,
-                                pen_width,
-                                [0., 0.],
-                                [dist * pct, 0.],
-                                transform,
-                                gl,
-                            );
-                        }
-                        transform = transform.trans(dist * pct, 0.);
-                    }
-                    DrawCmd::Right(deg) => transform = transform.rot_deg(deg * pct),
-                    DrawCmd::Left(deg) => transform = transform.rot_deg(-deg * pct),
-                    DrawCmd::PenDown => self.data.is_pen_down = true,
-                    DrawCmd::PenUp => self.data.is_pen_down = false,
-                    DrawCmd::GoTo(xpos, ypos) => {
-                        transform = c.transform.trans(xpos + x, ypos + y).rot_deg(deg);
-                    }
-                    DrawCmd::PenColor(r, g, b) => {
-                        pen_color = [r, g, b, 1.];
-                    }
-                    DrawCmd::PenWidth(width) => {
-                        pen_width = width;
-                    }
-                }
+                cmd.draw(&mut ds);
             }
 
             self.data.pos = [
-                (transform[0][2] * self.data.size[0] / 2.) as isize,
-                (transform[1][2] * self.data.size[1] / 2.) as isize,
+                (ds.transform[0][2] * self.data.size[0] / 2.) as isize,
+                (ds.transform[1][2] * self.data.size[1] / 2.) as isize,
             ];
-            self.data.angle = if deg + 90. >= 360. {
-                deg - 270.
+            self.data.angle = if ds.deg + 90. >= 360. {
+                ds.deg - 270.
             } else {
-                deg + 90.
+                ds.deg + 90.
             };
 
             let square = rectangle::square(0.0, 0.0, 10.0);
-            ellipse(BLACK, square, transform.trans(-5., -5.), gl);
+            ellipse(BLACK, square, ds.transform.trans(-5., -5.), gl);
         });
     }
 

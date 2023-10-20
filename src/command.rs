@@ -1,3 +1,5 @@
+use graphics::{Context, Transformed};
+use opengl_graphics::GlGraphics;
 use piston::Key;
 
 use crate::Turtle;
@@ -12,6 +14,19 @@ pub enum DrawCmd {
     GoTo(f64, f64),
     PenColor(f32, f32, f32),
     PenWidth(f64),
+}
+
+pub(crate) struct TurtleDrawState<'a> {
+    pub context: Context,
+    pub x: f64,
+    pub y: f64,
+    pub transform: [[f64; 3]; 2],
+    pub pct: f64,
+    pub deg: f64,
+    pub pen_color: [f32; 4],
+    pub pen_width: f64,
+    pub is_pen_down: bool,
+    pub gl: &'a mut GlGraphics,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -45,6 +60,41 @@ impl DrawCmd {
             Self::Right(deg) => *deg,
             Self::Left(deg) => -*deg,
             _ => 0.,
+        }
+    }
+
+    pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
+        match self {
+            Self::Forward(dist) => {
+                if ds.is_pen_down {
+                    graphics::line_from_to(
+                        ds.pen_color,
+                        ds.pen_width,
+                        [0., 0.],
+                        [dist * ds.pct, 0.],
+                        ds.transform,
+                        ds.gl,
+                    );
+                }
+                ds.transform = ds.transform.trans(dist * ds.pct, 0.);
+            }
+            Self::Right(deg) => ds.transform = ds.transform.rot_deg(deg * ds.pct),
+            Self::Left(deg) => ds.transform = ds.transform.rot_deg(-deg * ds.pct),
+            Self::PenDown => ds.is_pen_down = true,
+            Self::PenUp => ds.is_pen_down = false,
+            Self::GoTo(xpos, ypos) => {
+                ds.transform = ds
+                    .context
+                    .transform
+                    .trans(xpos + ds.x, ypos + ds.y)
+                    .rot_deg(ds.deg);
+            }
+            Self::PenColor(r, g, b) => {
+                ds.pen_color = [*r, *g, *b, 1.];
+            }
+            Self::PenWidth(width) => {
+                ds.pen_width = *width;
+            }
         }
     }
 }
