@@ -29,8 +29,8 @@ impl TurtleArgs {
         self
     }
 
-    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(&self, func: F) {
-        Turtle::start(self, func)
+    pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&self, func: F) {
+        Turtle::run(self, func)
     }
 }
 

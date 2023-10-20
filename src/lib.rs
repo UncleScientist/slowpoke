@@ -63,7 +63,7 @@ impl Turtle {
         TurtleArgs::default()
     }
 
-    pub fn start<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
+    pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
         let xsize: f64 = args.size[0] as f64;
         let ysize: f64 = args.size[1] as f64;
 

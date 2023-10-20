@@ -4,7 +4,7 @@ use slowpoke::*;
 fn main() {
     let ta = TurtleArgs::default();
 
-    Turtle::start(&ta, |turtle| {
+    Turtle::run(&ta, |turtle| {
         turtle.onkey(left, Key::H);
 
         loop {
