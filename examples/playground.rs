@@ -4,7 +4,7 @@ fn main() {
     TurtleArgs::default()
         .with_size(400, 400)
         .with_title("simple commands")
-        .start(|turtle| {
+        .run(|turtle| {
             turtle.right(0.);
             println!(
                 "starting at {:?}, heading of {:?}",

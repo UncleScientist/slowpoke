@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    sync::mpsc::{self, Sender},
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use command::{Command, DataCmd, DrawCmd, InputCmd, ScreenCmd};
@@ -24,6 +24,8 @@ const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
     window: GlutinWindow,
+    issue_command: Sender<Request>,
+    receive_command: Receiver<Request>,
     data: TurtleData,
 }
 
@@ -33,6 +35,7 @@ struct TurtleData {
     queue: VecDeque<DrawRequest>,     // new elements to draw
     current_command: Option<DrawCmd>, // what we're drawing now
     current_turtle_id: u64,           // which thread to notify on completion
+    turtle_id: u64,
     percent: f64,
     is_pen_down: bool,
     pos: Vec2d<isize>,
@@ -59,6 +62,7 @@ pub enum Response {
 // | d*x + e*y + f| -> new y coordinate
 //
 impl Turtle {
+    #[allow(clippy::new_ret_no_self)] // TODO: fix this
     pub fn new() -> TurtleArgs {
         TurtleArgs::default()
     }
@@ -77,9 +81,12 @@ impl Turtle {
             .build()
             .unwrap();
 
+        let (issue_command, receive_command) = mpsc::channel();
         let mut tt = TurtleTask {
             gl: GlGraphics::new(opengl),
             window,
+            issue_command,
+            receive_command,
             data: TurtleData {
                 is_pen_down: true,
                 size: [xsize, ysize],
@@ -94,20 +101,14 @@ impl Turtle {
 
 impl TurtleTask {
     fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
-        let (issue_command, receive_command) = mpsc::channel();
-        let (finished, command_complete) = mpsc::channel();
-        let mut turtle_id = 0;
-
-        turtle_id += 1;
-        let mut turtle = Turtle::init(issue_command.clone(), command_complete, turtle_id);
-        self.data.responder.insert(turtle_id, finished);
-
+        let mut turtle = self.spawn_turtle();
         let _ = std::thread::spawn(move || func(&mut turtle));
 
         let mut events = Events::new(EventSettings::new());
+
         let mut command_complete = true;
         while let Some(e) = events.next(&mut self.window) {
-            if let Ok(req) = receive_command.try_recv() {
+            if let Ok(req) = self.receive_command.try_recv() {
                 match req.cmd {
                     Command::Screen(cmd) => self.screen_cmd(cmd, req.turtle_id),
                     Command::Draw(cmd) => self.data.queue.push_back(DrawRequest {
@@ -146,32 +147,23 @@ impl TurtleTask {
             }
 
             if let Some(args) = e.button_args() {
-                match args {
-                    ButtonArgs {
-                        state: ButtonState::Press,
-                        button: Button::Keyboard(key),
-                        ..
-                    } => {
-                        let func = self.data.onkeypress.get_mut(&key);
-                        if let Some(func) = func.cloned() {
-                            let (finished, command_complete) = mpsc::channel();
-                            turtle_id += 1;
-                            let mut turtle =
-                                Turtle::init(issue_command.clone(), command_complete, turtle_id);
-                            self.data.responder.insert(turtle_id, finished);
-                            let _ = std::thread::spawn(move || func(&mut turtle, key));
-                        }
-                    }
-                    ButtonArgs { state, button, .. } => {
-                        println!("state={state:?}, button={button:?}");
-                    }
-                }
+                self.button(&args);
             }
         }
     }
-}
 
-impl TurtleTask {
+    fn spawn_turtle(&mut self) -> Turtle {
+        let (finished, command_complete) = mpsc::channel();
+        self.data.turtle_id += 1;
+        self.data.responder.insert(self.data.turtle_id, finished);
+
+        Turtle::init(
+            self.issue_command.clone(),
+            command_complete,
+            self.data.turtle_id,
+        )
+    }
+
     fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data.responder.get(&turtle_id).unwrap();
         match cmd {
@@ -296,6 +288,25 @@ impl TurtleTask {
     fn update(&mut self, args: &UpdateArgs) {
         if self.data.percent < 1. {
             self.data.percent += args.dt * 60.;
+        }
+    }
+
+    fn button(&mut self, args: &ButtonArgs) {
+        match args {
+            ButtonArgs {
+                state: ButtonState::Press,
+                button: Button::Keyboard(key),
+                ..
+            } => {
+                if let Some(func) = self.data.onkeypress.get(key).copied() {
+                    let mut turtle = self.spawn_turtle();
+                    let key = *key;
+                    let _ = std::thread::spawn(move || func(&mut turtle, key));
+                }
+            }
+            ButtonArgs { state, button, .. } => {
+                println!("state={state:?}, button={button:?}");
+            }
         }
     }
 }
