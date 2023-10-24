@@ -124,14 +124,24 @@ impl Turtle {
         self.do_command(Command::Data(cmd))
     }
 
+    fn req(&self, cmd: Command) -> Request {
+        Request {
+            turtle_id: self.turtle_id,
+            cmd,
+        }
+    }
+
     fn do_command(&mut self, cmd: Command) -> Response {
-        self.issue_command
-            .send(Request {
-                turtle_id: self.turtle_id,
-                cmd,
-            })
-            .expect("graphics window no longer exists");
-        self.command_complete.recv().expect("main window died!")
+        if self.issue_command.send(self.req(cmd)).is_ok() {
+            if let Ok(result) = self.command_complete.recv() {
+                return result;
+            }
+        }
+
+        /* main thread has gone away; wait here to meet our doom */
+        loop {
+            std::thread::park();
+        }
     }
 }
 
