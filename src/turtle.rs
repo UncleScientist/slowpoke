@@ -4,7 +4,7 @@ use std::{
 };
 
 use glutin_window::GlutinWindow;
-use graphics::types::Vec2d;
+use graphics::types::{self, Vec2d};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
@@ -164,7 +164,7 @@ struct TurtleData {
     pos: Vec2d<isize>,
     angle: f64,
     size: Vec2d<f64>,
-    bgcolor: [f32; 4],
+    bgcolor: types::Color,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
 }
