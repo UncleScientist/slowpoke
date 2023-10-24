@@ -43,6 +43,10 @@ impl Turtle {
         self.do_draw(DrawCmd::Left(rotation.into()));
     }
 
+    pub fn setheading<N: Into<f64>>(&mut self, heading: N) {
+        self.do_draw(DrawCmd::SetHeading(heading.into() - 90.));
+    }
+
     pub fn penup(&mut self) {
         self.do_draw(DrawCmd::PenUp);
     }

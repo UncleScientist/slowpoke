@@ -14,6 +14,7 @@ pub enum DrawCmd {
     GoTo(f64, f64),
     SetX(f64),
     SetY(f64),
+    SetHeading(f64),
     PenColor(f32, f32, f32),
     PenWidth(f64),
 }
@@ -26,6 +27,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub transform: [[f64; 3]; 2],
     pub pct: f64,
     pub deg: f64,
+    pub start_deg: f64,
     pub pen_color: [f32; 4],
     pub pen_width: f64,
     pub is_pen_down: bool,
@@ -58,10 +60,11 @@ pub enum Command {
 }
 
 impl DrawCmd {
-    pub(crate) fn get_rotation(&self) -> f64 {
+    pub(crate) fn get_rotation(&self, ds: &TurtleDrawState) -> f64 {
         match self {
             Self::Right(deg) => *deg,
             Self::Left(deg) => -*deg,
+            Self::SetHeading(deg) => *deg - ds.deg,
             _ => 0.,
         }
     }
@@ -83,6 +86,9 @@ impl DrawCmd {
             }
             Self::Right(deg) => ds.transform = ds.transform.rot_deg(deg * ds.pct),
             Self::Left(deg) => ds.transform = ds.transform.rot_deg(-deg * ds.pct),
+            Self::SetHeading(heading) => {
+                ds.transform = ds.transform.rot_deg(heading - ds.start_deg)
+            }
             Self::PenDown => ds.is_pen_down = true,
             Self::PenUp => ds.is_pen_down = false,
             Self::GoTo(xpos, ypos) => {

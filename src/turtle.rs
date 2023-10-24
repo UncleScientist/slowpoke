@@ -270,6 +270,7 @@ impl TurtleTask {
                 transform: context.transform.trans(x, y).rot_deg(-90.),
                 pct: 1.,
                 deg: -90.,
+                start_deg: -90.,
                 pen_color: crate::BLACK,
                 pen_width: 1.0,
                 gl,
@@ -278,10 +279,11 @@ impl TurtleTask {
             let mut index = 0;
             let mut done = false;
             while !done {
+                ds.start_deg = ds.deg;
                 let cmd = if index < self.data.cmds.len() {
                     index += 1;
                     let cmd = self.data.cmds[index - 1];
-                    ds.deg += cmd.get_rotation() % 360.;
+                    ds.deg += cmd.get_rotation(&ds) % 360.;
                     if ds.deg < 0. {
                         ds.deg += 360.;
                     }
