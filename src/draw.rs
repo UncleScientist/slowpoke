@@ -53,6 +53,14 @@ impl Turtle {
         self.do_draw(DrawCmd::GoTo(xpos, -ypos));
     }
 
+    pub fn setx(&mut self, xpos: f64) {
+        self.do_draw(DrawCmd::SetX(xpos));
+    }
+
+    pub fn sety(&mut self, ypos: f64) {
+        self.do_draw(DrawCmd::SetY(-ypos));
+    }
+
     pub fn home(&mut self) {
         self.goto(0., 0.);
     }

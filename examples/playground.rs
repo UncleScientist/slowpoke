@@ -39,6 +39,9 @@ fn main() {
             turtle.backward(100.);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
+            turtle.setx(-175.);
+            println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
+
             println!("press return to finish");
             let mut s = String::new();
             let _ = std::io::stdin().read_line(&mut s);

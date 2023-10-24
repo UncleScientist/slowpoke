@@ -12,6 +12,8 @@ pub enum DrawCmd {
     PenDown,
     PenUp,
     GoTo(f64, f64),
+    SetX(f64),
+    SetY(f64),
     PenColor(f32, f32, f32),
     PenWidth(f64),
 }
@@ -20,6 +22,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub context: Context,
     pub x: f64,
     pub y: f64,
+    pub size: [f64; 2],
     pub transform: [[f64; 3]; 2],
     pub pct: f64,
     pub deg: f64,
@@ -83,6 +86,22 @@ impl DrawCmd {
             Self::PenDown => ds.is_pen_down = true,
             Self::PenUp => ds.is_pen_down = false,
             Self::GoTo(xpos, ypos) => {
+                ds.transform = ds
+                    .context
+                    .transform
+                    .trans(xpos + ds.x, ypos + ds.y)
+                    .rot_deg(ds.deg);
+            }
+            Self::SetX(xpos) => {
+                let ypos = -ds.transform[1][2] * ds.size[1] / 2.;
+                ds.transform = ds
+                    .context
+                    .transform
+                    .trans(xpos + ds.x, ypos + ds.y)
+                    .rot_deg(ds.deg);
+            }
+            Self::SetY(ypos) => {
+                let xpos = ds.transform[0][2] * ds.size[1] / 2.;
                 ds.transform = ds
                     .context
                     .transform

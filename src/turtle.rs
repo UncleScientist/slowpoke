@@ -265,6 +265,7 @@ impl TurtleTask {
                 context,
                 x,
                 y,
+                size: args.window_size,
                 is_pen_down: true,
                 transform: context.transform.trans(x, y).rot_deg(-90.),
                 pct: 1.,
