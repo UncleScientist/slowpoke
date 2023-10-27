@@ -91,28 +91,14 @@ impl DrawCmd {
             }
             Self::PenDown => ds.is_pen_down = true,
             Self::PenUp => ds.is_pen_down = false,
-            Self::GoTo(xpos, ypos) => {
-                ds.transform = ds
-                    .context
-                    .transform
-                    .trans(xpos + ds.x, ypos + ds.y)
-                    .rot_deg(ds.deg);
-            }
+            Self::GoTo(xpos, ypos) => self.move_to(ds, *xpos, *ypos),
             Self::SetX(xpos) => {
                 let ypos = -ds.transform[1][2] * ds.size[1] / 2.;
-                ds.transform = ds
-                    .context
-                    .transform
-                    .trans(xpos + ds.x, ypos + ds.y)
-                    .rot_deg(ds.deg);
+                self.move_to(ds, *xpos, ypos);
             }
             Self::SetY(ypos) => {
-                let xpos = ds.transform[0][2] * ds.size[1] / 2.;
-                ds.transform = ds
-                    .context
-                    .transform
-                    .trans(xpos + ds.x, ypos + ds.y)
-                    .rot_deg(ds.deg);
+                let xpos = ds.transform[0][2] * ds.size[0] / 2.;
+                self.move_to(ds, xpos, *ypos);
             }
             Self::PenColor(r, g, b) => {
                 ds.pen_color = [*r, *g, *b, 1.];
@@ -121,5 +107,30 @@ impl DrawCmd {
                 ds.pen_width = *width;
             }
         }
+    }
+
+    // move to absolute coordinates, drawing a line if the pen is down
+    fn move_to(&self, ds: &mut TurtleDrawState, xpos: f64, ypos: f64) {
+        let dest_x = xpos;
+        let dest_y = ypos;
+        let cur_x = ds.transform[0][2] * ds.size[0] / 2.;
+        let cur_y = -ds.transform[1][2] * ds.size[1] / 2.;
+        let pct_x = cur_x + (dest_x - cur_x) * ds.pct;
+        let pct_y = cur_y + (dest_y - cur_y) * ds.pct;
+        if ds.is_pen_down {
+            graphics::line_from_to(
+                ds.pen_color,
+                ds.pen_width,
+                [ds.x + cur_x, ds.y + cur_y],
+                [ds.x + pct_x, ds.y + pct_y],
+                ds.context.transform,
+                ds.gl,
+            );
+        }
+        ds.transform = ds
+            .context
+            .transform
+            .trans(pct_x + ds.x, pct_y + ds.y)
+            .rot_deg(ds.deg);
     }
 }
