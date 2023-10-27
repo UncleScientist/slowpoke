@@ -272,7 +272,7 @@ impl TurtleTask {
                 deg: -90.,
                 start_deg: -90.,
                 pen_color: crate::BLACK,
-                pen_width: 1.0,
+                pen_width: 0.5,
                 gl,
             };
 
