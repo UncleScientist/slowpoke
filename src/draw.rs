@@ -95,6 +95,10 @@ impl Turtle {
         self.left(theta_d / 2.);
     }
 
+    pub fn dot(&mut self, width: Option<f64>, color: Option<(f32, f32, f32)>) {
+        self.do_draw(DrawCmd::Dot(width, color));
+    }
+
     /*
      * Info requests
      */

@@ -6,6 +6,7 @@ fn main() {
         .with_title("simple commands")
         .run(|turtle| {
             turtle.bgcolor(0.2, 0.2, 0.2);
+            turtle.dot(None, None);
             turtle.right(0);
             println!(
                 "starting at {:?}, heading of {:?}",
@@ -35,6 +36,8 @@ fn main() {
             turtle.penwidth(5);
             turtle.forward(100);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
+
+            turtle.dot(Some(20.), Some((0.8, 0.4, 0.5)));
 
             turtle.right(90);
             turtle.backward(100);

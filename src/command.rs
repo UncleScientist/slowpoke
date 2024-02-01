@@ -18,6 +18,7 @@ pub enum DrawCmd {
     SetHeading(f64),
     PenColor(f32, f32, f32),
     PenWidth(f64),
+    Dot(Option<f64>, Option<(f32, f32, f32)>),
 }
 
 pub(crate) struct TurtleDrawState<'a> {
@@ -112,6 +113,21 @@ impl DrawCmd {
             }
             Self::PenWidth(width) => {
                 ds.pen_width = *width;
+            }
+            Self::Dot(width, color) => {
+                let default_width = (ds.pen_width * 2.).max(ds.pen_width + 4.);
+                let width = width.unwrap_or(default_width);
+                let color = if let Some((r, g, b)) = color {
+                    [*r, *g, *b, 1.]
+                } else {
+                    ds.pen_color
+                };
+                graphics::ellipse(
+                    color,
+                    [-width / 2., -width / 2., width, width],
+                    ds.transform,
+                    ds.gl,
+                );
             }
         }
     }
