@@ -61,6 +61,10 @@ impl Turtle {
         self.do_draw(DrawCmd::GoTo(xpos.into(), -ypos.into()));
     }
 
+    pub fn teleport<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        self.do_draw(DrawCmd::Teleport(xpos.into(), -ypos.into()));
+    }
+
     pub fn setx<N: Into<f64>>(&mut self, xpos: N) {
         self.do_draw(DrawCmd::SetX(xpos.into()));
     }

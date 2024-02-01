@@ -12,6 +12,7 @@ pub enum DrawCmd {
     PenDown,
     PenUp,
     GoTo(f64, f64),
+    Teleport(f64, f64),
     SetX(f64),
     SetY(f64),
     SetHeading(f64),
@@ -92,6 +93,12 @@ impl DrawCmd {
             Self::PenDown => ds.is_pen_down = true,
             Self::PenUp => ds.is_pen_down = false,
             Self::GoTo(xpos, ypos) => self.move_to(ds, *xpos, *ypos),
+            Self::Teleport(xpos, ypos) => {
+                let saved_pen = ds.is_pen_down;
+                ds.is_pen_down = false;
+                self.move_to(ds, *xpos, *ypos);
+                ds.is_pen_down = saved_pen;
+            }
             Self::SetX(xpos) => {
                 let ypos = -ds.transform[1][2] * ds.size[1] / 2.;
                 self.move_to(ds, *xpos, ypos);
