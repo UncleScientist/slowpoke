@@ -99,6 +99,10 @@ impl Turtle {
         self.do_draw(DrawCmd::Dot(width, color));
     }
 
+    pub fn stamp(&mut self) {
+        self.do_draw(DrawCmd::Stamp);
+    }
+
     /*
      * Info requests
      */

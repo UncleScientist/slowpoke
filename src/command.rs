@@ -2,7 +2,7 @@ use graphics::{Context, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::Key;
 
-use crate::Turtle;
+use crate::{turtle::TurtlePolygon, Turtle};
 
 #[derive(Copy, Clone, Debug)]
 pub enum DrawCmd {
@@ -19,6 +19,7 @@ pub enum DrawCmd {
     PenColor(f32, f32, f32),
     PenWidth(f64),
     Dot(Option<f64>, Option<(f32, f32, f32)>),
+    Stamp,
 }
 
 pub(crate) struct TurtleDrawState<'a> {
@@ -34,6 +35,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub pen_width: f64,
     pub is_pen_down: bool,
     pub gl: &'a mut GlGraphics,
+    pub shape: TurtlePolygon<'a>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -73,6 +75,9 @@ impl DrawCmd {
 
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
+            Self::Stamp => {
+                graphics::polygon(ds.pen_color, ds.shape, ds.transform.trans(-14., -8.), ds.gl);
+            }
             Self::Forward(dist) => {
                 if ds.is_pen_down {
                     graphics::line_from_to(

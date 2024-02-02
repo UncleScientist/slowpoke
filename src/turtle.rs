@@ -91,6 +91,7 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
+            shape: &[[0., 0.], [15., 8.], [0., 15.], [8., 8.], [0., 0.]],
         };
 
         tt.run(func);
@@ -145,12 +146,15 @@ impl Turtle {
     }
 }
 
-struct TurtleTask {
+pub type TurtlePolygon<'a> = &'a [[f64; 2]];
+
+struct TurtleTask<'a> {
     gl: GlGraphics, // OpenGL drawing backend.
     window: GlutinWindow,
     issue_command: Sender<Request>,
     receive_command: Receiver<Request>,
     data: TurtleData,
+    shape: TurtlePolygon<'a>,
 }
 
 #[derive(Default)]
@@ -169,7 +173,7 @@ struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
 }
 
-impl TurtleTask {
+impl<'a> TurtleTask<'a> {
     fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let mut turtle = self.spawn_turtle();
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -274,6 +278,7 @@ impl TurtleTask {
                 pen_color: crate::BLACK,
                 pen_width: 0.5,
                 gl,
+                shape: self.shape,
             };
 
             let mut index = 0;
@@ -311,8 +316,18 @@ impl TurtleTask {
                 ds.deg + 90.
             };
 
-            let square = rectangle::square(0.0, 0.0, 10.0);
-            ellipse(crate::BLACK, square, ds.transform.trans(-5., -5.), gl);
+            // let square = rectangle::square(0.0, 0.0, 10.0);
+            // ellipse(crate::BLACK, square, ds.transform.trans(-5., -5.), gl);
+
+            let _large_star = [
+                [0., 0.],
+                [50., 200.],
+                [-100., 70.],
+                [100., 70.],
+                [-50., 200.],
+                [0., 0.],
+            ];
+            polygon(crate::BLACK, &self.shape, ds.transform.trans(-14., -8.), gl);
         });
     }
 
