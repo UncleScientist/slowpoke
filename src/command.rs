@@ -4,6 +4,7 @@ use piston::Key;
 
 use crate::{turtle::TurtlePolygon, Turtle};
 
+// commands that draw but don't return anything
 #[derive(Copy, Clone, Debug)]
 pub enum DrawCmd {
     Forward(f64),
@@ -19,7 +20,7 @@ pub enum DrawCmd {
     PenColor(f32, f32, f32),
     PenWidth(f64),
     Dot(Option<f64>, Option<(f32, f32, f32)>),
-    Stamp,
+    Stamp(bool),
 }
 
 pub(crate) struct TurtleDrawState<'a> {
@@ -43,6 +44,7 @@ pub(crate) struct TurtleDrawState<'a> {
 pub enum ScreenCmd {
     ClearScreen,
     Background(f32, f32, f32),
+    ClearStamp(usize),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -50,10 +52,12 @@ pub enum InputCmd {
     OnKeyPress(fn(&mut Turtle, Key), Key),
 }
 
+// Commands which return data
 #[derive(Copy, Clone, Debug)]
 pub enum DataCmd {
     Position,
     Heading,
+    Stamp,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -76,13 +80,15 @@ impl DrawCmd {
 
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
-            Self::Stamp => {
-                graphics::polygon(
-                    ds.pen_color,
-                    ds.shape,
-                    ds.transform.trans(ds.shape_offset.0, ds.shape_offset.1),
-                    ds.gl,
-                );
+            Self::Stamp(draw) => {
+                if *draw {
+                    graphics::polygon(
+                        ds.pen_color,
+                        ds.shape,
+                        ds.transform.trans(ds.shape_offset.0, ds.shape_offset.1),
+                        ds.gl,
+                    );
+                }
             }
             Self::Forward(dist) => {
                 if ds.is_pen_down {

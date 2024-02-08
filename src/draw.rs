@@ -2,7 +2,9 @@ use std::f64::consts::PI;
 
 use graphics::types::Vec2d;
 
-use crate::{command::DataCmd, command::DrawCmd, command::ScreenCmd, turtle::Turtle, Response};
+use crate::{
+    command::DataCmd, command::DrawCmd, command::ScreenCmd, turtle::Turtle, Response, StampID,
+};
 
 impl Turtle {
     /*
@@ -15,6 +17,10 @@ impl Turtle {
 
     pub fn clearscreen(&mut self) {
         self.do_screen(ScreenCmd::ClearScreen);
+    }
+
+    pub fn clearstamp(&mut self, id: StampID) {
+        self.do_screen(ScreenCmd::ClearStamp(id));
     }
 
     /*
@@ -99,8 +105,12 @@ impl Turtle {
         self.do_draw(DrawCmd::Dot(width, color));
     }
 
-    pub fn stamp(&mut self) {
-        self.do_draw(DrawCmd::Stamp);
+    pub fn stamp(&mut self) -> StampID {
+        if let Response::StampID(id) = self.do_data(DataCmd::Stamp) {
+            id
+        } else {
+            panic!("invalid response from turtle");
+        }
     }
 
     /*

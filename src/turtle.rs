@@ -19,6 +19,7 @@ use crate::{
     DrawCmd, Request, Response,
 };
 
+#[derive(Debug)]
 struct DrawRequest {
     cmd: DrawCmd,
     turtle_id: u64,
@@ -225,6 +226,10 @@ impl<'a> TurtleTask<'a> {
                 self.data.bgcolor = crate::BLACK;
                 let _ = resp.send(Response::Done);
             }
+            ScreenCmd::ClearStamp(id) => {
+                self.data.cmds[id] = DrawCmd::Stamp(false);
+                let _ = resp.send(Response::Done);
+            }
         }
     }
 
@@ -240,10 +245,17 @@ impl<'a> TurtleTask<'a> {
 
     fn data_cmd(&mut self, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data.responder.get(&turtle_id).unwrap();
-        let _ = resp.send(match cmd {
-            DataCmd::Position => Response::Position(self.data.pos),
-            DataCmd::Heading => Response::Heading(self.data.angle),
-        });
+        let _ = match cmd {
+            DataCmd::Position => resp.send(Response::Position(self.data.pos)),
+            DataCmd::Heading => resp.send(Response::Heading(self.data.angle)),
+            DataCmd::Stamp => {
+                self.data.queue.push_back(DrawRequest {
+                    cmd: DrawCmd::Stamp(true),
+                    turtle_id,
+                });
+                Ok(())
+            }
+        };
     }
 
     fn handle_command(&mut self, req: Request) {
@@ -345,7 +357,8 @@ impl<'a> TurtleTask<'a> {
         }
 
         if self.data.percent >= 1. && self.data.current_command.is_some() {
-            self.data.cmds.push(self.data.current_command.unwrap());
+            let cmd = self.data.current_command.take().unwrap();
+            self.data.cmds.push(cmd);
             self.data.current_command = None; // TODO: clean this up
 
             let _ = self
@@ -353,7 +366,11 @@ impl<'a> TurtleTask<'a> {
                 .responder
                 .get(&self.data.current_turtle_id)
                 .unwrap()
-                .send(Response::Done);
+                .send(if let DrawCmd::Stamp(_) = cmd {
+                    Response::StampID(self.data.cmds.len() - 1)
+                } else {
+                    Response::Done
+                });
         }
 
         if self.data.current_command.is_none() && !self.data.queue.is_empty() {

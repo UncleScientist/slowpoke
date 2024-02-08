@@ -10,10 +10,13 @@ mod turtle;
 pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
+pub type StampID = usize;
+
 pub enum Response {
     Done,
     Heading(f64),
     Position(Vec2d<isize>),
+    StampID(StampID),
 }
 
 pub struct Request {
