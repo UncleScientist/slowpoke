@@ -91,7 +91,8 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
-            shape: &[[0., 0.], [15., 8.], [0., 15.], [8., 8.], [0., 0.]],
+            shape: &[[0., 0.], [8., 8.], [0., 15.], [-8., 8.], [0., 0.]],
+            shape_offset: (-8., -8.),
         };
 
         tt.run(func);
@@ -155,6 +156,7 @@ struct TurtleTask<'a> {
     receive_command: Receiver<Request>,
     data: TurtleData,
     shape: TurtlePolygon<'a>,
+    shape_offset: (f64, f64),
 }
 
 #[derive(Default)]
@@ -279,6 +281,7 @@ impl<'a> TurtleTask<'a> {
                 pen_width: 0.5,
                 gl,
                 shape: self.shape,
+                shape_offset: self.shape_offset,
             };
 
             let mut index = 0;
@@ -327,7 +330,12 @@ impl<'a> TurtleTask<'a> {
                 [-50., 200.],
                 [0., 0.],
             ];
-            polygon(crate::BLACK, &self.shape, ds.transform.trans(-14., -8.), gl);
+            polygon(
+                crate::BLACK,
+                self.shape,
+                ds.transform.trans(self.shape_offset.0, self.shape_offset.1),
+                gl,
+            );
         });
     }
 

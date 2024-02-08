@@ -36,6 +36,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub is_pen_down: bool,
     pub gl: &'a mut GlGraphics,
     pub shape: TurtlePolygon<'a>,
+    pub shape_offset: (f64, f64),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -76,7 +77,12 @@ impl DrawCmd {
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
             Self::Stamp => {
-                graphics::polygon(ds.pen_color, ds.shape, ds.transform.trans(-14., -8.), ds.gl);
+                graphics::polygon(
+                    ds.pen_color,
+                    ds.shape,
+                    ds.transform.trans(ds.shape_offset.0, ds.shape_offset.1),
+                    ds.gl,
+                );
             }
             Self::Forward(dist) => {
                 if ds.is_pen_down {
