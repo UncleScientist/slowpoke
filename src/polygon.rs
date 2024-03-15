@@ -5,7 +5,7 @@ use lyon_tessellation::{
 
 use crate::command::TurtleDrawState;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TurtlePolygon {
     vertices: Vec<[f64; 2]>,
     indices: Vec<usize>,

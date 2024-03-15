@@ -7,7 +7,7 @@ fn main() {
         .run(|turtle| {
             turtle.pencolor(1., 0., 0.);
             // turtle.fillcolor(1., 1., 0.);
-            // turtle.begin_fill();
+            turtle.begin_fill();
             loop {
                 turtle.forward(200);
                 turtle.left(170);
@@ -18,6 +18,6 @@ fn main() {
                 }
             }
 
-            // turtle.end_fill();
+            turtle.end_fill();
         });
 }

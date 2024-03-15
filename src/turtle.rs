@@ -78,14 +78,7 @@ impl Turtle {
             .build()
             .unwrap();
 
-        let large_star = [
-            [0., 0.],
-            [50., 200.],
-            [-100., 70.],
-            [100., 70.],
-            [-50., 200.],
-            [0., 0.],
-        ];
+        let turtle_shape = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
 
         let (issue_command, receive_command) = mpsc::channel();
         let mut tt = TurtleTask {
@@ -99,9 +92,10 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
-            // shape: &[[0., 0.], [8., 8.], [0., 15.], [-8., 8.], [0., 0.]],
-            shape: TurtlePolygon::new(&large_star),
+            shape: TurtlePolygon::new(&turtle_shape),
             shape_offset: (-0., -0.),
+            in_poly: false,
+            poly: Vec::new(),
         };
 
         tt.run(func);
@@ -164,6 +158,8 @@ struct TurtleTask {
     data: TurtleData,
     shape: TurtlePolygon,
     shape_offset: (f64, f64),
+    in_poly: bool,
+    poly: Vec<[f32; 2]>,
 }
 
 #[derive(Default)]
@@ -223,6 +219,21 @@ impl TurtleTask {
     fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data.responder.get(&turtle_id).unwrap();
         match cmd {
+            ScreenCmd::BeginFill => {
+                self.in_poly = true;
+                let _ = resp.send(Response::Done);
+            }
+            ScreenCmd::EndFill => {
+                let polygon = TurtlePolygon::new(&self.poly);
+
+                self.data.queue.push_back(DrawRequest {
+                    cmd: DrawCmd::Fill(polygon),
+                    turtle_id,
+                });
+
+                self.poly = Vec::new();
+                self.in_poly = false;
+            }
             ScreenCmd::Background(r, g, b) => {
                 self.data.bgcolor = [r, g, b, 1.];
                 let _ = resp.send(Response::Done);
@@ -308,7 +319,7 @@ impl TurtleTask {
                 ds.start_deg = ds.deg;
                 let cmd = if index < self.data.cmds.len() {
                     index += 1;
-                    let cmd = self.data.cmds[index - 1];
+                    let cmd = &self.data.cmds[index - 1];
                     ds.deg += cmd.get_rotation(&ds) % 360.;
                     if ds.deg < 0. {
                         ds.deg += 360.;
@@ -317,7 +328,7 @@ impl TurtleTask {
                 } else {
                     ds.pct = self.data.percent.min(1.);
                     done = true;
-                    self.data.current_command
+                    self.data.current_command.as_ref()
                 };
 
                 let Some(cmd) = cmd else {
@@ -351,8 +362,12 @@ impl TurtleTask {
         }
 
         if self.data.percent >= 1. && self.data.current_command.is_some() {
+            if self.in_poly {
+                self.poly
+                    .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
+            }
             let cmd = self.data.current_command.take().unwrap();
-            self.data.cmds.push(cmd);
+            self.data.cmds.push(cmd.clone());
             self.data.current_command = None; // TODO: clean this up
 
             let _ = self
@@ -360,7 +375,7 @@ impl TurtleTask {
                 .responder
                 .get(&self.data.current_turtle_id)
                 .unwrap()
-                .send(if let DrawCmd::Stamp(_) = cmd {
+                .send(if matches!(cmd, DrawCmd::Stamp(_)) {
                     Response::StampID(self.data.cmds.len() - 1)
                 } else {
                     Response::Done

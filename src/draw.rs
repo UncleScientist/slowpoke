@@ -79,6 +79,14 @@ impl Turtle {
         self.do_draw(DrawCmd::SetY(-ypos.into()));
     }
 
+    pub fn begin_fill(&mut self) {
+        self.do_screen(ScreenCmd::BeginFill);
+    }
+
+    pub fn end_fill(&mut self) {
+        self.do_screen(ScreenCmd::EndFill);
+    }
+
     pub fn home(&mut self) {
         self.goto(0., 0.);
     }
