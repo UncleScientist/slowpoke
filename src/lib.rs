@@ -5,6 +5,7 @@ pub use turtle::{Turtle, TurtleArgs};
 mod command;
 mod draw;
 mod input;
+mod polygon;
 mod turtle;
 
 pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];

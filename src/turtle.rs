@@ -12,10 +12,8 @@ use piston::{
 };
 
 use crate::{
-    command::DataCmd,
-    command::InputCmd,
-    command::ScreenCmd,
-    command::{Command, TurtleDrawState},
+    command::{Command, DataCmd, InputCmd, ScreenCmd, TurtleDrawState},
+    polygon::TurtlePolygon,
     DrawCmd, Request, Response,
 };
 
@@ -80,6 +78,15 @@ impl Turtle {
             .build()
             .unwrap();
 
+        let large_star = [
+            [0., 0.],
+            [50., 200.],
+            [-100., 70.],
+            [100., 70.],
+            [-50., 200.],
+            [0., 0.],
+        ];
+
         let (issue_command, receive_command) = mpsc::channel();
         let mut tt = TurtleTask {
             gl: GlGraphics::new(opengl),
@@ -92,8 +99,9 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
-            shape: &[[0., 0.], [8., 8.], [0., 15.], [-8., 8.], [0., 0.]],
-            shape_offset: (-8., -8.),
+            // shape: &[[0., 0.], [8., 8.], [0., 15.], [-8., 8.], [0., 0.]],
+            shape: TurtlePolygon::new(&large_star),
+            shape_offset: (-0., -0.),
         };
 
         tt.run(func);
@@ -148,15 +156,13 @@ impl Turtle {
     }
 }
 
-pub type TurtlePolygon<'a> = &'a [[f64; 2]];
-
-struct TurtleTask<'a> {
+struct TurtleTask {
     gl: GlGraphics, // OpenGL drawing backend.
     window: GlutinWindow,
     issue_command: Sender<Request>,
     receive_command: Receiver<Request>,
     data: TurtleData,
-    shape: TurtlePolygon<'a>,
+    shape: TurtlePolygon,
     shape_offset: (f64, f64),
 }
 
@@ -176,7 +182,7 @@ struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
 }
 
-impl<'a> TurtleTask<'a> {
+impl TurtleTask {
     fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let mut turtle = self.spawn_turtle();
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -292,7 +298,7 @@ impl<'a> TurtleTask<'a> {
                 pen_color: crate::BLACK,
                 pen_width: 0.5,
                 gl,
-                shape: self.shape,
+                shape: self.shape.clone(),
                 shape_offset: self.shape_offset,
             };
 
@@ -331,23 +337,11 @@ impl<'a> TurtleTask<'a> {
                 ds.deg + 90.
             };
 
+            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
+            self.shape.draw(&crate::BLACK, &transform, &mut ds);
+
             // let square = rectangle::square(0.0, 0.0, 10.0);
             // ellipse(crate::BLACK, square, ds.transform.trans(-5., -5.), gl);
-
-            let _large_star = [
-                [0., 0.],
-                [50., 200.],
-                [-100., 70.],
-                [100., 70.],
-                [-50., 200.],
-                [0., 0.],
-            ];
-            polygon(
-                crate::BLACK,
-                self.shape,
-                ds.transform.trans(self.shape_offset.0, self.shape_offset.1),
-                gl,
-            );
         });
     }
 

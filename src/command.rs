@@ -2,7 +2,7 @@ use graphics::{Context, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::Key;
 
-use crate::{turtle::TurtlePolygon, Turtle};
+use crate::{polygon::TurtlePolygon, Turtle};
 
 // commands that draw but don't return anything
 #[derive(Copy, Clone, Debug)]
@@ -36,7 +36,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub pen_width: f64,
     pub is_pen_down: bool,
     pub gl: &'a mut GlGraphics,
-    pub shape: TurtlePolygon<'a>,
+    pub shape: TurtlePolygon,
     pub shape_offset: (f64, f64),
 }
 
@@ -82,12 +82,22 @@ impl DrawCmd {
         match self {
             Self::Stamp(draw) => {
                 if *draw {
+                    let x = ds.shape.clone();
+                    x.draw(
+                        &ds.pen_color.clone(),
+                        &ds.transform
+                            .trans(ds.shape_offset.0, ds.shape_offset.1)
+                            .clone(),
+                        ds,
+                    );
+                    /*
                     graphics::polygon(
                         ds.pen_color,
                         ds.shape,
                         ds.transform.trans(ds.shape_offset.0, ds.shape_offset.1),
                         ds.gl,
                     );
+                    */
                 }
             }
             Self::Forward(dist) => {
