@@ -16,6 +16,8 @@ impl TurtlePolygon {
         let mut path_builder = Path::builder();
         let mut iter = diagram.iter();
 
+        println!("our coords: {diagram:?}");
+
         let first = iter.next().unwrap();
         path_builder.begin(point(first[0], first[1]));
         for i in iter {

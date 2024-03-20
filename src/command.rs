@@ -85,7 +85,7 @@ impl DrawCmd {
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
             Self::Fill(poly) => {
-                poly.draw(&ds.pen_color.clone(), &ds.abs_trans.rot_deg(-30.), ds);
+                poly.draw(&ds.pen_color.clone(), &ds.abs_trans.clone(), ds);
             }
             Self::Stamp(draw) => {
                 if *draw {

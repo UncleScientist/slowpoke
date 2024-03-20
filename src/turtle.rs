@@ -368,9 +368,15 @@ impl TurtleTask {
         }
 
         if self.data.drawing_done && self.data.current_command.is_some() {
+            self.data.drawing_done = false;
             if self.in_poly {
-                self.poly
-                    .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
+                let window_x = (self.data.pos[0] + (self.data.size[0] / 2.) as isize) as f32;
+                let window_y = ((self.data.size[1] / 2.) as isize - self.data.pos[1]) as f32;
+                println!("adding values:");
+                println!("    data.pos  = {:?}", self.data.pos);
+                println!("    data.size = {:?}", self.data.size);
+                println!("       coords = {window_x}, {window_y}");
+                self.poly.push([window_x, window_y]);
             }
             let cmd = self.data.current_command.take().unwrap();
             self.data.cmds.push(cmd.clone());
