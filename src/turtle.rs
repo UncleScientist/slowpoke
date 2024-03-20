@@ -8,7 +8,7 @@ use graphics::types::{self, Vec2d};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
-    RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
+    RenderEvent, ResizeEvent, UpdateArgs, UpdateEvent, WindowSettings,
 };
 
 use crate::{
@@ -201,6 +201,10 @@ impl TurtleTask {
 
             if let Some(args) = e.button_args() {
                 self.button(&args);
+            }
+
+            if let Some(args) = e.resize_args() {
+                self.data.size = args.window_size;
             }
         }
     }
