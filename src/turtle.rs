@@ -92,7 +92,7 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
-            shape: TurtlePolygon::new(&turtle_shape),
+            turtle_shape: TurtlePolygon::new(&turtle_shape),
             shape_offset: (-0., -0.),
             in_poly: false,
             poly: Vec::new(),
@@ -156,7 +156,7 @@ struct TurtleTask {
     issue_command: Sender<Request>,
     receive_command: Receiver<Request>,
     data: TurtleData,
-    shape: TurtlePolygon,
+    turtle_shape: TurtlePolygon,
     shape_offset: (f64, f64),
     in_poly: bool,
     poly: Vec<[f32; 2]>,
@@ -176,6 +176,7 @@ struct TurtleData {
     bgcolor: types::Color,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
+    drawing_done: bool,
 }
 
 impl TurtleTask {
@@ -221,6 +222,7 @@ impl TurtleTask {
         match cmd {
             ScreenCmd::BeginFill => {
                 self.in_poly = true;
+                self.poly = Vec::new();
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndFill => {
@@ -231,7 +233,6 @@ impl TurtleTask {
                     turtle_id,
                 });
 
-                self.poly = Vec::new();
                 self.in_poly = false;
             }
             ScreenCmd::Background(r, g, b) => {
@@ -295,6 +296,7 @@ impl TurtleTask {
         self.gl.draw(args.viewport(), |context, gl| {
             // Clear the screen.
             clear(self.data.bgcolor, gl);
+            let abs_trans = context.transform.trans(x, y).rot_deg(-90.);
 
             let mut ds = TurtleDrawState {
                 context,
@@ -302,14 +304,15 @@ impl TurtleTask {
                 y,
                 size: args.window_size,
                 is_pen_down: true,
-                transform: context.transform.trans(x, y).rot_deg(-90.),
+                transform: abs_trans,
+                abs_trans,
                 pct: 1.,
                 deg: -90.,
                 start_deg: -90.,
                 pen_color: crate::BLACK,
                 pen_width: 0.5,
                 gl,
-                shape: self.shape.clone(),
+                shape: self.turtle_shape.clone(),
                 shape_offset: self.shape_offset,
             };
 
@@ -348,11 +351,10 @@ impl TurtleTask {
                 ds.deg + 90.
             };
 
-            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
-            self.shape.draw(&crate::BLACK, &transform, &mut ds);
+            self.data.drawing_done = ds.pct >= 1.;
 
-            // let square = rectangle::square(0.0, 0.0, 10.0);
-            // ellipse(crate::BLACK, square, ds.transform.trans(-5., -5.), gl);
+            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
+            self.turtle_shape.draw(&crate::BLACK, &transform, &mut ds);
         });
     }
 
@@ -361,7 +363,7 @@ impl TurtleTask {
             self.data.percent += args.dt * 10.; // TODO: make this smarter
         }
 
-        if self.data.percent >= 1. && self.data.current_command.is_some() {
+        if self.data.drawing_done && self.data.current_command.is_some() {
             if self.in_poly {
                 self.poly
                     .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
