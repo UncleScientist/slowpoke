@@ -94,7 +94,7 @@ impl Turtle {
             },
             turtle_shape: TurtlePolygon::new(&turtle_shape),
             shape_offset: (-0., -0.),
-            in_poly: false,
+            last_point: None,
             poly: Vec::new(),
         };
 
@@ -158,7 +158,7 @@ struct TurtleTask {
     data: TurtleData,
     turtle_shape: TurtlePolygon,
     shape_offset: (f64, f64),
-    in_poly: bool,
+    last_point: Option<Vec2d<isize>>,
     poly: Vec<[f32; 2]>,
 }
 
@@ -225,8 +225,8 @@ impl TurtleTask {
         let resp = self.data.responder.get(&turtle_id).unwrap();
         match cmd {
             ScreenCmd::BeginFill => {
-                self.in_poly = true;
-                self.poly = Vec::new();
+                self.last_point = Some(self.data.pos);
+                self.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndFill => {
@@ -237,7 +237,7 @@ impl TurtleTask {
                     turtle_id,
                 });
 
-                self.in_poly = false;
+                self.last_point = None;
             }
             ScreenCmd::Background(r, g, b) => {
                 self.data.bgcolor = [r, g, b, 1.];
@@ -369,15 +369,12 @@ impl TurtleTask {
 
         if self.data.drawing_done && self.data.current_command.is_some() {
             self.data.drawing_done = false;
-            if self.in_poly {
-                let window_x = (self.data.pos[0] + (self.data.size[0] / 2.) as isize) as f32;
-                let window_y = ((self.data.size[1] / 2.) as isize - self.data.pos[1]) as f32;
-                println!("adding values:");
-                println!("    data.pos  = {:?}", self.data.pos);
-                println!("    data.size = {:?}", self.data.size);
-                println!("       coords = {window_x}, {window_y}");
-                self.poly
-                    .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
+            if let Some(p) = self.last_point {
+                if p != self.data.pos {
+                    self.poly
+                        .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
+                    self.last_point = Some(self.data.pos);
+                }
             }
             let cmd = self.data.current_command.take().unwrap();
             self.data.cmds.push(cmd.clone());
