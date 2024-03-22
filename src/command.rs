@@ -30,7 +30,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub y: f64,
     pub size: [f64; 2],
     pub transform: [[f64; 3]; 2],
-    pub abs_trans: [[f64; 3]; 2],
+    pub win_center: [[f64; 3]; 2],
     pub pct: f64,
     pub deg: f64,
     pub start_deg: f64,
@@ -85,7 +85,7 @@ impl DrawCmd {
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
             Self::Fill(poly) => {
-                poly.draw(&ds.pen_color.clone(), &ds.abs_trans.clone(), ds);
+                poly.draw(&ds.pen_color.clone(), &ds.win_center.flip_v(), ds);
             }
             Self::Stamp(draw) => {
                 if *draw {

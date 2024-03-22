@@ -300,7 +300,7 @@ impl TurtleTask {
         self.gl.draw(args.viewport(), |context, gl| {
             // Clear the screen.
             clear(self.data.bgcolor, gl);
-            let abs_trans = context.transform.trans(x, y).rot_deg(-90.);
+            let win_center = context.transform.trans(x, y);
 
             let mut ds = TurtleDrawState {
                 context,
@@ -308,8 +308,8 @@ impl TurtleTask {
                 y,
                 size: args.window_size,
                 is_pen_down: true,
-                transform: abs_trans,
-                abs_trans,
+                transform: win_center.rot_deg(-90.),
+                win_center,
                 pct: 1.,
                 deg: -90.,
                 start_deg: -90.,
@@ -376,7 +376,8 @@ impl TurtleTask {
                 println!("    data.pos  = {:?}", self.data.pos);
                 println!("    data.size = {:?}", self.data.size);
                 println!("       coords = {window_x}, {window_y}");
-                self.poly.push([window_x, window_y]);
+                self.poly
+                    .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
             }
             let cmd = self.data.current_command.take().unwrap();
             self.data.cmds.push(cmd.clone());
