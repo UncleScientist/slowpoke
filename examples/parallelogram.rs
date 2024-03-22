@@ -8,7 +8,7 @@ fn main() {
             println!("start: {:?}", turtle.pos());
 
             turtle.pencolor(0.4, 0.8, 0.5);
-            // turtle.fillcolor(1., 1., 0.);
+            turtle.fillcolor(1., 1., 0.);
             turtle.begin_fill();
 
             turtle.right(30);

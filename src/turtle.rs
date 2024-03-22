@@ -174,6 +174,7 @@ struct TurtleData {
     angle: f64,
     size: Vec2d<f64>,
     bgcolor: types::Color,
+    insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
@@ -227,17 +228,18 @@ impl TurtleTask {
             ScreenCmd::BeginFill => {
                 self.last_point = Some(self.data.pos);
                 self.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
+                self.data.queue.push_back(DrawRequest {
+                    cmd: DrawCmd::Skip,
+                    turtle_id,
+                });
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndFill => {
-                let polygon = TurtlePolygon::new(&self.poly);
-
-                self.data.queue.push_back(DrawRequest {
-                    cmd: DrawCmd::Fill(polygon),
-                    turtle_id,
-                });
-
-                self.last_point = None;
+                if let Some(index) = self.data.insert_fill.take() {
+                    let polygon = TurtlePolygon::new(&self.poly);
+                    self.data.cmds[index] = DrawCmd::Fill(polygon);
+                    self.last_point = None;
+                }
             }
             ScreenCmd::Background(r, g, b) => {
                 self.data.bgcolor = [r, g, b, 1.];
@@ -314,6 +316,7 @@ impl TurtleTask {
                 deg: -90.,
                 start_deg: -90.,
                 pen_color: crate::BLACK,
+                fill_color: [0.4, 0.5, 0.6, 1.0],
                 pen_width: 0.5,
                 gl,
                 shape: self.turtle_shape.clone(),
@@ -379,6 +382,11 @@ impl TurtleTask {
             let cmd = self.data.current_command.take().unwrap();
             self.data.cmds.push(cmd.clone());
             self.data.current_command = None; // TODO: clean this up
+                                              //
+
+            if matches!(cmd, DrawCmd::Skip) {
+                self.data.insert_fill = Some(self.data.cmds.len() - 1);
+            }
 
             let _ = self
                 .data

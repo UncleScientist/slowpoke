@@ -7,6 +7,7 @@ use crate::{polygon::TurtlePolygon, Turtle};
 // commands that draw but don't return anything
 #[derive(Clone, Debug)]
 pub enum DrawCmd {
+    Skip,
     Forward(f64),
     Right(f64),
     Left(f64),
@@ -18,6 +19,7 @@ pub enum DrawCmd {
     SetY(f64),
     SetHeading(f64),
     PenColor(f32, f32, f32),
+    FillColor(f32, f32, f32),
     PenWidth(f64),
     Dot(Option<f64>, Option<(f32, f32, f32)>),
     Stamp(bool),
@@ -35,6 +37,7 @@ pub(crate) struct TurtleDrawState<'a> {
     pub deg: f64,
     pub start_deg: f64,
     pub pen_color: [f32; 4],
+    pub fill_color: [f32; 4],
     pub pen_width: f64,
     pub is_pen_down: bool,
     pub gl: &'a mut GlGraphics,
@@ -84,8 +87,9 @@ impl DrawCmd {
 
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
+            Self::Skip => {}
             Self::Fill(poly) => {
-                poly.draw(&ds.pen_color.clone(), &ds.win_center.flip_v(), ds);
+                poly.draw(&ds.fill_color.clone(), &ds.win_center.flip_v(), ds);
             }
             Self::Stamp(draw) => {
                 if *draw {
@@ -136,6 +140,9 @@ impl DrawCmd {
             }
             Self::PenColor(r, g, b) => {
                 ds.pen_color = [*r, *g, *b, 1.];
+            }
+            Self::FillColor(r, g, b) => {
+                ds.fill_color = [*r, *g, *b, 1.];
             }
             Self::PenWidth(width) => {
                 ds.pen_width = *width;

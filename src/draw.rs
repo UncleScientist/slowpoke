@@ -31,6 +31,11 @@ impl Turtle {
         self.do_draw(DrawCmd::PenColor(r as f32, g as f32, b as f32));
     }
 
+    pub fn fillcolor<R: Into<f64>, G: Into<f64>, B: Into<f64>>(&mut self, r: R, g: G, b: B) {
+        let (r, g, b): (f64, f64, f64) = (r.into(), g.into(), b.into());
+        self.do_draw(DrawCmd::FillColor(r as f32, g as f32, b as f32));
+    }
+
     pub fn penwidth<N: Into<f64>>(&mut self, width: N) {
         self.do_draw(DrawCmd::PenWidth(width.into()));
     }
