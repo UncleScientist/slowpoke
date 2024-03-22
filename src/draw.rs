@@ -23,6 +23,13 @@ impl Turtle {
         self.do_screen(ScreenCmd::ClearStamp(id));
     }
 
+    /// Clear a range of stamps. If `which` is 0, clear all stamps; if `which` is < 0, clear
+    /// the last `-which` stamps, and if which is > 0, clear the first `which` stamps.
+    ///
+    pub fn clearstamps(&mut self, which: isize) {
+        self.do_screen(ScreenCmd::ClearStamps(which));
+    }
+
     /*
      * Drawing commands
      */

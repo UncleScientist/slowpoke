@@ -58,6 +58,11 @@ pub struct Turtle {
     turtle_id: u64,
 }
 
+enum ClearDirection {
+    Forward,
+    Reverse,
+}
+
 impl Turtle {
     #[allow(clippy::new_ret_no_self)] // TODO: fix this
     pub fn new() -> TurtleArgs {
@@ -223,7 +228,7 @@ impl TurtleTask {
     }
 
     fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
-        let resp = self.data.responder.get(&turtle_id).unwrap();
+        let resp = self.data.responder.get(&turtle_id).unwrap().clone();
         match cmd {
             ScreenCmd::BeginFill => {
                 self.last_point = Some(self.data.pos);
@@ -251,10 +256,61 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {
-                self.data.cmds[id] = DrawCmd::Stamp(false);
+                if id < self.data.cmds.len() && matches!(self.data.cmds[id], DrawCmd::Stamp(true)) {
+                    self.data.cmds[id] = DrawCmd::Stamp(false);
+                }
+                let _ = resp.send(Response::Done);
+            }
+            ScreenCmd::ClearStamps(count) => {
+                #[allow(clippy::comparison_chain)]
+                if count < 0 {
+                    self.clear_stamps(-count, ClearDirection::Reverse);
+                } else if count == 0 {
+                    self.clear_stamps(isize::MAX, ClearDirection::Forward);
+                } else {
+                    self.clear_stamps(count, ClearDirection::Forward);
+                }
                 let _ = resp.send(Response::Done);
             }
         }
+    }
+
+    fn clearit(cmd: &mut DrawCmd, count: &mut isize) {
+        if matches!(cmd, DrawCmd::Stamp(true)) {
+            *count -= 1;
+            *cmd = DrawCmd::Stamp(false);
+        }
+    }
+
+    fn clear_stamps(&mut self, mut count: isize, dir: ClearDirection) {
+        match dir {
+            ClearDirection::Forward => {
+                let mut iter = self.data.cmds.iter_mut();
+                while count > 0 {
+                    if let Some(cmd) = iter.next() {
+                        Self::clearit(cmd, &mut count);
+                        if count == 0 {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+            ClearDirection::Reverse => {
+                let mut iter = self.data.cmds.iter_mut().rev();
+                while count > 0 {
+                    if let Some(cmd) = iter.next() {
+                        Self::clearit(cmd, &mut count);
+                        if count == 0 {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        };
     }
 
     fn input_cmd(&mut self, cmd: InputCmd, turtle_id: u64) {

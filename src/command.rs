@@ -50,6 +50,7 @@ pub enum ScreenCmd {
     ClearScreen,
     Background(f32, f32, f32),
     ClearStamp(usize),
+    ClearStamps(isize),
     BeginFill,
     EndFill,
 }
