@@ -3,16 +3,21 @@ use std::f64::consts::PI;
 use graphics::types::Vec2d;
 
 use crate::{
-    command::DataCmd, command::DrawCmd, command::ScreenCmd, turtle::Turtle, Response, StampID,
+    color_names::TurtleColor,
+    command::{DataCmd, DrawCmd, ScreenCmd},
+    turtle::Turtle,
+    Response, StampID,
 };
 
 impl Turtle {
     /*
      * Screen commands
      */
-    pub fn bgcolor<R: Into<f64>, G: Into<f64>, B: Into<f64>>(&mut self, r: R, g: G, b: B) {
-        let (r, g, b): (f64, f64, f64) = (r.into(), g.into(), b.into());
-        self.do_screen(ScreenCmd::Background(r as f32, g as f32, b as f32));
+    pub fn bgcolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
+        let tc: Result<TurtleColor, String> = c.try_into();
+        let tc = tc.expect("oops");
+        let (r, g, b) = tc.rgb();
+        self.do_screen(ScreenCmd::Background(r, g, b));
     }
 
     pub fn clearscreen(&mut self) {
@@ -33,14 +38,18 @@ impl Turtle {
     /*
      * Drawing commands
      */
-    pub fn pencolor<R: Into<f64>, G: Into<f64>, B: Into<f64>>(&mut self, r: R, g: G, b: B) {
-        let (r, g, b): (f64, f64, f64) = (r.into(), g.into(), b.into());
-        self.do_draw(DrawCmd::PenColor(r as f32, g as f32, b as f32));
+    pub fn pencolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
+        let tc: Result<TurtleColor, String> = c.try_into();
+        let tc = tc.expect("oops");
+        let (r, g, b) = tc.rgb();
+        self.do_draw(DrawCmd::PenColor(r, g, b));
     }
 
-    pub fn fillcolor<R: Into<f64>, G: Into<f64>, B: Into<f64>>(&mut self, r: R, g: G, b: B) {
-        let (r, g, b): (f64, f64, f64) = (r.into(), g.into(), b.into());
-        self.do_draw(DrawCmd::FillColor(r as f32, g as f32, b as f32));
+    pub fn fillcolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
+        let tc: Result<TurtleColor, String> = c.try_into();
+        let tc = tc.expect("oops");
+        let (r, g, b) = tc.rgb();
+        self.do_draw(DrawCmd::FillColor(r, g, b));
     }
 
     pub fn penwidth<N: Into<f64>>(&mut self, width: N) {
@@ -121,7 +130,19 @@ impl Turtle {
         self.left(theta_d / 2.);
     }
 
-    pub fn dot(&mut self, width: Option<f64>, color: Option<(f32, f32, f32)>) {
+    pub fn dot<C: TryInto<TurtleColor, Error = String>>(
+        &mut self,
+        width: Option<f64>,
+        color: Option<C>,
+    ) {
+        let color = match color {
+            Some(c) => {
+                let tc: Result<TurtleColor, String> = c.try_into();
+                let tc = tc.expect("oops");
+                Some(tc.rgb())
+            }
+            None => None,
+        };
         self.do_draw(DrawCmd::Dot(width, color));
     }
 

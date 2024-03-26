@@ -5,8 +5,8 @@ fn main() {
         .with_size(400, 400)
         .with_title("a line")
         .run(|turtle| {
-            turtle.pencolor(1., 0., 0.);
-            turtle.fillcolor(1., 1., 0.);
+            turtle.pencolor((1., 0., 0.));
+            turtle.fillcolor((1., 1., 0.));
             turtle.begin_fill();
             loop {
                 turtle.forward(200);

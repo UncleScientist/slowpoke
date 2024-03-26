@@ -2,6 +2,7 @@ use command::{Command, DrawCmd};
 use graphics::types::Vec2d;
 pub use turtle::{Turtle, TurtleArgs};
 
+pub mod color_names;
 mod command;
 mod draw;
 mod input;
