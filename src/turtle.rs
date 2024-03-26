@@ -3,6 +3,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use either::Either;
 use glutin_window::GlutinWindow;
 use graphics::types::{self, Vec2d};
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -275,42 +276,22 @@ impl TurtleTask {
         }
     }
 
-    fn clearit(cmd: &mut DrawCmd, count: &mut isize) {
-        if matches!(cmd, DrawCmd::Stamp(true)) {
-            *count -= 1;
-            *cmd = DrawCmd::Stamp(false);
-        }
-    }
-
     fn clear_stamps(&mut self, mut count: isize, dir: ClearDirection) {
-        match dir {
-            ClearDirection::Forward => {
-                let mut iter = self.data.cmds.iter_mut();
-                while count > 0 {
-                    if let Some(cmd) = iter.next() {
-                        Self::clearit(cmd, &mut count);
-                        if count == 0 {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            }
-            ClearDirection::Reverse => {
-                let mut iter = self.data.cmds.iter_mut().rev();
-                while count > 0 {
-                    if let Some(cmd) = iter.next() {
-                        Self::clearit(cmd, &mut count);
-                        if count == 0 {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            }
+        let mut iter = match dir {
+            ClearDirection::Forward => Either::Right(self.data.cmds.iter_mut()),
+            ClearDirection::Reverse => Either::Left(self.data.cmds.iter_mut().rev()),
         };
+
+        while count > 0 {
+            if let Some(cmd) = iter.next() {
+                if matches!(cmd, DrawCmd::Stamp(true)) {
+                    count -= 1;
+                    *cmd = DrawCmd::Stamp(false);
+                }
+            } else {
+                break;
+            }
+        }
     }
 
     fn input_cmd(&mut self, cmd: InputCmd, turtle_id: u64) {
