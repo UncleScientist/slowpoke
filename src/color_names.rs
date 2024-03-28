@@ -1,73 +1,42 @@
 pub struct ColorNames(&'static str, u8, u8, u8);
 
-pub struct TurtleColor(f32, f32, f32);
+// pub struct TurtleColor(f32, f32, f32);
 
-// pub enum TurtleColor {
-//      CurrentColor,
-//      Color(f32, f32, f32)
-// }
-
-pub struct CurrentColor;
-
-impl TurtleColor {
-    pub(crate) fn rgb(&self) -> (f32, f32, f32) {
-        (self.0, self.1, self.2)
-    }
+#[derive(Debug, Copy, Clone)]
+pub enum TurtleColor {
+    CurrentColor,
+    Color(f32, f32, f32),
 }
 
-impl TryFrom<CurrentColor> for TurtleColor {
-    type Error = String;
-
-    fn try_from(_value: CurrentColor) -> Result<Self, Self::Error> {
-        Ok(TurtleColor(0., 0., 0.))
-    }
-}
-
-impl TryFrom<&str> for TurtleColor {
-    type Error = String;
-
-    fn try_from(color_name: &str) -> Result<Self, Self::Error> {
+impl From<&str> for TurtleColor {
+    fn from(color_name: &str) -> Self {
         for c in &COLOR {
             if color_name == c.0 {
-                return Ok(TurtleColor(
-                    c.1 as f32 / 255.,
-                    c.2 as f32 / 255.,
-                    c.3 as f32 / 255.,
-                ));
+                return TurtleColor::Color(c.1 as f32 / 255., c.2 as f32 / 255., c.3 as f32 / 255.);
             }
         }
 
-        Err(format!("Unable to convert {color_name} to a color"))
+        TurtleColor::CurrentColor
     }
 }
 
-impl TryFrom<(f32, f32, f32)> for TurtleColor {
-    type Error = String;
-
-    fn try_from((r, g, b): (f32, f32, f32)) -> Result<Self, Self::Error> {
+impl From<(f32, f32, f32)> for TurtleColor {
+    fn from((r, g, b): (f32, f32, f32)) -> Self {
         fn in_range(v: f32) -> bool {
             (0. ..=1.).contains(&v)
         }
 
         if in_range(r) && in_range(g) && in_range(b) {
-            Ok(TurtleColor(r, g, b))
+            TurtleColor::Color(r, g, b)
         } else {
-            Err(format!(
-                "All values of ({r},{g},{b}) must be between 0 and 1"
-            ))
+            TurtleColor::CurrentColor
         }
     }
 }
 
-impl TryFrom<(u8, u8, u8)> for TurtleColor {
-    type Error = String;
-
-    fn try_from((r, g, b): (u8, u8, u8)) -> Result<Self, Self::Error> {
-        Ok(TurtleColor(
-            r as f32 / 255.,
-            g as f32 / 255.,
-            b as f32 / 255.,
-        ))
+impl From<(u8, u8, u8)> for TurtleColor {
+    fn from((r, g, b): (u8, u8, u8)) -> Self {
+        TurtleColor::Color(r as f32 / 255., g as f32 / 255., b as f32 / 255.)
     }
 }
 

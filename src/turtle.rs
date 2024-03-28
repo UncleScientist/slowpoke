@@ -13,6 +13,7 @@ use piston::{
 };
 
 use crate::{
+    color_names::TurtleColor,
     command::{Command, DataCmd, InputCmd, ScreenCmd, TurtleDrawState},
     polygon::TurtlePolygon,
     DrawCmd, Request, Response,
@@ -247,7 +248,8 @@ impl TurtleTask {
                     self.last_point = None;
                 }
             }
-            ScreenCmd::Background(r, g, b) => {
+            ScreenCmd::Background(TurtleColor::CurrentColor) => {}
+            ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
                 self.data.bgcolor = [r, g, b, 1.];
                 let _ = resp.send(Response::Done);
             }

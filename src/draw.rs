@@ -13,11 +13,8 @@ impl Turtle {
     /*
      * Screen commands
      */
-    pub fn bgcolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
-        let tc: Result<TurtleColor, String> = c.try_into();
-        let tc = tc.expect("oops");
-        let (r, g, b) = tc.rgb();
-        self.do_screen(ScreenCmd::Background(r, g, b));
+    pub fn bgcolor<C: Into<TurtleColor>>(&mut self, color: C) {
+        self.do_screen(ScreenCmd::Background(color.into()));
     }
 
     pub fn clearscreen(&mut self) {
@@ -38,18 +35,12 @@ impl Turtle {
     /*
      * Drawing commands
      */
-    pub fn pencolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
-        let tc: Result<TurtleColor, String> = c.try_into();
-        let tc = tc.expect("oops");
-        let (r, g, b) = tc.rgb();
-        self.do_draw(DrawCmd::PenColor(r, g, b));
+    pub fn pencolor<C: Into<TurtleColor>>(&mut self, color: C) {
+        self.do_draw(DrawCmd::PenColor(color.into()));
     }
 
-    pub fn fillcolor<C: TryInto<TurtleColor, Error = String>>(&mut self, c: C) {
-        let tc: Result<TurtleColor, String> = c.try_into();
-        let tc = tc.expect("oops");
-        let (r, g, b) = tc.rgb();
-        self.do_draw(DrawCmd::FillColor(r, g, b));
+    pub fn fillcolor<C: Into<TurtleColor>>(&mut self, color: C) {
+        self.do_draw(DrawCmd::FillColor(color.into()));
     }
 
     pub fn penwidth<N: Into<f64>>(&mut self, width: N) {
@@ -130,20 +121,8 @@ impl Turtle {
         self.left(theta_d / 2.);
     }
 
-    pub fn dot<C: TryInto<TurtleColor, Error = String>>(
-        &mut self,
-        width: Option<f64>,
-        color: Option<C>,
-    ) {
-        let color = match color {
-            Some(c) => {
-                let tc: Result<TurtleColor, String> = c.try_into();
-                let tc = tc.expect("oops");
-                Some(tc.rgb())
-            }
-            None => None,
-        };
-        self.do_draw(DrawCmd::Dot(width, color));
+    pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f64>, color: C) {
+        self.do_draw(DrawCmd::Dot(width, color.into()));
     }
 
     pub fn stamp(&mut self) -> StampID {

@@ -2,7 +2,7 @@ use graphics::{Context, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::Key;
 
-use crate::{polygon::TurtlePolygon, Turtle};
+use crate::{color_names::TurtleColor, polygon::TurtlePolygon, Turtle};
 
 // commands that draw but don't return anything
 #[derive(Clone, Debug)]
@@ -18,10 +18,10 @@ pub enum DrawCmd {
     SetX(f64),
     SetY(f64),
     SetHeading(f64),
-    PenColor(f32, f32, f32),
-    FillColor(f32, f32, f32),
+    PenColor(TurtleColor),
+    FillColor(TurtleColor),
     PenWidth(f64),
-    Dot(Option<f64>, Option<(f32, f32, f32)>),
+    Dot(Option<f64>, TurtleColor),
     Stamp(bool),
     Fill(TurtlePolygon),
 }
@@ -48,7 +48,7 @@ pub(crate) struct TurtleDrawState<'a> {
 #[derive(Copy, Clone, Debug)]
 pub enum ScreenCmd {
     ClearScreen,
-    Background(f32, f32, f32),
+    Background(TurtleColor),
     ClearStamp(usize),
     ClearStamps(isize),
     BeginFill,
@@ -139,19 +139,21 @@ impl DrawCmd {
                 let xpos = ds.transform[0][2] * ds.size[0] / 2.;
                 self.move_to(ds, xpos, *ypos);
             }
-            Self::PenColor(r, g, b) => {
+            Self::PenColor(TurtleColor::Color(r, g, b)) => {
                 ds.pen_color = [*r, *g, *b, 1.];
             }
-            Self::FillColor(r, g, b) => {
+            Self::FillColor(TurtleColor::Color(r, g, b)) => {
                 ds.fill_color = [*r, *g, *b, 1.];
             }
+            Self::PenColor(TurtleColor::CurrentColor)
+            | Self::FillColor(TurtleColor::CurrentColor) => {}
             Self::PenWidth(width) => {
                 ds.pen_width = *width;
             }
             Self::Dot(width, color) => {
                 let default_width = (ds.pen_width * 2.).max(ds.pen_width + 4.);
                 let width = width.unwrap_or(default_width);
-                let color = if let Some((r, g, b)) = color {
+                let color = if let TurtleColor::Color(r, g, b) = color {
                     [*r, *g, *b, 1.]
                 } else {
                     ds.pen_color
