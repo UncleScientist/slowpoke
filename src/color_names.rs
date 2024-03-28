@@ -40,6 +40,7 @@ impl From<(u8, u8, u8)> for TurtleColor {
     }
 }
 
+// Color names came from the page at https://www.tcl.tk/man/tcl/TkCmd/colors.htm
 pub const COLOR: [ColorNames; 760] = [
     ColorNames("alice blue", 240, 248, 255),
     ColorNames("AliceBlue", 240, 248, 255),
