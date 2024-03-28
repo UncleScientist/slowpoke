@@ -3,7 +3,7 @@ use slowpoke::*;
 fn main() {
     Turtle::new().run(|turtle| {
         turtle.penup();
-        turtle.goto(-243. / 2., -243. / 2.);
+        turtle.goto(-243. / 2., 243. / 2.);
         turtle.pendown();
         for _ in 0..4 {
             spiky_fractal(turtle, 3, 243.);
