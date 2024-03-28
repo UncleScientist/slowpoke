@@ -82,6 +82,7 @@ impl Turtle {
         let window: GlutinWindow = WindowSettings::new(&args.title, [xsize, ysize])
             .graphics_api(opengl)
             .exit_on_esc(true)
+            .samples(8)
             .build()
             .unwrap();
 
