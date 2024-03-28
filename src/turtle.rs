@@ -16,6 +16,7 @@ use crate::{
     color_names::TurtleColor,
     command::{Command, DataCmd, InputCmd, ScreenCmd, TurtleDrawState},
     polygon::TurtlePolygon,
+    speed::TurtleSpeed,
     DrawCmd, Request, Response,
 };
 
@@ -194,6 +195,7 @@ struct TurtleData {
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
+    speed: TurtleSpeed,
 }
 
 impl TurtleTask {
@@ -241,6 +243,10 @@ impl TurtleTask {
     fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data.responder.get(&turtle_id).unwrap().clone();
         match cmd {
+            ScreenCmd::Speed(s) => {
+                self.data.speed = s;
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::BeginFill => {
                 self.last_point = Some(self.data.pos);
                 self.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
@@ -417,10 +423,15 @@ impl TurtleTask {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        if self.data.percent >= 0. && self.data.percent <= 1. {
+        let s = self.data.speed.get();
+        if s == 0 {
+            self.data.drawing_done = true;
+        } else if self.data.percent >= 0. && self.data.percent <= 1. {
+            let multiplier = (11 - s) as f64 * 2.;
+
             match self.data.progression {
-                Progression::Forward => self.data.percent += args.dt * 10.,
-                Progression::Reverse => self.data.percent -= args.dt * 10.,
+                Progression::Forward => self.data.percent += args.dt * multiplier,
+                Progression::Reverse => self.data.percent -= args.dt * multiplier,
             }
         }
 

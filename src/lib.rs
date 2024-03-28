@@ -7,6 +7,7 @@ mod command;
 mod draw;
 mod input;
 mod polygon;
+pub mod speed;
 mod turtle;
 
 pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];

@@ -2,7 +2,7 @@ use graphics::{Context, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::Key;
 
-use crate::{color_names::TurtleColor, polygon::TurtlePolygon, Turtle};
+use crate::{color_names::TurtleColor, polygon::TurtlePolygon, speed::TurtleSpeed, Turtle};
 
 // commands that draw but don't return anything
 #[derive(Clone, Debug)]
@@ -54,6 +54,7 @@ pub enum ScreenCmd {
     ClearStamps(isize),
     BeginFill,
     EndFill,
+    Speed(TurtleSpeed),
 }
 
 #[derive(Copy, Clone, Debug)]

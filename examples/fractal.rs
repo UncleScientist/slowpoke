@@ -2,6 +2,7 @@ use slowpoke::*;
 
 fn main() {
     Turtle::new().run(|turtle| {
+        turtle.speed("fastest");
         turtle.penup();
         turtle.goto(-243. / 2., 243. / 2.);
         turtle.pendown();

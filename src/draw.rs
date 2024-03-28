@@ -5,6 +5,7 @@ use graphics::types::Vec2d;
 use crate::{
     color_names::TurtleColor,
     command::{DataCmd, DrawCmd, ScreenCmd},
+    speed::TurtleSpeed,
     turtle::Turtle,
     Response, StampID,
 };
@@ -23,6 +24,10 @@ impl Turtle {
 
     pub fn clearstamp(&mut self, id: StampID) {
         self.do_screen(ScreenCmd::ClearStamp(id));
+    }
+
+    pub fn speed<S: Into<TurtleSpeed>>(&mut self, speed: S) {
+        self.do_screen(ScreenCmd::Speed(speed.into()));
     }
 
     /// Clear a range of stamps. If `which` is 0, clear all stamps; if `which` is < 0, clear

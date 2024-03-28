@@ -6,11 +6,13 @@ fn main() {
         .with_title("a line")
         .run(|turtle| {
             const COUNT: usize = 10;
-            for _ in 0..COUNT {
+            for i in 0..COUNT {
+                turtle.speed(i as u8);
                 turtle.forward(50);
                 turtle.left(87);
             }
-            for _ in 0..COUNT * 2 {
+            for i in 0..COUNT * 2 {
+                turtle.speed(i as u8 / 2);
                 turtle.undo();
             }
         });
