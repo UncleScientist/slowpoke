@@ -420,9 +420,12 @@ impl TurtleTask {
                 }
             }
             let cmd = self.data.current_command.take().unwrap();
-            self.data.cmds.push(cmd.clone());
+            if matches!(cmd, DrawCmd::Undo) {
+                self.data.cmds.pop();
+            } else {
+                self.data.cmds.push(cmd.clone());
+            }
             self.data.current_command = None; // TODO: clean this up
-                                              //
 
             if matches!(cmd, DrawCmd::Skip) {
                 self.data.insert_fill = Some(self.data.cmds.len() - 1);

@@ -24,6 +24,7 @@ pub enum DrawCmd {
     Dot(Option<f64>, TurtleColor),
     Stamp(bool),
     Fill(TurtlePolygon),
+    Undo,
 }
 
 pub(crate) struct TurtleDrawState<'a> {
@@ -88,7 +89,7 @@ impl DrawCmd {
 
     pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
-            Self::Skip => {}
+            Self::Undo | Self::Skip => {}
             Self::Fill(poly) => {
                 poly.draw(&ds.fill_color.clone(), &ds.win_center.flip_v(), ds);
             }

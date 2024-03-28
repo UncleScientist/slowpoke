@@ -133,6 +133,10 @@ impl Turtle {
         }
     }
 
+    pub fn undo(&mut self) {
+        self.do_draw(DrawCmd::Undo);
+    }
+
     /*
      * Info requests
      */
