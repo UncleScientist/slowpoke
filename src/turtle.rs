@@ -171,6 +171,13 @@ struct TurtleTask {
 }
 
 #[derive(Default)]
+enum Progression {
+    #[default]
+    Forward,
+    Reverse,
+}
+
+#[derive(Default)]
 struct TurtleData {
     cmds: Vec<DrawCmd>,               // already-drawn elements
     queue: VecDeque<DrawRequest>,     // new elements to draw
@@ -178,6 +185,7 @@ struct TurtleData {
     current_turtle_id: u64,           // which thread to notify on completion
     turtle_id: u64,
     percent: f64,
+    progression: Progression,
     pos: Vec2d<isize>,
     angle: f64,
     size: Vec2d<f64>,
@@ -398,7 +406,10 @@ impl TurtleTask {
                 ds.deg + 90.
             };
 
-            self.data.drawing_done = ds.pct >= 1.;
+            self.data.drawing_done = match self.data.progression {
+                Progression::Forward => ds.pct >= 1.,
+                Progression::Reverse => ds.pct <= 0.,
+            };
 
             let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
             self.turtle_shape.draw(&crate::BLACK, &transform, &mut ds);
@@ -406,8 +417,11 @@ impl TurtleTask {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        if self.data.percent < 1. {
-            self.data.percent += args.dt * 10.; // TODO: make this smarter
+        if self.data.percent >= 0. && self.data.percent <= 1. {
+            match self.data.progression {
+                Progression::Forward => self.data.percent += args.dt * 10.,
+                Progression::Reverse => self.data.percent -= args.dt * 10.,
+            }
         }
 
         if self.data.drawing_done && self.data.current_command.is_some() {
@@ -420,9 +434,9 @@ impl TurtleTask {
                 }
             }
             let cmd = self.data.current_command.take().unwrap();
-            if matches!(cmd, DrawCmd::Undo) {
-                self.data.cmds.pop();
-            } else {
+            if !matches!(cmd, DrawCmd::Undo)
+                && matches!(self.data.progression, Progression::Forward)
+            {
                 self.data.cmds.push(cmd.clone());
             }
             self.data.current_command = None; // TODO: clean this up
@@ -445,9 +459,17 @@ impl TurtleTask {
 
         if self.data.current_command.is_none() && !self.data.queue.is_empty() {
             let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
-            self.data.current_command = Some(cmd);
             self.data.current_turtle_id = turtle_id;
-            self.data.percent = 0.;
+
+            if matches!(cmd, DrawCmd::Undo) {
+                self.data.current_command = self.data.cmds.pop();
+                self.data.progression = Progression::Reverse;
+                self.data.percent = 1.;
+            } else {
+                self.data.current_command = Some(cmd);
+                self.data.progression = Progression::Forward;
+                self.data.percent = 0.;
+            }
         }
     }
 
