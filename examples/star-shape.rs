@@ -3,9 +3,9 @@ use slowpoke::*;
 fn main() {
     TurtleArgs::default()
         .with_size(400, 400)
-        .with_title("a line")
+        .with_title("star shape example from python docs")
         .run(|turtle| {
-            turtle.speed("slow");
+            turtle.speed("fastest");
             turtle.pencolor((1., 0., 0.));
             turtle.fillcolor((1., 1., 0.));
             turtle.begin_fill();
