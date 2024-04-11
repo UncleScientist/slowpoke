@@ -256,7 +256,6 @@ impl TurtleTask {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
                 });
-                let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndFill => {
                 if let Some(index) = self.data.insert_fill.take() {
