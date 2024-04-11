@@ -4,27 +4,37 @@ use piston::Key;
 
 use crate::{color_names::TurtleColor, polygon::TurtlePolygon, speed::TurtleSpeed, Turtle};
 
-// commands that draw but don't return anything
 #[derive(Clone, Debug)]
 pub enum DrawCmd {
-    Skip,
+    TimedDraw(TimedDrawCmd),
+    InstantaneousDraw(InstantaneousDrawCmd),
+}
+
+// commands that draw but don't return anything
+#[derive(Clone, Debug)]
+pub enum TimedDrawCmd {
     Forward(f64),
     Right(f64),
     Left(f64),
-    PenDown,
-    PenUp,
     GoTo(f64, f64),
     Teleport(f64, f64),
     SetX(f64),
     SetY(f64),
     SetHeading(f64),
+}
+
+#[derive(Clone, Debug)]
+pub enum InstantaneousDrawCmd {
+    Undo,
+    BackfillPolygon,
+    PenDown,
+    PenUp,
     PenColor(TurtleColor),
     FillColor(TurtleColor),
     PenWidth(f64),
     Dot(Option<f64>, TurtleColor),
     Stamp(bool),
     Fill(TurtlePolygon),
-    Undo,
 }
 
 pub(crate) struct TurtleDrawState<'a> {
@@ -78,69 +88,12 @@ pub enum Command {
     Data(DataCmd),
 }
 
-impl DrawCmd {
-    pub(crate) fn get_rotation(&self, ds: &TurtleDrawState) -> f64 {
+impl InstantaneousDrawCmd {
+    fn draw(&self, ds: &mut TurtleDrawState) {
         match self {
-            Self::Right(deg) => *deg,
-            Self::Left(deg) => -*deg,
-            Self::SetHeading(deg) => *deg - ds.deg,
-            _ => 0.,
-        }
-    }
-
-    pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
-        match self {
-            Self::Undo | Self::Skip => {}
-            Self::Fill(poly) => {
-                poly.draw(&ds.fill_color.clone(), &ds.win_center.flip_v(), ds);
-            }
-            Self::Stamp(draw) => {
-                if *draw {
-                    let x = ds.shape.clone();
-                    x.draw(
-                        &ds.pen_color.clone(),
-                        &ds.transform
-                            .trans(ds.shape_offset.0, ds.shape_offset.1)
-                            .clone(),
-                        ds,
-                    );
-                }
-            }
-            Self::Forward(dist) => {
-                if ds.is_pen_down {
-                    graphics::line_from_to(
-                        ds.pen_color,
-                        ds.pen_width,
-                        [0., 0.],
-                        [dist * ds.pct, 0.],
-                        ds.transform,
-                        ds.gl,
-                    );
-                }
-                ds.transform = ds.transform.trans(dist * ds.pct, 0.);
-            }
-            Self::Right(deg) => ds.transform = ds.transform.rot_deg(deg * ds.pct),
-            Self::Left(deg) => ds.transform = ds.transform.rot_deg(-deg * ds.pct),
-            Self::SetHeading(heading) => {
-                ds.transform = ds.transform.rot_deg(heading - ds.start_deg)
-            }
+            Self::BackfillPolygon | Self::Undo => {}
             Self::PenDown => ds.is_pen_down = true,
             Self::PenUp => ds.is_pen_down = false,
-            Self::GoTo(xpos, ypos) => self.move_to(ds, *xpos, *ypos),
-            Self::Teleport(xpos, ypos) => {
-                let saved_pen = ds.is_pen_down;
-                ds.is_pen_down = false;
-                self.move_to(ds, *xpos, *ypos);
-                ds.is_pen_down = saved_pen;
-            }
-            Self::SetX(xpos) => {
-                let ypos = -ds.transform[1][2] * ds.size[1] / 2.;
-                self.move_to(ds, *xpos, ypos);
-            }
-            Self::SetY(ypos) => {
-                let xpos = ds.transform[0][2] * ds.size[0] / 2.;
-                self.move_to(ds, xpos, *ypos);
-            }
             Self::PenColor(TurtleColor::Color(r, g, b)) => {
                 ds.pen_color = [*r, *g, *b, 1.];
             }
@@ -167,6 +120,32 @@ impl DrawCmd {
                     ds.gl,
                 );
             }
+            Self::Stamp(draw) => {
+                if *draw {
+                    let x = ds.shape.clone();
+                    x.draw(
+                        &ds.pen_color.clone(),
+                        &ds.transform
+                            .trans(ds.shape_offset.0, ds.shape_offset.1)
+                            .clone(),
+                        ds,
+                    );
+                }
+            }
+            InstantaneousDrawCmd::Fill(poly) => {
+                poly.draw(&ds.fill_color.clone(), &ds.win_center.flip_v(), ds);
+            }
+        };
+    }
+}
+
+impl TimedDrawCmd {
+    fn get_rotation(&self, ds: &TurtleDrawState) -> f64 {
+        match self {
+            Self::Right(deg) => *deg,
+            Self::Left(deg) => -*deg,
+            Self::SetHeading(deg) => *deg - ds.deg,
+            _ => 0.,
         }
     }
 
@@ -193,5 +172,66 @@ impl DrawCmd {
             .transform
             .trans(pct_x + ds.x, pct_y + ds.y)
             .rot_deg(ds.deg);
+    }
+
+    fn draw(&self, ds: &mut TurtleDrawState) {
+        match self {
+            Self::Forward(dist) => {
+                if ds.is_pen_down {
+                    graphics::line_from_to(
+                        ds.pen_color,
+                        ds.pen_width,
+                        [0., 0.],
+                        [dist * ds.pct, 0.],
+                        ds.transform,
+                        ds.gl,
+                    );
+                }
+                ds.transform = ds.transform.trans(dist * ds.pct, 0.);
+            }
+            Self::Right(deg) => ds.transform = ds.transform.rot_deg(deg * ds.pct),
+            Self::Left(deg) => ds.transform = ds.transform.rot_deg(-deg * ds.pct),
+            Self::SetHeading(heading) => {
+                ds.transform = ds.transform.rot_deg(heading - ds.start_deg)
+            }
+            Self::GoTo(xpos, ypos) => self.move_to(ds, *xpos, *ypos),
+            Self::Teleport(xpos, ypos) => {
+                let saved_pen = ds.is_pen_down;
+                ds.is_pen_down = false;
+                self.move_to(ds, *xpos, *ypos);
+                ds.is_pen_down = saved_pen;
+            }
+            Self::SetX(xpos) => {
+                let ypos = -ds.transform[1][2] * ds.size[1] / 2.;
+                self.move_to(ds, *xpos, ypos);
+            }
+            Self::SetY(ypos) => {
+                let xpos = ds.transform[0][2] * ds.size[0] / 2.;
+                self.move_to(ds, xpos, *ypos);
+            }
+        }
+    }
+}
+
+impl DrawCmd {
+    pub(crate) fn is_stamp(&self) -> bool {
+        matches!(
+            self,
+            Self::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
+        )
+    }
+
+    pub(crate) fn get_rotation(&self, ds: &TurtleDrawState) -> f64 {
+        match self {
+            DrawCmd::TimedDraw(t) => t.get_rotation(ds),
+            DrawCmd::InstantaneousDraw(_) => 0.,
+        }
+    }
+
+    pub(crate) fn draw(&self, ds: &mut TurtleDrawState) {
+        match self {
+            DrawCmd::TimedDraw(t) => t.draw(ds),
+            DrawCmd::InstantaneousDraw(i) => i.draw(ds),
+        }
     }
 }

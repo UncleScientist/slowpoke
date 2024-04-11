@@ -1,4 +1,4 @@
-use command::{Command, DrawCmd};
+use command::Command;
 use graphics::types::Vec2d;
 pub use turtle::{Turtle, TurtleArgs};
 

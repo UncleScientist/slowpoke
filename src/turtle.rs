@@ -14,10 +14,12 @@ use piston::{
 
 use crate::{
     color_names::TurtleColor,
-    command::{Command, DataCmd, InputCmd, ScreenCmd, TurtleDrawState},
+    command::{
+        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, ScreenCmd, TurtleDrawState,
+    },
     polygon::TurtlePolygon,
     speed::TurtleSpeed,
-    DrawCmd, Request, Response,
+    Request, Response,
 };
 
 #[derive(Debug)]
@@ -251,7 +253,7 @@ impl TurtleTask {
                 self.last_point = Some(self.data.pos);
                 self.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
                 self.data.queue.push_back(DrawRequest {
-                    cmd: DrawCmd::Skip,
+                    cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
                 });
                 let _ = resp.send(Response::Done);
@@ -259,7 +261,8 @@ impl TurtleTask {
             ScreenCmd::EndFill => {
                 if let Some(index) = self.data.insert_fill.take() {
                     let polygon = TurtlePolygon::new(&self.poly);
-                    self.data.cmds[index] = DrawCmd::Fill(polygon);
+                    self.data.cmds[index] =
+                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
                     self.last_point = None;
                 }
             }
@@ -274,8 +277,14 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {
-                if id < self.data.cmds.len() && matches!(self.data.cmds[id], DrawCmd::Stamp(true)) {
-                    self.data.cmds[id] = DrawCmd::Stamp(false);
+                if id < self.data.cmds.len()
+                    && matches!(
+                        self.data.cmds[id],
+                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true))
+                    )
+                {
+                    self.data.cmds[id] =
+                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false))
                 }
                 let _ = resp.send(Response::Done);
             }
@@ -301,9 +310,9 @@ impl TurtleTask {
 
         while count > 0 {
             if let Some(cmd) = iter.next() {
-                if matches!(cmd, DrawCmd::Stamp(true)) {
+                if cmd.is_stamp() {
                     count -= 1;
-                    *cmd = DrawCmd::Stamp(false);
+                    *cmd = DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false));
                 }
             } else {
                 break;
@@ -328,7 +337,7 @@ impl TurtleTask {
             DataCmd::Heading => resp.send(Response::Heading(self.data.angle)),
             DataCmd::Stamp => {
                 self.data.queue.push_back(DrawRequest {
-                    cmd: DrawCmd::Stamp(true),
+                    cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
                     turtle_id,
                 });
                 Ok(())
@@ -428,8 +437,11 @@ impl TurtleTask {
             || match self.data.progression {
                 Progression::Forward => self.data.percent >= 1.,
                 Progression::Reverse => self.data.percent <= 0.,
-            };
-
+            }
+            || matches!(
+                self.data.current_command,
+                Some(DrawCmd::InstantaneousDraw(_))
+            );
         if !self.data.drawing_done {
             let multiplier = s as f64 * 2.;
 
@@ -449,14 +461,16 @@ impl TurtleTask {
                 }
             }
             let cmd = self.data.current_command.take().unwrap();
-            if !matches!(cmd, DrawCmd::Undo)
+            if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
                 && matches!(self.data.progression, Progression::Forward)
             {
                 self.data.cmds.push(cmd.clone());
             }
-            self.data.current_command = None; // TODO: clean this up
 
-            if matches!(cmd, DrawCmd::Skip) {
+            if matches!(
+                cmd,
+                DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
+            ) {
                 self.data.insert_fill = Some(self.data.cmds.len() - 1);
             }
 
@@ -465,7 +479,7 @@ impl TurtleTask {
                 .responder
                 .get(&self.data.current_turtle_id)
                 .unwrap()
-                .send(if matches!(cmd, DrawCmd::Stamp(_)) {
+                .send(if cmd.is_stamp() {
                     Response::StampID(self.data.cmds.len() - 1)
                 } else {
                     Response::Done
@@ -476,7 +490,7 @@ impl TurtleTask {
             let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
             self.data.current_turtle_id = turtle_id;
 
-            if matches!(cmd, DrawCmd::Undo) {
+            if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
                 self.data.current_command = self.data.cmds.pop();
                 self.data.progression = Progression::Reverse;
                 self.data.percent = 1.;

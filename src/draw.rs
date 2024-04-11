@@ -4,7 +4,7 @@ use graphics::types::Vec2d;
 
 use crate::{
     color_names::TurtleColor,
-    command::{DataCmd, DrawCmd, ScreenCmd},
+    command::{DataCmd, DrawCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd},
     speed::TurtleSpeed,
     turtle::Turtle,
     Response, StampID,
@@ -41,59 +41,73 @@ impl Turtle {
      * Drawing commands
      */
     pub fn pencolor<C: Into<TurtleColor>>(&mut self, color: C) {
-        self.do_draw(DrawCmd::PenColor(color.into()));
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::PenColor(
+            color.into(),
+        )));
     }
 
     pub fn fillcolor<C: Into<TurtleColor>>(&mut self, color: C) {
-        self.do_draw(DrawCmd::FillColor(color.into()));
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::FillColor(
+            color.into(),
+        )));
     }
 
     pub fn penwidth<N: Into<f64>>(&mut self, width: N) {
-        self.do_draw(DrawCmd::PenWidth(width.into()));
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::PenWidth(
+            width.into(),
+        )));
     }
 
     pub fn forward<N: Into<f64>>(&mut self, distance: N) {
-        self.do_draw(DrawCmd::Forward(distance.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Forward(distance.into())));
     }
 
     pub fn backward<N: Into<f64>>(&mut self, distance: N) {
-        self.do_draw(DrawCmd::Forward(-distance.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Forward(-distance.into())));
     }
 
     pub fn right<N: Into<f64>>(&mut self, rotation: N) {
-        self.do_draw(DrawCmd::Right(rotation.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Right(rotation.into())));
     }
 
     pub fn left<N: Into<f64>>(&mut self, rotation: N) {
-        self.do_draw(DrawCmd::Left(rotation.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Left(rotation.into())));
     }
 
     pub fn setheading<N: Into<f64>>(&mut self, heading: N) {
-        self.do_draw(DrawCmd::SetHeading(heading.into() - 90.));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetHeading(
+            heading.into() - 90.,
+        )));
     }
 
     pub fn penup(&mut self) {
-        self.do_draw(DrawCmd::PenUp);
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::PenUp));
     }
 
     pub fn pendown(&mut self) {
-        self.do_draw(DrawCmd::PenDown);
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::PenDown));
     }
 
     pub fn goto<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
-        self.do_draw(DrawCmd::GoTo(xpos.into(), -ypos.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::GoTo(
+            xpos.into(),
+            -ypos.into(),
+        )));
     }
 
     pub fn teleport<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
-        self.do_draw(DrawCmd::Teleport(xpos.into(), -ypos.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Teleport(
+            xpos.into(),
+            -ypos.into(),
+        )));
     }
 
     pub fn setx<N: Into<f64>>(&mut self, xpos: N) {
-        self.do_draw(DrawCmd::SetX(xpos.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetX(xpos.into())));
     }
 
     pub fn sety<N: Into<f64>>(&mut self, ypos: N) {
-        self.do_draw(DrawCmd::SetY(-ypos.into()));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetY(-ypos.into())));
     }
 
     pub fn begin_fill(&mut self) {
@@ -127,7 +141,10 @@ impl Turtle {
     }
 
     pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f64>, color: C) {
-        self.do_draw(DrawCmd::Dot(width, color.into()));
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Dot(
+            width,
+            color.into(),
+        )));
     }
 
     pub fn stamp(&mut self) -> StampID {
@@ -139,7 +156,7 @@ impl Turtle {
     }
 
     pub fn undo(&mut self) {
-        self.do_draw(DrawCmd::Undo);
+        self.do_draw(DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo));
     }
 
     /*
