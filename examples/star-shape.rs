@@ -6,17 +6,15 @@ fn main() {
         .with_title("star shape example from python docs")
         .run(|turtle| {
             turtle.speed("fastest");
+            turtle.penup();
+            turtle.setx(-100);
+            turtle.pendown();
             turtle.pencolor((1., 0., 0.));
             turtle.fillcolor((1., 1., 0.));
             turtle.begin_fill();
-            loop {
+            for _ in 0..36 {
                 turtle.forward(200);
                 turtle.left(170);
-                let pos = turtle.pos();
-                let dist = ((pos[0] * pos[0] + pos[1] * pos[1]) as f64).sqrt();
-                if dist < 1.0 {
-                    break;
-                }
             }
 
             turtle.end_fill();
