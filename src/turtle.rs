@@ -379,6 +379,7 @@ impl TurtleTask {
 
             let mut index = 0;
             let mut done = false;
+            // draw all the user commands
             while !done {
                 ds.start_deg = ds.deg;
                 let cmd = if index < self.data.cmds.len() {
@@ -402,32 +403,35 @@ impl TurtleTask {
                 cmd.draw(&mut ds);
             }
 
+            // draw the turtle shape
+            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
+            self.turtle_shape.draw(&crate::BLACK, &transform, &mut ds);
+
+            // save last known position and angle
             self.data.pos = [
                 (ds.transform[0][2] * self.data.size[0] / 2.) as isize,
                 (ds.transform[1][2] * self.data.size[1] / 2.) as isize,
             ];
+
             self.data.angle = if ds.deg + 90. >= 360. {
                 ds.deg - 270.
             } else {
                 ds.deg + 90.
             };
-
-            self.data.drawing_done = match self.data.progression {
-                Progression::Forward => ds.pct >= 1.,
-                Progression::Reverse => ds.pct <= 0.,
-            };
-
-            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
-            self.turtle_shape.draw(&crate::BLACK, &transform, &mut ds);
         });
     }
 
     fn update(&mut self, args: &UpdateArgs) {
         let s = self.data.speed.get();
-        if s == 0 {
-            self.data.drawing_done = true;
-        } else if self.data.percent >= 0. && self.data.percent <= 1. {
-            let multiplier = (11 - s) as f64 * 2.;
+
+        self.data.drawing_done = s == 0
+            || match self.data.progression {
+                Progression::Forward => self.data.percent >= 1.,
+                Progression::Reverse => self.data.percent <= 0.,
+            };
+
+        if !self.data.drawing_done {
+            let multiplier = s as f64 * 2.;
 
             match self.data.progression {
                 Progression::Forward => self.data.percent += args.dt * multiplier,
