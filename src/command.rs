@@ -53,7 +53,35 @@ pub(crate) struct TurtleDrawState<'a> {
     pub is_pen_down: bool,
     pub gl: &'a mut GlGraphics,
     pub shape: TurtlePolygon,
-    pub shape_offset: (f64, f64),
+}
+
+impl<'a> TurtleDrawState<'a> {
+    pub(crate) fn new(
+        size: [f64; 2],
+        context: Context,
+        gl: &'a mut GlGraphics,
+        shape: TurtlePolygon,
+    ) -> Self {
+        let (x, y) = (size[0] / 2.0, size[1] / 2.0);
+        let win_center = context.transform.trans(x, y);
+        Self {
+            context,
+            x,
+            y,
+            size,
+            is_pen_down: true,
+            transform: win_center,
+            win_center,
+            pct: 1.,
+            deg: 0.,
+            start_deg: 0.,
+            pen_color: crate::BLACK,
+            fill_color: crate::BLACK,
+            pen_width: 0.5,
+            gl,
+            shape,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -123,17 +151,11 @@ impl InstantaneousDrawCmd {
             Self::Stamp(draw) => {
                 if *draw {
                     let x = ds.shape.clone();
-                    x.draw(
-                        &ds.pen_color.clone(),
-                        &ds.transform
-                            .trans(ds.shape_offset.0, ds.shape_offset.1)
-                            .clone(),
-                        ds,
-                    );
+                    x.draw(&ds.pen_color.clone(), ds.transform, ds);
                 }
             }
             InstantaneousDrawCmd::Fill(poly) => {
-                poly.draw(&ds.fill_color.clone(), &ds.win_center.flip_v(), ds);
+                poly.draw(&ds.fill_color.clone(), ds.win_center.flip_v(), ds);
             }
         };
     }

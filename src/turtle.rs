@@ -95,12 +95,12 @@ impl Turtle {
             window,
             issue_command,
             receive_command,
-            data: TurtleData {
+            bgcolor: crate::WHITE,
+            data: vec![TurtleData {
                 size: [xsize, ysize],
-                bgcolor: crate::WHITE,
                 percent: 2.,
                 ..TurtleData::default()
-            },
+            }],
         };
 
         tt.run(func);
@@ -155,14 +155,6 @@ impl Turtle {
     }
 }
 
-struct TurtleTask {
-    gl: GlGraphics, // OpenGL drawing backend.
-    window: GlutinWindow,
-    issue_command: Sender<Request>,
-    receive_command: Receiver<Request>,
-    data: TurtleData,
-}
-
 #[derive(Default)]
 enum Progression {
     #[default]
@@ -171,7 +163,7 @@ enum Progression {
 }
 
 #[derive(Default)]
-struct TurtleData {
+pub(crate) struct TurtleData {
     cmds: Vec<DrawCmd>,               // already-drawn elements
     queue: VecDeque<DrawRequest>,     // new elements to draw
     current_command: Option<DrawCmd>, // what we're drawing now
@@ -182,16 +174,68 @@ struct TurtleData {
     pos: Vec2d<isize>,
     angle: f64,
     size: Vec2d<f64>,
-    bgcolor: types::Color,
     insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
     speed: TurtleSpeed,
-    turtle_shape: TurtlePolygon,
-    shape_offset: (f64, f64),
+    pub(crate) turtle_shape: TurtlePolygon,
     last_point: Option<Vec2d<isize>>,
     poly: Vec<[f32; 2]>,
+}
+
+impl TurtleData {
+    fn draw(&mut self, ds: &mut TurtleDrawState) {
+        let mut index = 0;
+        let mut done = false;
+        // draw all the user commands
+        while !done {
+            ds.start_deg = ds.deg;
+            let cmd = if index < self.cmds.len() {
+                index += 1;
+                let cmd = &self.cmds[index - 1];
+                ds.deg += cmd.get_rotation(ds) % 360.;
+                if ds.deg < 0. {
+                    ds.deg += 360.;
+                }
+                Some(cmd)
+            } else {
+                ds.pct = self.percent.min(1.);
+                done = true;
+                self.current_command.as_ref()
+            };
+
+            let Some(cmd) = cmd else {
+                break;
+            };
+
+            cmd.draw(ds);
+        }
+
+        // draw the turtle shape
+        self.turtle_shape.draw(&crate::BLACK, ds.transform, ds);
+
+        // save last known position and angle
+        self.pos = [
+            (ds.transform[0][2] * self.size[0] / 2.) as isize,
+            (ds.transform[1][2] * self.size[1] / 2.) as isize,
+        ];
+
+        self.angle = if ds.deg + 90. >= 360. {
+            ds.deg - 270.
+        } else {
+            ds.deg + 90.
+        };
+    }
+}
+
+struct TurtleTask {
+    gl: GlGraphics, // OpenGL drawing backend.
+    window: GlutinWindow,
+    issue_command: Sender<Request>,
+    receive_command: Receiver<Request>,
+    bgcolor: types::Color,
+    data: Vec<TurtleData>,
 }
 
 impl TurtleTask {
@@ -219,64 +263,65 @@ impl TurtleTask {
             }
 
             if let Some(args) = e.resize_args() {
-                self.data.size = args.window_size;
+                self.data[0].size = args.window_size;
             }
         }
     }
 
     fn spawn_turtle(&mut self) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
-        self.data.turtle_id += 1;
-        self.data.responder.insert(self.data.turtle_id, finished);
+        self.data[0].turtle_id += 1;
+        let newid = self.data[0].turtle_id;
+        self.data[0].responder.insert(newid, finished);
 
         Turtle::init(
             self.issue_command.clone(),
             command_complete,
-            self.data.turtle_id,
+            self.data[0].turtle_id,
         )
     }
 
     fn screen_cmd(&mut self, cmd: ScreenCmd, turtle_id: u64) {
-        let resp = self.data.responder.get(&turtle_id).unwrap().clone();
+        let resp = self.data[0].responder.get(&turtle_id).unwrap().clone();
         match cmd {
             ScreenCmd::Speed(s) => {
-                self.data.speed = s;
+                self.data[0].speed = s;
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginFill => {
-                self.data.last_point = Some(self.data.pos);
-                self.data.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
-                self.data.queue.push_back(DrawRequest {
+                self.data[0].last_point = Some(self.data[0].pos);
+                self.data[0].poly = vec![[self.data[0].pos[0] as f32, self.data[0].pos[1] as f32]];
+                self.data[0].queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
                 });
             }
             ScreenCmd::EndFill => {
-                if let Some(index) = self.data.insert_fill.take() {
-                    let polygon = TurtlePolygon::new(&self.data.poly);
-                    self.data.cmds[index] =
+                if let Some(index) = self.data[0].insert_fill.take() {
+                    let polygon = TurtlePolygon::new(&self.data[0].poly);
+                    self.data[0].cmds[index] =
                         DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
-                    self.data.last_point = None;
+                    self.data[0].last_point = None;
                 }
             }
             ScreenCmd::Background(TurtleColor::CurrentColor) => {}
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
-                self.data.bgcolor = [r, g, b, 1.];
+                self.bgcolor = [r, g, b, 1.];
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
-                self.data.cmds.clear();
-                self.data.bgcolor = crate::BLACK;
+                self.data[0].cmds.clear();
+                self.bgcolor = crate::BLACK;
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {
-                if id < self.data.cmds.len()
+                if id < self.data[0].cmds.len()
                     && matches!(
-                        self.data.cmds[id],
+                        self.data[0].cmds[id],
                         DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true))
                     )
                 {
-                    self.data.cmds[id] =
+                    self.data[0].cmds[id] =
                         DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false))
                 }
                 let _ = resp.send(Response::Done);
@@ -297,8 +342,8 @@ impl TurtleTask {
 
     fn clear_stamps(&mut self, mut count: isize, dir: ClearDirection) {
         let mut iter = match dir {
-            ClearDirection::Forward => Either::Right(self.data.cmds.iter_mut()),
-            ClearDirection::Reverse => Either::Left(self.data.cmds.iter_mut().rev()),
+            ClearDirection::Forward => Either::Right(self.data[0].cmds.iter_mut()),
+            ClearDirection::Reverse => Either::Left(self.data[0].cmds.iter_mut().rev()),
         };
 
         while count > 0 {
@@ -314,22 +359,22 @@ impl TurtleTask {
     }
 
     fn input_cmd(&mut self, cmd: InputCmd, turtle_id: u64) {
-        let resp = self.data.responder.get(&turtle_id).unwrap();
+        let resp = self.data[0].responder.get(&turtle_id).unwrap().clone();
         match cmd {
             InputCmd::OnKeyPress(f, k) => {
-                self.data.onkeypress.insert(k, f);
+                self.data[0].onkeypress.insert(k, f);
                 let _ = resp.send(Response::Done);
             }
         }
     }
 
     fn data_cmd(&mut self, cmd: DataCmd, turtle_id: u64) {
-        let resp = self.data.responder.get(&turtle_id).unwrap();
+        let resp = self.data[0].responder.get(&turtle_id).unwrap();
         let _ = match cmd {
-            DataCmd::Position => resp.send(Response::Position(self.data.pos)),
-            DataCmd::Heading => resp.send(Response::Heading(self.data.angle)),
+            DataCmd::Position => resp.send(Response::Position(self.data[0].pos)),
+            DataCmd::Heading => resp.send(Response::Heading(self.data[0].angle)),
             DataCmd::Stamp => {
-                self.data.queue.push_back(DrawRequest {
+                self.data[0].queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
                     turtle_id,
                 });
@@ -341,7 +386,7 @@ impl TurtleTask {
     fn handle_command(&mut self, req: Request) {
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(cmd, req.turtle_id),
-            Command::Draw(cmd) => self.data.queue.push_back(DrawRequest {
+            Command::Draw(cmd) => self.data[0].queue.push_back(DrawRequest {
                 cmd,
                 turtle_id: req.turtle_id,
             }),
@@ -353,149 +398,85 @@ impl TurtleTask {
     fn render(&mut self, args: &RenderArgs) {
         use graphics::*;
 
-        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
-
         self.gl.draw(args.viewport(), |context, gl| {
             // Clear the screen.
-            clear(self.data.bgcolor, gl);
-            let win_center = context.transform.trans(x, y);
-
-            let mut ds = TurtleDrawState {
-                context,
-                x,
-                y,
-                size: args.window_size,
-                is_pen_down: true,
-                transform: win_center,
-                win_center,
-                pct: 1.,
-                deg: -0.,
-                start_deg: -0.,
-                pen_color: crate::BLACK,
-                fill_color: [0.4, 0.5, 0.6, 1.0],
-                pen_width: 0.5,
-                gl,
-                shape: self.data.turtle_shape.clone(),
-                shape_offset: self.data.shape_offset,
-            };
-
-            let mut index = 0;
-            let mut done = false;
-            // draw all the user commands
-            while !done {
-                ds.start_deg = ds.deg;
-                let cmd = if index < self.data.cmds.len() {
-                    index += 1;
-                    let cmd = &self.data.cmds[index - 1];
-                    ds.deg += cmd.get_rotation(&ds) % 360.;
-                    if ds.deg < 0. {
-                        ds.deg += 360.;
-                    }
-                    Some(cmd)
-                } else {
-                    ds.pct = self.data.percent.min(1.);
-                    done = true;
-                    self.data.current_command.as_ref()
-                };
-
-                let Some(cmd) = cmd else {
-                    break;
-                };
-
-                cmd.draw(&mut ds);
+            clear(self.bgcolor, gl);
+            for turtle in self.data.iter_mut() {
+                let mut ds = TurtleDrawState::new(
+                    args.window_size,
+                    context,
+                    gl,
+                    turtle.turtle_shape.clone(),
+                );
+                turtle.draw(&mut ds);
             }
-
-            // draw the turtle shape
-            let transform = ds
-                .transform
-                .trans(self.data.shape_offset.0, self.data.shape_offset.1);
-            self.data
-                .turtle_shape
-                .draw(&crate::BLACK, &transform, &mut ds);
-
-            // save last known position and angle
-            self.data.pos = [
-                (ds.transform[0][2] * self.data.size[0] / 2.) as isize,
-                (ds.transform[1][2] * self.data.size[1] / 2.) as isize,
-            ];
-
-            self.data.angle = if ds.deg + 90. >= 360. {
-                ds.deg - 270.
-            } else {
-                ds.deg + 90.
-            };
         });
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        let s = self.data.speed.get();
+        let s = self.data[0].speed.get();
 
-        self.data.drawing_done = s == 0
-            || match self.data.progression {
-                Progression::Forward => self.data.percent >= 1.,
-                Progression::Reverse => self.data.percent <= 0.,
+        self.data[0].drawing_done = s == 0
+            || match self.data[0].progression {
+                Progression::Forward => self.data[0].percent >= 1.,
+                Progression::Reverse => self.data[0].percent <= 0.,
             }
             || matches!(
-                self.data.current_command,
+                self.data[0].current_command,
                 Some(DrawCmd::InstantaneousDraw(_))
             );
-        if !self.data.drawing_done {
+        if !self.data[0].drawing_done {
             let multiplier = s as f64 * 2.;
 
-            match self.data.progression {
-                Progression::Forward => self.data.percent += args.dt * multiplier,
-                Progression::Reverse => self.data.percent -= args.dt * multiplier,
+            match self.data[0].progression {
+                Progression::Forward => self.data[0].percent += args.dt * multiplier,
+                Progression::Reverse => self.data[0].percent -= args.dt * multiplier,
             }
         }
 
-        if self.data.drawing_done && self.data.current_command.is_some() {
-            self.data.drawing_done = false;
-            if let Some(p) = self.data.last_point {
-                if p != self.data.pos {
-                    self.data
-                        .poly
-                        .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
-                    self.data.last_point = Some(self.data.pos);
+        if self.data[0].drawing_done && self.data[0].current_command.is_some() {
+            self.data[0].drawing_done = false;
+            if let Some(p) = self.data[0].last_point {
+                if p != self.data[0].pos {
+                    let new_point = [self.data[0].pos[0] as f32, self.data[0].pos[1] as f32];
+                    self.data[0].poly.push(new_point);
+                    self.data[0].last_point = Some(self.data[0].pos);
                 }
             }
-            let cmd = self.data.current_command.take().unwrap();
+            let cmd = self.data[0].current_command.take().unwrap();
             if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
-                && matches!(self.data.progression, Progression::Forward)
+                && matches!(self.data[0].progression, Progression::Forward)
             {
-                self.data.cmds.push(cmd.clone());
+                self.data[0].cmds.push(cmd.clone());
             }
 
             if matches!(
                 cmd,
                 DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
             ) {
-                self.data.insert_fill = Some(self.data.cmds.len() - 1);
+                self.data[0].insert_fill = Some(self.data[0].cmds.len() - 1);
             }
 
-            let _ = self
-                .data
-                .responder
-                .get(&self.data.current_turtle_id)
-                .unwrap()
-                .send(if cmd.is_stamp() {
-                    Response::StampID(self.data.cmds.len() - 1)
+            let _ =
+                self.data[0].responder[&self.data[0].current_turtle_id].send(if cmd.is_stamp() {
+                    Response::StampID(self.data[0].cmds.len() - 1)
                 } else {
                     Response::Done
                 });
         }
 
-        if self.data.current_command.is_none() && !self.data.queue.is_empty() {
-            let DrawRequest { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
-            self.data.current_turtle_id = turtle_id;
+        if self.data[0].current_command.is_none() && !self.data[0].queue.is_empty() {
+            let DrawRequest { cmd, turtle_id } = self.data[0].queue.pop_front().unwrap();
+            self.data[0].current_turtle_id = turtle_id;
 
             if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
-                self.data.current_command = self.data.cmds.pop();
-                self.data.progression = Progression::Reverse;
-                self.data.percent = 1.;
+                self.data[0].current_command = self.data[0].cmds.pop();
+                self.data[0].progression = Progression::Reverse;
+                self.data[0].percent = 1.;
             } else {
-                self.data.current_command = Some(cmd);
-                self.data.progression = Progression::Forward;
-                self.data.percent = 0.;
+                self.data[0].current_command = Some(cmd);
+                self.data[0].progression = Progression::Forward;
+                self.data[0].percent = 0.;
             }
         }
     }
@@ -507,7 +488,7 @@ impl TurtleTask {
                 button: Button::Keyboard(key),
                 ..
             } => {
-                if let Some(func) = self.data.onkeypress.get(key).copied() {
+                if let Some(func) = self.data[0].onkeypress.get(key).copied() {
                     let mut turtle = self.spawn_turtle();
                     let key = *key;
                     let _ = std::thread::spawn(move || func(&mut turtle, key));

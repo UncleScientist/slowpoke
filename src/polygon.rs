@@ -55,7 +55,7 @@ impl TurtlePolygon {
         }
     }
 
-    pub fn draw(&self, color: &[f32; 4], transform: &[[f64; 3]; 2], ds: &mut TurtleDrawState) {
+    pub fn draw(&self, color: &[f32; 4], transform: [[f64; 3]; 2], ds: &mut TurtleDrawState) {
         for i in self.indices.chunks(3) {
             let shape = [
                 self.vertices[i[0]],
@@ -63,7 +63,7 @@ impl TurtlePolygon {
                 self.vertices[i[2]],
             ];
 
-            graphics::polygon(*color, &shape, *transform, ds.gl);
+            graphics::polygon(*color, &shape, transform, ds.gl);
         }
     }
 }
