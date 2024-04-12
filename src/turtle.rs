@@ -227,6 +227,70 @@ impl TurtleData {
             ds.deg + 90.
         };
     }
+
+    fn update(&mut self, delta_t: f64) {
+        let s = self.speed.get();
+
+        self.drawing_done = s == 0
+            || match self.progression {
+                Progression::Forward => self.percent >= 1.,
+                Progression::Reverse => self.percent <= 0.,
+            }
+            || matches!(self.current_command, Some(DrawCmd::InstantaneousDraw(_)));
+        if !self.drawing_done {
+            let multiplier = s as f64 * 2.;
+
+            match self.progression {
+                Progression::Forward => self.percent += delta_t * multiplier,
+                Progression::Reverse => self.percent -= delta_t * multiplier,
+            }
+        }
+
+        if self.drawing_done && self.current_command.is_some() {
+            self.drawing_done = false;
+            if let Some(p) = self.last_point {
+                if p != self.pos {
+                    let new_point = [self.pos[0] as f32, self.pos[1] as f32];
+                    self.poly.push(new_point);
+                    self.last_point = Some(self.pos);
+                }
+            }
+            let cmd = self.current_command.take().unwrap();
+            if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
+                && matches!(self.progression, Progression::Forward)
+            {
+                self.cmds.push(cmd.clone());
+            }
+
+            if matches!(
+                cmd,
+                DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
+            ) {
+                self.insert_fill = Some(self.cmds.len() - 1);
+            }
+
+            let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
+                Response::StampID(self.cmds.len() - 1)
+            } else {
+                Response::Done
+            });
+        }
+
+        if self.current_command.is_none() && !self.queue.is_empty() {
+            let DrawRequest { cmd, turtle_id } = self.queue.pop_front().unwrap();
+            self.current_turtle_id = turtle_id;
+
+            if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
+                self.current_command = self.cmds.pop();
+                self.progression = Progression::Reverse;
+                self.percent = 1.;
+            } else {
+                self.current_command = Some(cmd);
+                self.progression = Progression::Forward;
+                self.percent = 0.;
+            }
+        }
+    }
 }
 
 struct TurtleTask {
@@ -399,14 +463,14 @@ impl TurtleTask {
         use graphics::*;
 
         self.gl.draw(args.viewport(), |context, gl| {
-            // Clear the screen.
             clear(self.bgcolor, gl);
+
             for turtle in self.data.iter_mut() {
                 let mut ds = TurtleDrawState::new(
                     args.window_size,
                     context,
                     gl,
-                    turtle.turtle_shape.clone(),
+                    turtle.turtle_shape.clone(), // XXX: fix this?
                 );
                 turtle.draw(&mut ds);
             }
@@ -414,70 +478,8 @@ impl TurtleTask {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        let s = self.data[0].speed.get();
-
-        self.data[0].drawing_done = s == 0
-            || match self.data[0].progression {
-                Progression::Forward => self.data[0].percent >= 1.,
-                Progression::Reverse => self.data[0].percent <= 0.,
-            }
-            || matches!(
-                self.data[0].current_command,
-                Some(DrawCmd::InstantaneousDraw(_))
-            );
-        if !self.data[0].drawing_done {
-            let multiplier = s as f64 * 2.;
-
-            match self.data[0].progression {
-                Progression::Forward => self.data[0].percent += args.dt * multiplier,
-                Progression::Reverse => self.data[0].percent -= args.dt * multiplier,
-            }
-        }
-
-        if self.data[0].drawing_done && self.data[0].current_command.is_some() {
-            self.data[0].drawing_done = false;
-            if let Some(p) = self.data[0].last_point {
-                if p != self.data[0].pos {
-                    let new_point = [self.data[0].pos[0] as f32, self.data[0].pos[1] as f32];
-                    self.data[0].poly.push(new_point);
-                    self.data[0].last_point = Some(self.data[0].pos);
-                }
-            }
-            let cmd = self.data[0].current_command.take().unwrap();
-            if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
-                && matches!(self.data[0].progression, Progression::Forward)
-            {
-                self.data[0].cmds.push(cmd.clone());
-            }
-
-            if matches!(
-                cmd,
-                DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
-            ) {
-                self.data[0].insert_fill = Some(self.data[0].cmds.len() - 1);
-            }
-
-            let _ =
-                self.data[0].responder[&self.data[0].current_turtle_id].send(if cmd.is_stamp() {
-                    Response::StampID(self.data[0].cmds.len() - 1)
-                } else {
-                    Response::Done
-                });
-        }
-
-        if self.data[0].current_command.is_none() && !self.data[0].queue.is_empty() {
-            let DrawRequest { cmd, turtle_id } = self.data[0].queue.pop_front().unwrap();
-            self.data[0].current_turtle_id = turtle_id;
-
-            if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
-                self.data[0].current_command = self.data[0].cmds.pop();
-                self.data[0].progression = Progression::Reverse;
-                self.data[0].percent = 1.;
-            } else {
-                self.data[0].current_command = Some(cmd);
-                self.data[0].progression = Progression::Forward;
-                self.data[0].percent = 0.;
-            }
+        for turtle in self.data.iter_mut() {
+            turtle.update(args.dt);
         }
     }
 
