@@ -114,6 +114,7 @@ pub enum Command {
     Screen(ScreenCmd),
     Input(InputCmd),
     Data(DataCmd),
+    Hatch,
 }
 
 impl InstantaneousDrawCmd {

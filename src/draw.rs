@@ -38,6 +38,13 @@ impl Turtle {
     }
 
     /*
+     * Other commands
+     */
+    pub fn hatch(&mut self) -> Turtle {
+        self.do_hatch()
+    }
+
+    /*
      * Drawing commands
      */
     pub fn pencolor<C: Into<TurtleColor>>(&mut self, color: C) {

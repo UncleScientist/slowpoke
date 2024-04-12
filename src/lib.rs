@@ -21,6 +21,7 @@ pub enum Response {
     Heading(f64),
     Position(Vec2d<isize>),
     StampID(StampID),
+    Turtle(Turtle),
 }
 
 pub struct Request {
