@@ -218,6 +218,7 @@ impl DrawCmd {
         matches!(
             self,
             Self::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
+                | Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp(_))
         )
     }
 

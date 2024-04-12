@@ -148,10 +148,11 @@ impl Turtle {
     }
 
     pub fn stamp(&mut self) -> StampID {
-        if let Response::StampID(id) = self.do_data(DataCmd::Stamp) {
+        let response = self.do_data(DataCmd::Stamp);
+        if let Response::StampID(id) = response {
             id
         } else {
-            panic!("invalid response from turtle");
+            panic!("invalid response from turtle: {response:?}");
         }
     }
 

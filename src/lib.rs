@@ -15,6 +15,7 @@ pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
 pub type StampID = usize;
 
+#[derive(Debug)]
 pub enum Response {
     Done,
     Heading(f64),
