@@ -89,8 +89,6 @@ impl Turtle {
             .build()
             .unwrap();
 
-        let turtle_shape = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
-
         let (issue_command, receive_command) = mpsc::channel();
         let mut tt = TurtleTask {
             gl: GlGraphics::new(opengl),
@@ -103,10 +101,6 @@ impl Turtle {
                 percent: 2.,
                 ..TurtleData::default()
             },
-            turtle_shape: TurtlePolygon::new(&turtle_shape),
-            shape_offset: (-0., -0.),
-            last_point: None,
-            poly: Vec::new(),
         };
 
         tt.run(func);
@@ -167,10 +161,6 @@ struct TurtleTask {
     issue_command: Sender<Request>,
     receive_command: Receiver<Request>,
     data: TurtleData,
-    turtle_shape: TurtlePolygon,
-    shape_offset: (f64, f64),
-    last_point: Option<Vec2d<isize>>,
-    poly: Vec<[f32; 2]>,
 }
 
 #[derive(Default)]
@@ -198,6 +188,10 @@ struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
     speed: TurtleSpeed,
+    turtle_shape: TurtlePolygon,
+    shape_offset: (f64, f64),
+    last_point: Option<Vec2d<isize>>,
+    poly: Vec<[f32; 2]>,
 }
 
 impl TurtleTask {
@@ -250,8 +244,8 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginFill => {
-                self.last_point = Some(self.data.pos);
-                self.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
+                self.data.last_point = Some(self.data.pos);
+                self.data.poly = vec![[self.data.pos[0] as f32, self.data.pos[1] as f32]];
                 self.data.queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
@@ -259,10 +253,10 @@ impl TurtleTask {
             }
             ScreenCmd::EndFill => {
                 if let Some(index) = self.data.insert_fill.take() {
-                    let polygon = TurtlePolygon::new(&self.poly);
+                    let polygon = TurtlePolygon::new(&self.data.poly);
                     self.data.cmds[index] =
                         DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
-                    self.last_point = None;
+                    self.data.last_point = None;
                 }
             }
             ScreenCmd::Background(TurtleColor::CurrentColor) => {}
@@ -381,8 +375,8 @@ impl TurtleTask {
                 fill_color: [0.4, 0.5, 0.6, 1.0],
                 pen_width: 0.5,
                 gl,
-                shape: self.turtle_shape.clone(),
-                shape_offset: self.shape_offset,
+                shape: self.data.turtle_shape.clone(),
+                shape_offset: self.data.shape_offset,
             };
 
             let mut index = 0;
@@ -412,8 +406,12 @@ impl TurtleTask {
             }
 
             // draw the turtle shape
-            let transform = ds.transform.trans(self.shape_offset.0, self.shape_offset.1);
-            self.turtle_shape.draw(&crate::BLACK, &transform, &mut ds);
+            let transform = ds
+                .transform
+                .trans(self.data.shape_offset.0, self.data.shape_offset.1);
+            self.data
+                .turtle_shape
+                .draw(&crate::BLACK, &transform, &mut ds);
 
             // save last known position and angle
             self.data.pos = [
@@ -452,11 +450,12 @@ impl TurtleTask {
 
         if self.data.drawing_done && self.data.current_command.is_some() {
             self.data.drawing_done = false;
-            if let Some(p) = self.last_point {
+            if let Some(p) = self.data.last_point {
                 if p != self.data.pos {
-                    self.poly
+                    self.data
+                        .poly
                         .push([self.data.pos[0] as f32, self.data.pos[1] as f32]);
-                    self.last_point = Some(self.data.pos);
+                    self.data.last_point = Some(self.data.pos);
                 }
             }
             let cmd = self.data.current_command.take().unwrap();

@@ -11,6 +11,13 @@ pub struct TurtlePolygon {
     indices: Vec<usize>,
 }
 
+impl Default for TurtlePolygon {
+    fn default() -> Self {
+        let turtle_shape = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
+        Self::new(&turtle_shape)
+    }
+}
+
 impl TurtlePolygon {
     pub fn new(diagram: &[[f32; 2]]) -> Self {
         let mut path_builder = Path::builder();
