@@ -9,7 +9,7 @@ use graphics::types::{self, Vec2d};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
-    RenderEvent, ResizeEvent, UpdateArgs, UpdateEvent, WindowSettings,
+    RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
 };
 
 use crate::{
@@ -99,7 +99,6 @@ impl Turtle {
             turtle_num: 0,
             bgcolor: crate::WHITE,
             data: vec![TurtleData {
-                size: [xsize, ysize],
                 percent: 2.,
                 ..TurtleData::default()
             }],
@@ -184,7 +183,6 @@ pub(crate) struct TurtleData {
     progression: Progression,
     pos: Vec2d<isize>,
     angle: f64,
-    size: Vec2d<f64>,
     insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
@@ -228,8 +226,8 @@ impl TurtleData {
 
         // save last known position and angle
         self.pos = [
-            (ds.transform[0][2] * self.size[0] / 2.) as isize,
-            (ds.transform[1][2] * self.size[1] / 2.) as isize,
+            (ds.transform[0][2] * ds.size[0] / 2.) as isize,
+            (ds.transform[1][2] * ds.size[1] / 2.) as isize,
         ];
 
         self.angle = if ds.deg + 90. >= 360. {
@@ -316,7 +314,7 @@ struct TurtleTask {
 
 impl TurtleTask {
     fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
-        let mut turtle = self.spawn_turtle();
+        let mut turtle = self.spawn_turtle(0);
         let _ = std::thread::spawn(move || func(&mut turtle));
 
         let mut events = Events::new(EventSettings::new());
@@ -347,10 +345,6 @@ impl TurtleTask {
             if let Some(args) = e.button_args() {
                 self.button(&args);
             }
-
-            if let Some(args) = e.resize_args() {
-                self.data[0].size = args.window_size;
-            }
         }
     }
 
@@ -360,7 +354,6 @@ impl TurtleTask {
         let newid = self.turtle_num;
 
         let mut td = TurtleData {
-            size: self.data[0].size,
             percent: 2.,
             ..TurtleData::default()
         };
@@ -370,11 +363,11 @@ impl TurtleTask {
         Turtle::init(self.issue_command.clone(), command_complete, newid)
     }
 
-    fn spawn_turtle(&mut self) -> Turtle {
+    fn spawn_turtle(&mut self, which: usize) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
         self.turtle_num += 1;
         let newid = self.turtle_num;
-        self.data[0].responder.insert(newid, finished);
+        self.data[which].responder.insert(newid, finished);
 
         Turtle::init(self.issue_command.clone(), command_complete, newid)
     }
@@ -464,6 +457,7 @@ impl TurtleTask {
         match cmd {
             InputCmd::OnKeyPress(f, k) => {
                 self.data[which].onkeypress.insert(k, f);
+                println!("which={which}");
                 let _ = resp.send(Response::Done);
             }
         }
@@ -542,21 +536,26 @@ impl TurtleTask {
     }
 
     fn button(&mut self, args: &ButtonArgs) {
-        match args {
-            ButtonArgs {
-                state: ButtonState::Press,
-                button: Button::Keyboard(key),
-                ..
-            } => {
-                if let Some(func) = self.data[0].onkeypress.get(key).copied() {
-                    let mut turtle = self.spawn_turtle();
-                    let key = *key;
-                    let _ = std::thread::spawn(move || func(&mut turtle, key));
+        let mut work = Vec::new();
+        for (idx, turtle) in self.data.iter().enumerate() {
+            match args {
+                ButtonArgs {
+                    state: ButtonState::Press,
+                    button: Button::Keyboard(key),
+                    ..
+                } => {
+                    if let Some(func) = turtle.onkeypress.get(key).copied() {
+                        work.push((idx, func, *key));
+                    }
+                }
+                ButtonArgs { state, button, .. } => {
+                    println!("state={state:?}, button={button:?}");
                 }
             }
-            ButtonArgs { state, button, .. } => {
-                println!("state={state:?}, button={button:?}");
-            }
+        }
+        for (idx, func, key) in work {
+            let mut turtle = self.spawn_turtle(idx);
+            let _ = std::thread::spawn(move || func(&mut turtle, key));
         }
     }
 }

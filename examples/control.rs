@@ -6,18 +6,26 @@ fn main() {
 
     Turtle::run(&ta, |turtle| {
         turtle.onkey(left, Key::H);
+        let mut t1 = turtle.hatch();
+        t1.onkey(right, Key::J);
+
+        turtle.onkey(forward20, Key::W);
+        t1.onkey(forward20, Key::S);
 
         loop {
-            turtle.forward(1.);
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
     });
 }
 
 fn left(turtle: &mut Turtle, _key: Key) {
-    println!("got key {_key:?}");
     turtle.left(90.);
-    println!("moved left");
-    turtle.forward(20.);
-    println!("moved forward");
+}
+
+fn right(turtle: &mut Turtle, _key: Key) {
+    turtle.right(37);
+}
+
+fn forward20(turtle: &mut Turtle, _key: Key) {
+    turtle.forward(20);
 }
