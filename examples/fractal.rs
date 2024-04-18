@@ -1,16 +1,19 @@
 use slowpoke::*;
 
 fn main() {
-    Turtle::new().run(|turtle| {
-        turtle.speed("fastest");
-        turtle.penup();
-        turtle.goto(-243. / 2., 243. / 2.);
-        turtle.pendown();
-        for _ in 0..4 {
-            spiky_fractal(turtle, 3, 243.);
-            turtle.right(90.);
-        }
-    });
+    Turtle::new()
+        .with_size(400, 400)
+        .with_title("A Spikey Fractal")
+        .run(|turtle| {
+            turtle.speed(10);
+            turtle.penup();
+            turtle.goto(-243. / 2., 243. / 2.);
+            turtle.pendown();
+            for _ in 0..4 {
+                spiky_fractal(turtle, 3, 243.);
+                turtle.right(90.);
+            }
+        });
 }
 
 fn spiky_fractal(turtle: &mut Turtle, order: usize, length: f64) {
