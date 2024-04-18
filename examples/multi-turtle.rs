@@ -1,3 +1,4 @@
+use rand::*;
 use slowpoke::*;
 
 fn main() {
@@ -6,16 +7,28 @@ fn main() {
         .with_title("multiple turtles")
         .run(|turtle| {
             let mut t1 = turtle.hatch();
-            turtle.forward(100);
-            turtle.right(90);
             let mut t2 = turtle.hatch();
-            turtle.forward(100);
-            turtle.right(90);
+            let mut t3 = turtle.hatch();
+            let mut tlist = vec![turtle, &mut t1, &mut t2, &mut t3];
 
-            t1.right(45);
-            t2.left(45);
+            for t in tlist.iter_mut() {
+                t.speed(6);
+            }
 
-            t1.forward(100);
-            t2.forward(100);
+            let mut rng = rand::thread_rng();
+
+            for _ in 0..100 {
+                for t in tlist.iter_mut() {
+                    let dist: f64 = 10. + rng.gen::<f64>() * 20.;
+                    t.forward(dist);
+                    let pos = t.pos();
+                    if pos[0] > 200 || pos[0] < -200 || pos[1] > 200 || pos[1] < -200 {
+                        t.right(180)
+                    } else {
+                        let angle: f64 = rng.gen::<f64>() * 40. - 20.;
+                        t.right(angle);
+                    }
+                }
+            }
         });
 }
