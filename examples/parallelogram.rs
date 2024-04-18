@@ -23,6 +23,10 @@ fn main() {
             turtle.right(120);
             turtle.forward(100);
             println!("fourth point: {:?}", turtle.pos());
+            println!(
+                "if we wanted to go to 0, 0, heading would be {}",
+                turtle.towards(0, 0)
+            );
 
             turtle.right(60);
             turtle.forward(150);

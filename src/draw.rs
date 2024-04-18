@@ -185,4 +185,12 @@ impl Turtle {
             panic!("invalid response from turtle");
         }
     }
+
+    pub fn towards<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) -> f64 {
+        if let Response::Heading(angle) = self.do_data(DataCmd::Towards(xpos.into(), ypos.into())) {
+            angle
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
 }

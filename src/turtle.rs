@@ -472,6 +472,19 @@ impl TurtleTask {
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap();
         let _ = match cmd {
+            DataCmd::Towards(xpos, ypos) => {
+                let curpos = [self.data[0].pos[0] as f64, self.data[0].pos[1] as f64];
+                let x = xpos - curpos[0];
+                let y = ypos - curpos[1];
+                println!("xpos={xpos}, ypos={ypos}, x={x}, y={y}");
+                if x == 0. {
+                    resp.send(Response::Heading(0.))
+                } else {
+                    resp.send(Response::Heading(
+                        x.atan2(y) * 360. / (2.0 * std::f64::consts::PI),
+                    ))
+                }
+            }
             DataCmd::Position => resp.send(Response::Position(self.data[0].pos)),
             DataCmd::Heading => resp.send(Response::Heading(self.data[0].angle)),
             DataCmd::Stamp => {
