@@ -20,6 +20,20 @@ impl From<&str> for TurtleColor {
     }
 }
 
+impl From<(f64, f64, f64)> for TurtleColor {
+    fn from((r, g, b): (f64, f64, f64)) -> Self {
+        fn in_range(v: f64) -> bool {
+            (0. ..=1.).contains(&v)
+        }
+
+        if in_range(r) && in_range(g) && in_range(b) {
+            TurtleColor::Color(r as f32, g as f32, b as f32)
+        } else {
+            TurtleColor::CurrentColor
+        }
+    }
+}
+
 impl From<(f32, f32, f32)> for TurtleColor {
     fn from((r, g, b): (f32, f32, f32)) -> Self {
         fn in_range(v: f32) -> bool {
