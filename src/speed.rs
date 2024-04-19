@@ -15,11 +15,13 @@ impl TurtleSpeed {
 
 impl From<u8> for TurtleSpeed {
     fn from(value: u8) -> Self {
-        if value > 10 {
-            Self(10)
-        } else {
-            Self(value)
-        }
+        Self(value.max(10))
+    }
+}
+
+impl From<usize> for TurtleSpeed {
+    fn from(value: usize) -> Self {
+        Self(value.max(10) as u8)
     }
 }
 

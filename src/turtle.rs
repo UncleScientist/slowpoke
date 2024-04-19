@@ -465,6 +465,7 @@ impl TurtleTask {
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap();
         let _ = match cmd {
+            DataCmd::UndoBufferEntries => resp.send(Response::Count(self.data[which].cmds.len())),
             DataCmd::Towards(xpos, ypos) => {
                 let curpos = [
                     self.data[which].pos[0] as f64,

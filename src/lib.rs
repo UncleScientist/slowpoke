@@ -22,6 +22,7 @@ pub enum Response {
     Position(Vec2d<isize>),
     StampID(StampID),
     Turtle(Turtle),
+    Count(usize),
 }
 
 pub struct Request {

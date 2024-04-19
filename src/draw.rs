@@ -193,4 +193,12 @@ impl Turtle {
             panic!("invalid response from turtle");
         }
     }
+
+    pub fn undobufferentries(&mut self) -> usize {
+        if let Response::Count(count) = self.do_data(DataCmd::UndoBufferEntries) {
+            count
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
 }

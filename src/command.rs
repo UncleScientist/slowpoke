@@ -103,6 +103,7 @@ pub enum InputCmd {
 // Commands which return data
 #[derive(Copy, Clone, Debug)]
 pub enum DataCmd {
+    UndoBufferEntries,
     Towards(f64, f64),
     Position,
     Heading,
