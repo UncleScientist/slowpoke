@@ -5,6 +5,8 @@ use lyon_tessellation::{
 
 use crate::command::TurtleDrawState;
 
+const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
+
 #[derive(Clone, Debug)]
 pub struct TurtlePolygon {
     vertices: Vec<[f64; 2]>,
@@ -13,8 +15,7 @@ pub struct TurtlePolygon {
 
 impl Default for TurtlePolygon {
     fn default() -> Self {
-        let turtle_shape = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
-        Self::new(&turtle_shape)
+        Self::new(&CLASSIC)
     }
 }
 

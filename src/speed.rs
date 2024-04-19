@@ -13,15 +13,32 @@ impl TurtleSpeed {
     }
 }
 
+/*
+impl<T> From<T> for TurtleSpeed
+where
+    T: Into<u8>,
+{
+    fn from(value: T) -> Self {
+        Self(value.clamp(0, 10) as u8)
+    }
+}
+*/
+
 impl From<u8> for TurtleSpeed {
     fn from(value: u8) -> Self {
-        Self(value.max(10))
+        Self(value.clamp(0, 10))
+    }
+}
+
+impl From<i32> for TurtleSpeed {
+    fn from(value: i32) -> Self {
+        Self(value.clamp(0, 10) as u8)
     }
 }
 
 impl From<usize> for TurtleSpeed {
     fn from(value: usize) -> Self {
-        Self(value.max(10) as u8)
+        Self(value.clamp(0, 10) as u8)
     }
 }
 

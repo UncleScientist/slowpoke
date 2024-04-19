@@ -188,7 +188,7 @@ pub(crate) struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
     speed: TurtleSpeed,
-    pub(crate) turtle_shape: TurtlePolygon,
+    turtle_shape: TurtlePolygon,
     last_point: Option<Vec2d<isize>>,
     poly: Vec<[f32; 2]>,
 }
