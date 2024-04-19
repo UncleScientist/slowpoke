@@ -457,7 +457,6 @@ impl TurtleTask {
         match cmd {
             InputCmd::OnKeyPress(f, k) => {
                 self.data[which].onkeypress.insert(k, f);
-                println!("which={which}");
                 let _ = resp.send(Response::Done);
             }
         }
@@ -473,7 +472,7 @@ impl TurtleTask {
                 ];
                 let x = xpos - curpos[0];
                 let y = ypos - curpos[1];
-                println!("xpos={xpos}, ypos={ypos}, x={x}, y={y}");
+
                 if x == 0. {
                     resp.send(Response::Heading(0.))
                 } else {
