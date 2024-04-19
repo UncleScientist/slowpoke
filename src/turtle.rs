@@ -17,9 +17,9 @@ use crate::{
     command::{
         Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, ScreenCmd, TurtleDrawState,
     },
-    polygon::TurtlePolygon,
+    polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
-    Request, Response,
+    Request, Response, TurtleShapeName,
 };
 
 #[derive(Debug)]
@@ -98,6 +98,7 @@ impl Turtle {
             receive_command,
             turtle_num: 0,
             bgcolor: crate::WHITE,
+            shapes: generate_default_shapes(),
             data: vec![TurtleData {
                 percent: 2.,
                 ..TurtleData::default()
@@ -188,7 +189,7 @@ pub(crate) struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
     speed: TurtleSpeed,
-    turtle_shape: TurtlePolygon,
+    turtle_shape: TurtleShape,
     last_point: Option<Vec2d<isize>>,
     poly: Vec<[f32; 2]>,
 }
@@ -222,7 +223,9 @@ impl TurtleData {
         }
 
         // draw the turtle shape
-        self.turtle_shape.draw(&crate::BLACK, ds.transform, ds);
+        self.turtle_shape
+            .shape
+            .draw(&crate::BLACK, ds.transform, ds);
 
         // save last known position and angle
         self.pos = [
@@ -310,6 +313,7 @@ struct TurtleTask {
     receive_command: Receiver<Request>,
     bgcolor: types::Color,
     data: Vec<TurtleData>,
+    shapes: HashMap<String, TurtleShape>,
 }
 
 impl TurtleTask {
@@ -463,8 +467,14 @@ impl TurtleTask {
     }
 
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
-        let resp = self.data[which].responder.get(&turtle_id).unwrap();
+        let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         let _ = match cmd {
+            DataCmd::TurtleShape(shape) => {
+                if let TurtleShapeName::Shape(name) = shape {
+                    self.data[which].turtle_shape = self.shapes[&name].clone();
+                }
+                resp.send(Response::Name(self.data[which].turtle_shape.name.clone()))
+            }
             DataCmd::UndoBufferEntries => resp.send(Response::Count(self.data[which].cmds.len())),
             DataCmd::Towards(xpos, ypos) => {
                 let curpos = [
@@ -522,7 +532,7 @@ impl TurtleTask {
                     args.window_size,
                     context,
                     gl,
-                    turtle.turtle_shape.clone(), // XXX: fix this?
+                    turtle.turtle_shape.shape.clone(), // XXX: fix this?
                 );
                 turtle.draw(&mut ds);
             }

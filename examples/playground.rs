@@ -5,6 +5,7 @@ fn main() {
         .with_size(400, 400)
         .with_title("simple commands")
         .run(|turtle| {
+            turtle.speed(1);
             turtle.bgcolor("grey");
             turtle.dot(None, TurtleColor::CurrentColor);
             turtle.dot(None, "blue");
@@ -13,6 +14,11 @@ fn main() {
                 "starting at {:?}, heading of {:?}",
                 turtle.pos(),
                 turtle.heading()
+            );
+
+            println!(
+                "Current turtle shape: {}",
+                turtle.shape(TurtleShapeName::GetCurrent)
             );
 
             turtle.forward(100);
@@ -30,6 +36,8 @@ fn main() {
             turtle.pencolor((0.5, 0.8, 0.4));
             turtle.forward(100);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
+
+            turtle.shape("xarrow");
 
             turtle.home();
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());

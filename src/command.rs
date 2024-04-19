@@ -2,7 +2,12 @@ use graphics::{Context, Transformed};
 use opengl_graphics::GlGraphics;
 use piston::Key;
 
-use crate::{color_names::TurtleColor, polygon::TurtlePolygon, speed::TurtleSpeed, Turtle};
+use crate::{
+    color_names::TurtleColor,
+    polygon::{TurtlePolygon, TurtleShapeName},
+    speed::TurtleSpeed,
+    Turtle,
+};
 
 #[derive(Clone, Debug)]
 pub enum DrawCmd {
@@ -101,8 +106,9 @@ pub enum InputCmd {
 }
 
 // Commands which return data
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum DataCmd {
+    TurtleShape(TurtleShapeName),
     UndoBufferEntries,
     Towards(f64, f64),
     Position,

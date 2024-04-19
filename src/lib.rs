@@ -1,5 +1,6 @@
 use command::Command;
 use graphics::types::Vec2d;
+pub use polygon::TurtleShapeName;
 pub use turtle::{Turtle, TurtleArgs};
 
 pub mod color_names;
@@ -23,6 +24,7 @@ pub enum Response {
     StampID(StampID),
     Turtle(Turtle),
     Count(usize),
+    Name(String),
 }
 
 pub struct Request {

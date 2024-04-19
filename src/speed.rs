@@ -13,7 +13,7 @@ impl TurtleSpeed {
     }
 }
 
-/*
+/* TODO: investigate using the num_traits crate
 impl<T> From<T> for TurtleSpeed
 where
     T: Into<u8>,

@@ -5,6 +5,7 @@ use graphics::types::Vec2d;
 use crate::{
     color_names::TurtleColor,
     command::{DataCmd, DrawCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd},
+    polygon::TurtleShapeName,
     speed::TurtleSpeed,
     turtle::Turtle,
     Response, StampID,
@@ -197,6 +198,14 @@ impl Turtle {
     pub fn undobufferentries(&mut self) -> usize {
         if let Response::Count(count) = self.do_data(DataCmd::UndoBufferEntries) {
             count
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    pub fn shape<S: Into<TurtleShapeName>>(&mut self, shape: S) -> String {
+        if let Response::Name(shape) = self.do_data(DataCmd::TurtleShape(shape.into())) {
+            shape
         } else {
             panic!("invalid response from turtle");
         }
