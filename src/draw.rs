@@ -31,6 +31,14 @@ impl Turtle {
         self.do_screen(ScreenCmd::Speed(speed.into()));
     }
 
+    pub fn begin_poly(&mut self) {
+        self.do_screen(ScreenCmd::BeginPoly);
+    }
+
+    pub fn end_poly(&mut self) {
+        self.do_screen(ScreenCmd::EndPoly);
+    }
+
     /// Clear a range of stamps. If `which` is 0, clear all stamps; if `which` is < 0, clear
     /// the last `-which` stamps, and if which is > 0, clear the first `which` stamps.
     ///
@@ -206,6 +214,14 @@ impl Turtle {
     pub fn shape<S: Into<TurtleShapeName>>(&mut self, shape: S) -> String {
         if let Response::Name(shape) = self.do_data(DataCmd::TurtleShape(shape.into())) {
             shape
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    pub fn get_poly(&mut self) -> Vec<[f32; 2]> {
+        if let Response::Polygon(polygon) = self.do_data(DataCmd::GetPoly) {
+            polygon
         } else {
             panic!("invalid response from turtle");
         }

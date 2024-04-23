@@ -97,6 +97,8 @@ pub enum ScreenCmd {
     ClearStamps(isize),
     BeginFill,
     EndFill,
+    BeginPoly,
+    EndPoly,
     Speed(TurtleSpeed),
 }
 
@@ -108,6 +110,7 @@ pub enum InputCmd {
 // Commands which return data
 #[derive(Clone, Debug)]
 pub enum DataCmd {
+    GetPoly,
     TurtleShape(TurtleShapeName),
     UndoBufferEntries,
     Towards(f64, f64),

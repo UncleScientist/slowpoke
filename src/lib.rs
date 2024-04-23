@@ -25,6 +25,7 @@ pub enum Response {
     Turtle(Turtle),
     Count(usize),
     Name(String),
+    Polygon(Vec<[f32; 2]>),
 }
 
 pub struct Request {

@@ -174,6 +174,35 @@ enum Progression {
 }
 
 #[derive(Default)]
+struct PolygonBuilder {
+    last_point: Option<Vec2d<isize>>,
+    verticies: Vec<[f32; 2]>,
+}
+
+impl PolygonBuilder {
+    fn start(&mut self, pos: Vec2d<isize>) {
+        self.last_point = Some(pos);
+        self.verticies = vec![[pos[0] as f32, pos[1] as f32]];
+    }
+
+    fn update(&mut self, pos: Vec2d<isize>) {
+        if let Some(p) = self.last_point {
+            if p != pos {
+                let new_point = [pos[0] as f32, pos[1] as f32];
+                self.verticies.push(new_point);
+                self.last_point = Some(pos);
+            }
+        }
+    }
+
+    fn close(&mut self) {
+        if self.last_point.take().is_some() {
+            self.verticies.push(self.verticies[0]);
+        }
+    }
+}
+
+#[derive(Default)]
 pub(crate) struct TurtleData {
     cmds: Vec<DrawCmd>,               // already-drawn elements
     queue: VecDeque<DrawRequest>,     // new elements to draw
@@ -190,8 +219,8 @@ pub(crate) struct TurtleData {
     drawing_done: bool,
     speed: TurtleSpeed,
     turtle_shape: TurtleShape,
-    last_point: Option<Vec2d<isize>>,
-    poly: Vec<[f32; 2]>,
+    fill_poly: PolygonBuilder,
+    shape_poly: PolygonBuilder,
 }
 
 impl TurtleData {
@@ -260,13 +289,9 @@ impl TurtleData {
 
         if self.drawing_done && self.current_command.is_some() {
             self.drawing_done = false;
-            if let Some(p) = self.last_point {
-                if p != self.pos {
-                    let new_point = [self.pos[0] as f32, self.pos[1] as f32];
-                    self.poly.push(new_point);
-                    self.last_point = Some(self.pos);
-                }
-            }
+            self.fill_poly.update(self.pos);
+            self.shape_poly.update(self.pos);
+
             let cmd = self.current_command.take().unwrap();
             if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
                 && matches!(self.progression, Progression::Forward)
@@ -383,12 +408,18 @@ impl TurtleTask {
                 self.data[which].speed = s;
                 let _ = resp.send(Response::Done);
             }
+            ScreenCmd::BeginPoly => {
+                let pos_copy = self.data[which].pos;
+                self.data[which].shape_poly.start(pos_copy);
+                let _ = resp.send(Response::Done);
+            }
+            ScreenCmd::EndPoly => {
+                self.data[which].shape_poly.close();
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::BeginFill => {
-                self.data[which].last_point = Some(self.data[which].pos);
-                self.data[which].poly = vec![[
-                    self.data[which].pos[0] as f32,
-                    self.data[which].pos[1] as f32,
-                ]];
+                let pos_copy = self.data[which].pos;
+                self.data[which].fill_poly.start(pos_copy);
                 self.data[which].queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
@@ -396,11 +427,12 @@ impl TurtleTask {
             }
             ScreenCmd::EndFill => {
                 if let Some(index) = self.data[which].insert_fill.take() {
-                    let polygon = TurtlePolygon::new(&self.data[which].poly);
+                    let polygon = TurtlePolygon::new(&self.data[which].fill_poly.verticies);
                     self.data[which].cmds[index] =
                         DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
-                    self.data[which].last_point = None;
+                    self.data[which].fill_poly.last_point = None;
                 }
+                let _ = resp.send(Response::Done);
             }
             ScreenCmd::Background(TurtleColor::CurrentColor) => {}
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
@@ -469,6 +501,9 @@ impl TurtleTask {
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         let _ = match cmd {
+            DataCmd::GetPoly => resp.send(Response::Polygon(
+                self.data[which].shape_poly.verticies.clone(),
+            )),
             DataCmd::TurtleShape(shape) => {
                 if let TurtleShapeName::Shape(name) = shape {
                     self.data[which].turtle_shape = self.shapes[&name].clone();
