@@ -5,7 +5,11 @@ use std::{
 
 use either::Either;
 use glutin_window::GlutinWindow;
-use graphics::types::{self, Vec2d};
+use graphics::Transformed;
+use graphics::{
+    math::identity,
+    types::{self, Vec2d},
+};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
@@ -15,7 +19,8 @@ use piston::{
 use crate::{
     color_names::TurtleColor,
     command::{
-        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, ScreenCmd, TurtleDrawState,
+        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd,
+        TurtleDrawState,
     },
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
@@ -202,12 +207,139 @@ impl PolygonBuilder {
     }
 }
 
+// To calculate points as we go along:
+// For Lines:
+//  - pen color / pen width of each line segment
+//  - start & end of each line segment
+//
+// For polygons:
+//  - fill color
+//  - tesselated verticies
+//  - border color
+
+#[derive(Debug)]
+struct LineInfo {
+    pen_color: TurtleColor,
+    pen_width: f64,
+    points: Vec<Vec2d<isize>>,
+}
+
+#[derive(Debug)]
+struct PolyInfo {
+    fill_color: [f32; 4],
+    border_color: [f32; 4],
+    poly: Vec<TurtlePolygon>,
+}
+
+#[derive(Debug)]
+enum DrawInfo {
+    Line(LineInfo),
+    Poly(PolyInfo),
+}
+
+struct CurrentShape {
+    pen_color: TurtleColor,
+    pen_width: f64,
+    fill_color: TurtleColor,
+    transform: [[f64; 3]; 2],
+    points: Vec<Vec2d<isize>>,
+    angle: f64,
+}
+
+impl Default for CurrentShape {
+    fn default() -> Self {
+        Self {
+            pen_color: "black".into(),
+            pen_width: 0.5,
+            fill_color: "black".into(),
+            transform: identity(),
+            points: Vec::new(),
+            angle: 0.,
+        }
+    }
+}
+
+impl CurrentShape {
+    fn apply(&mut self, cmd: &DrawCmd) -> Option<DrawInfo> {
+        match cmd {
+            DrawCmd::TimedDraw(td) => match td {
+                TimedDrawCmd::Forward(dist) => {
+                    self.transform = self.transform.trans(*dist, 0.);
+                    self.points
+                        .push([self.transform[0][2] as isize, self.transform[1][2] as isize]);
+                }
+                TimedDrawCmd::Right(angle) => {
+                    self.transform = self.transform.rot_deg(*angle);
+                    self.angle += angle;
+                }
+                TimedDrawCmd::Left(angle) => {
+                    self.transform = self.transform.rot_deg(-*angle);
+                    self.angle -= angle;
+                }
+                TimedDrawCmd::Teleport(x, y) | TimedDrawCmd::GoTo(x, y) => {
+                    let cur_x = self.transform[0][2];
+                    let cur_y = self.transform[1][2];
+                    self.transform = self.transform.trans(x - cur_x, y - cur_y);
+                }
+                TimedDrawCmd::SetX(x) => {
+                    let cur_x = self.transform[0][2];
+                    self.transform = self.transform.trans(x - cur_x, 0.);
+                }
+                TimedDrawCmd::SetY(y) => {
+                    let cur_y = self.transform[0][2];
+                    self.transform = self.transform.trans(0., y - cur_y);
+                }
+                TimedDrawCmd::SetHeading(h) => {
+                    self.transform = self.transform.rot_deg(h - self.angle);
+                    self.angle = *h;
+                }
+            },
+            DrawCmd::InstantaneousDraw(id) => match id {
+                InstantaneousDrawCmd::Undo => {}
+                InstantaneousDrawCmd::BackfillPolygon => {}
+                InstantaneousDrawCmd::PenDown => {}
+                InstantaneousDrawCmd::PenUp => {}
+                InstantaneousDrawCmd::PenColor(pc) => {
+                    let info = self.generate_line_info();
+                    self.pen_color = *pc;
+                    return Some(info);
+                }
+                InstantaneousDrawCmd::FillColor(fc) => {
+                    self.fill_color = *fc;
+                }
+                InstantaneousDrawCmd::PenWidth(pw) => {
+                    let info = self.generate_line_info();
+                    self.pen_width = *pw;
+                    return Some(info);
+                }
+                InstantaneousDrawCmd::Dot(_, _) => {}
+                InstantaneousDrawCmd::Stamp(_) => {}
+                InstantaneousDrawCmd::Fill(_) => {}
+            },
+        }
+
+        None
+    }
+
+    fn generate_line_info(&mut self) -> DrawInfo {
+        let li = LineInfo {
+            pen_color: self.pen_color,
+            pen_width: self.pen_width,
+            points: self.points.split_off(0),
+        };
+        DrawInfo::Line(li)
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct TurtleData {
     cmds: Vec<DrawCmd>,               // already-drawn elements
     queue: VecDeque<DrawRequest>,     // new elements to draw
     current_command: Option<DrawCmd>, // what we're drawing now
-    current_turtle_id: u64,           // which thread to notify on completion
+    elements: Vec<DrawInfo>,
+    current_shape: CurrentShape, // per-segment information
+
+    current_turtle_id: u64, // which thread to notify on completion
     // _turtle_id: u64,               // TODO: doesn't the turtle need to know its own ID?
     percent: f64,
     progression: Progression,
@@ -224,6 +356,13 @@ pub(crate) struct TurtleData {
 }
 
 impl TurtleData {
+    fn do_command(&mut self, cmd: &DrawCmd) {
+        if let Some(info) = self.current_shape.apply(cmd) {
+            self.elements.push(info);
+            println!("elements: {:?}", self.elements);
+        }
+    }
+
     fn draw(&mut self, ds: &mut TurtleDrawState) {
         let mut index = 0;
         let mut done = false;
@@ -316,6 +455,8 @@ impl TurtleData {
         if self.current_command.is_none() && !self.queue.is_empty() {
             let DrawRequest { cmd, turtle_id } = self.queue.pop_front().unwrap();
             self.current_turtle_id = turtle_id;
+
+            self.do_command(&cmd);
 
             if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
                 self.current_command = self.cmds.pop();

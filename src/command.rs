@@ -231,7 +231,7 @@ impl TimedDrawCmd {
             Self::GoTo(xpos, ypos) => self.move_to(ds, *xpos, *ypos),
             Self::Teleport(xpos, ypos) => {
                 let saved_pen = ds.is_pen_down;
-                ds.is_pen_down = false;
+                ds.is_pen_down = false; // FIXME
                 self.move_to(ds, *xpos, *ypos);
                 ds.is_pen_down = saved_pen;
             }

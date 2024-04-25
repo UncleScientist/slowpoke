@@ -3,7 +3,7 @@ use slowpoke::*;
 
 fn main() {
     TurtleArgs::default()
-        .with_size(400, 400)
+        .with_size(500, 500)
         .with_title("multiple turtles")
         .run(|turtle| {
             turtle.penwidth(1);

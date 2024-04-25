@@ -37,7 +37,7 @@ fn main() {
             turtle.forward(100);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
-            turtle.shape("xarrow");
+            turtle.shape("arrow");
 
             turtle.home();
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
