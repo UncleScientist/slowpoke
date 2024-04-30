@@ -4,7 +4,9 @@ use graphics::types::Vec2d;
 
 use crate::{
     color_names::TurtleColor,
-    command::{DataCmd, DrawCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd},
+    command::{
+        DataCmd, DrawCmd, InstantaneousDrawCmd, MotionCmd, RotateCmd, ScreenCmd, TimedDrawCmd,
+    },
     polygon::TurtleShapeName,
     speed::TurtleSpeed,
     turtle::Turtle,
@@ -75,24 +77,32 @@ impl Turtle {
     }
 
     pub fn forward<N: Into<f64>>(&mut self, distance: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Forward(distance.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(
+            MotionCmd::Forward(distance.into()),
+        )));
     }
 
     pub fn backward<N: Into<f64>>(&mut self, distance: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Forward(-distance.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(
+            MotionCmd::Forward(-distance.into()),
+        )));
     }
 
     pub fn right<N: Into<f64>>(&mut self, rotation: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Right(rotation.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Rotate(RotateCmd::Right(
+            rotation.into(),
+        ))));
     }
 
     pub fn left<N: Into<f64>>(&mut self, rotation: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Left(rotation.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Rotate(RotateCmd::Left(
+            rotation.into(),
+        ))));
     }
 
     pub fn setheading<N: Into<f64>>(&mut self, heading: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetHeading(
-            heading.into() - 90.,
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Rotate(
+            RotateCmd::SetHeading(heading.into() - 90.),
         )));
     }
 
@@ -105,25 +115,28 @@ impl Turtle {
     }
 
     pub fn goto<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::GoTo(
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(MotionCmd::GoTo(
             xpos.into(),
             -ypos.into(),
-        )));
+        ))));
     }
 
     pub fn teleport<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Teleport(
-            xpos.into(),
-            -ypos.into(),
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(
+            MotionCmd::Teleport(xpos.into(), -ypos.into()),
         )));
     }
 
     pub fn setx<N: Into<f64>>(&mut self, xpos: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetX(xpos.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(MotionCmd::SetX(
+            xpos.into(),
+        ))));
     }
 
     pub fn sety<N: Into<f64>>(&mut self, ypos: N) {
-        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::SetY(-ypos.into())));
+        self.do_draw(DrawCmd::TimedDraw(TimedDrawCmd::Motion(MotionCmd::SetY(
+            -ypos.into(),
+        ))));
     }
 
     pub fn begin_fill(&mut self) {

@@ -26,7 +26,7 @@ fn main() {
             let mut tlist = [turtle, &mut t1, &mut t2, &mut t3];
 
             for t in tlist.iter_mut() {
-                t.speed(10);
+                t.speed("fastest");
             }
 
             let mut rng = rand::thread_rng();

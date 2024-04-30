@@ -5,11 +5,11 @@ use std::{
 
 use either::Either;
 use glutin_window::GlutinWindow;
-use graphics::Transformed;
 use graphics::{
     math::identity,
     types::{self, Vec2d},
 };
+use graphics::{Context, Transformed};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
     Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
@@ -19,8 +19,8 @@ use piston::{
 use crate::{
     color_names::TurtleColor,
     command::{
-        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd,
-        TurtleDrawState,
+        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, MotionCmd, RotateCmd, ScreenCmd,
+        TimedDrawCmd,
     },
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
@@ -237,6 +237,7 @@ enum DrawInfo {
     Poly(PolyInfo),
 }
 
+#[derive(Debug)]
 struct CurrentShape {
     pen_color: TurtleColor,
     pen_width: f64,
@@ -244,6 +245,22 @@ struct CurrentShape {
     transform: [[f64; 3]; 2],
     points: Vec<Vec2d<isize>>,
     angle: f64,
+}
+
+trait TurtlePosition<T> {
+    fn pos(&self) -> [T; 2];
+}
+
+impl TurtlePosition<f64> for CurrentShape {
+    fn pos(&self) -> [f64; 2] {
+        [self.transform[0][2] as f64, self.transform[1][2] as f64]
+    }
+}
+
+impl TurtlePosition<isize> for CurrentShape {
+    fn pos(&self) -> [isize; 2] {
+        [self.transform[0][2] as isize, self.transform[1][2] as isize]
+    }
 }
 
 impl Default for CurrentShape {
@@ -260,39 +277,55 @@ impl Default for CurrentShape {
 }
 
 impl CurrentShape {
+    fn angle(&self) -> f64 {
+        self.angle
+    }
+
+    fn save_point(&mut self) {
+        let x = self.transform[0][2].round() as isize;
+        let y = self.transform[1][2].round() as isize;
+        self.points.push([x, y]);
+    }
+
     fn apply(&mut self, cmd: &DrawCmd) -> Option<DrawInfo> {
         match cmd {
             DrawCmd::TimedDraw(td) => match td {
-                TimedDrawCmd::Forward(dist) => {
-                    self.transform = self.transform.trans(*dist, 0.);
-                    self.points
-                        .push([self.transform[0][2] as isize, self.transform[1][2] as isize]);
+                TimedDrawCmd::Motion(motion) => {
+                    if self.points.is_empty() {
+                        self.save_point();
+                    }
+                    match motion {
+                        MotionCmd::Forward(dist) => {
+                            self.transform = self.transform.trans(*dist, 0.);
+                        }
+                        MotionCmd::Teleport(x, y) | MotionCmd::GoTo(x, y) => {
+                            self.transform = identity().trans(*x, *y).rot_deg(self.angle);
+                        }
+                        MotionCmd::SetX(x) => {
+                            let cur_y = self.transform[1][2];
+                            self.transform = identity().trans(*x, cur_y).rot_deg(self.angle);
+                        }
+                        MotionCmd::SetY(y) => {
+                            let cur_x = self.transform[0][2];
+                            self.transform = identity().trans(cur_x, *y).rot_deg(self.angle);
+                        }
+                    }
+                    self.save_point();
                 }
-                TimedDrawCmd::Right(angle) => {
-                    self.transform = self.transform.rot_deg(*angle);
-                    self.angle += angle;
-                }
-                TimedDrawCmd::Left(angle) => {
-                    self.transform = self.transform.rot_deg(-*angle);
-                    self.angle -= angle;
-                }
-                TimedDrawCmd::Teleport(x, y) | TimedDrawCmd::GoTo(x, y) => {
-                    let cur_x = self.transform[0][2];
-                    let cur_y = self.transform[1][2];
-                    self.transform = self.transform.trans(x - cur_x, y - cur_y);
-                }
-                TimedDrawCmd::SetX(x) => {
-                    let cur_x = self.transform[0][2];
-                    self.transform = self.transform.trans(x - cur_x, 0.);
-                }
-                TimedDrawCmd::SetY(y) => {
-                    let cur_y = self.transform[0][2];
-                    self.transform = self.transform.trans(0., y - cur_y);
-                }
-                TimedDrawCmd::SetHeading(h) => {
-                    self.transform = self.transform.rot_deg(h - self.angle);
-                    self.angle = *h;
-                }
+                TimedDrawCmd::Rotate(rotation) => match rotation {
+                    RotateCmd::Right(angle) => {
+                        self.transform = self.transform.rot_deg(*angle);
+                        self.angle += angle;
+                    }
+                    RotateCmd::Left(angle) => {
+                        self.transform = self.transform.rot_deg(-*angle);
+                        self.angle -= angle;
+                    }
+                    RotateCmd::SetHeading(h) => {
+                        self.transform = self.transform.rot_deg(h - self.angle);
+                        self.angle = *h;
+                    }
+                },
             },
             DrawCmd::InstantaneousDraw(id) => match id {
                 InstantaneousDrawCmd::Undo => {}
@@ -343,8 +376,6 @@ pub(crate) struct TurtleData {
     // _turtle_id: u64,               // TODO: doesn't the turtle need to know its own ID?
     percent: f64,
     progression: Progression,
-    pos: Vec2d<isize>,
-    angle: f64,
     insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
@@ -359,53 +390,50 @@ impl TurtleData {
     fn do_command(&mut self, cmd: &DrawCmd) {
         if let Some(info) = self.current_shape.apply(cmd) {
             self.elements.push(info);
-            println!("elements: {:?}", self.elements);
         }
     }
 
-    fn draw(&mut self, ds: &mut TurtleDrawState) {
-        let mut index = 0;
-        let mut done = false;
-        // draw all the user commands
-        while !done {
-            ds.start_deg = ds.deg;
-            let cmd = if index < self.cmds.len() {
-                index += 1;
-                let cmd = &self.cmds[index - 1];
-                ds.deg += cmd.get_rotation(ds) % 360.;
-                if ds.deg < 0. {
-                    ds.deg += 360.;
+    fn draw(&self, context: &Context, gl: &mut GlGraphics) {
+        for element in &self.elements {
+            match element {
+                DrawInfo::Line(line) => {
+                    for pair in line.points.as_slice().windows(2) {
+                        graphics::line_from_to(
+                            line.pen_color.into(),
+                            line.pen_width,
+                            [pair[0][0] as f64, pair[0][1] as f64],
+                            [pair[1][0] as f64, pair[1][1] as f64],
+                            context.transform,
+                            gl,
+                        );
+                    }
                 }
-                Some(cmd)
-            } else {
-                ds.pct = self.percent.min(1.);
-                done = true;
-                self.current_command.as_ref()
-            };
-
-            let Some(cmd) = cmd else {
-                break;
-            };
-
-            cmd.draw(ds);
+                DrawInfo::Poly(_) => todo!(),
+            }
         }
 
-        // draw the turtle shape
-        self.turtle_shape
-            .shape
-            .draw(&crate::BLACK, ds.transform, ds);
+        // draw the rest of the points
+        for pair in self.current_shape.points.as_slice().windows(2) {
+            graphics::line_from_to(
+                self.current_shape.pen_color.into(),
+                self.current_shape.pen_width,
+                [pair[0][0] as f64, pair[0][1] as f64],
+                [pair[1][0] as f64, pair[1][1] as f64],
+                context.transform,
+                gl,
+            );
+        }
 
-        // save last known position and angle
-        self.pos = [
-            (ds.transform[0][2] * ds.size[0] / 2.) as isize,
-            (ds.transform[1][2] * ds.size[1] / 2.) as isize,
-        ];
+        let trans = context
+            .transform
+            .trans(
+                self.current_shape.transform[0][2],
+                self.current_shape.transform[1][2],
+            )
+            .rot_deg(self.current_shape.angle);
 
-        self.angle = if ds.deg + 90. >= 360. {
-            ds.deg - 270.
-        } else {
-            ds.deg + 90.
-        };
+        // draw the turtle
+        self.turtle_shape.shape.draw(&crate::BLACK, trans, gl);
     }
 
     fn update(&mut self, delta_t: f64) {
@@ -428,8 +456,8 @@ impl TurtleData {
 
         if self.drawing_done && self.current_command.is_some() {
             self.drawing_done = false;
-            self.fill_poly.update(self.pos);
-            self.shape_poly.update(self.pos);
+            self.fill_poly.update(self.current_shape.pos());
+            self.shape_poly.update(self.current_shape.pos());
 
             let cmd = self.current_command.take().unwrap();
             if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
@@ -550,7 +578,7 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginPoly => {
-                let pos_copy = self.data[which].pos;
+                let pos_copy = self.data[which].current_shape.pos();
                 self.data[which].shape_poly.start(pos_copy);
                 let _ = resp.send(Response::Done);
             }
@@ -559,7 +587,7 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginFill => {
-                let pos_copy = self.data[which].pos;
+                let pos_copy = self.data[which].current_shape.pos();
                 self.data[which].fill_poly.start(pos_copy);
                 self.data[which].queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
@@ -653,12 +681,9 @@ impl TurtleTask {
             }
             DataCmd::UndoBufferEntries => resp.send(Response::Count(self.data[which].cmds.len())),
             DataCmd::Towards(xpos, ypos) => {
-                let curpos = [
-                    self.data[which].pos[0] as f64,
-                    self.data[which].pos[1] as f64,
-                ];
+                let curpos: [f64; 2] = self.data[which].current_shape.pos();
                 let x = xpos - curpos[0];
-                let y = ypos - curpos[1];
+                let y = ypos + curpos[1];
 
                 if x == 0. {
                     resp.send(Response::Heading(0.))
@@ -668,8 +693,12 @@ impl TurtleTask {
                     ))
                 }
             }
-            DataCmd::Position => resp.send(Response::Position(self.data[which].pos)),
-            DataCmd::Heading => resp.send(Response::Heading(self.data[which].angle)),
+            DataCmd::Position => {
+                resp.send(Response::Position(self.data[which].current_shape.pos()))
+            }
+            DataCmd::Heading => {
+                resp.send(Response::Heading(self.data[which].current_shape.angle()))
+            }
             DataCmd::Stamp => {
                 self.data[which].queue.push_back(DrawRequest {
                     cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
@@ -698,19 +727,13 @@ impl TurtleTask {
     }
 
     fn render(&mut self, args: &RenderArgs) {
-        use graphics::*;
-
         self.gl.draw(args.viewport(), |context, gl| {
-            clear(self.bgcolor, gl);
+            graphics::clear(self.bgcolor, gl);
 
-            for turtle in self.data.iter_mut() {
-                let mut ds = TurtleDrawState::new(
-                    args.window_size,
-                    context,
-                    gl,
-                    turtle.turtle_shape.shape.clone(), // XXX: fix this?
-                );
-                turtle.draw(&mut ds);
+            let centered = context.trans(args.window_size[0] / 2., args.window_size[1] / 2.);
+
+            for turtle in &self.data {
+                turtle.draw(&centered, gl);
             }
         });
     }

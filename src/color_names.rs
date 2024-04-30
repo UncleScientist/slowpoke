@@ -8,6 +8,15 @@ pub enum TurtleColor {
     Color(f32, f32, f32),
 }
 
+impl From<TurtleColor> for [f32; 4] {
+    fn from(color: TurtleColor) -> [f32; 4] {
+        match color {
+            TurtleColor::CurrentColor => todo!(),
+            TurtleColor::Color(r, g, b) => [r, g, b, 1.],
+        }
+    }
+}
+
 impl From<&str> for TurtleColor {
     fn from(color_name: &str) -> Self {
         for c in &COLOR {

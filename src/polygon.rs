@@ -4,8 +4,7 @@ use lyon_tessellation::{
     geometry_builder::simple_builder, math::point, math::Point, path::Path, FillOptions,
     FillTessellator, VertexBuffers,
 };
-
-use crate::command::TurtleDrawState;
+use opengl_graphics::GlGraphics;
 
 const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
 const ARROW: [[f32; 2]; 4] = [[0., 0.], [-10., 12.], [-10., -12.], [0., 0.]];
@@ -111,7 +110,7 @@ impl TurtlePolygon {
         }
     }
 
-    pub fn draw(&self, color: &[f32; 4], transform: [[f64; 3]; 2], ds: &mut TurtleDrawState) {
+    pub fn draw(&self, color: &[f32; 4], transform: [[f64; 3]; 2], gl: &mut GlGraphics) {
         for i in self.indices.chunks(3) {
             let shape = [
                 self.vertices[i[0]],
@@ -119,7 +118,7 @@ impl TurtlePolygon {
                 self.vertices[i[2]],
             ];
 
-            graphics::polygon(*color, &shape, transform, ds.gl);
+            graphics::polygon(*color, &shape, transform, gl);
         }
     }
 }
