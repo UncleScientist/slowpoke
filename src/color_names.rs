@@ -1,7 +1,5 @@
 pub struct ColorNames(&'static str, u8, u8, u8);
 
-// pub struct TurtleColor(f32, f32, f32);
-
 #[derive(Debug, Copy, Clone)]
 pub enum TurtleColor {
     CurrentColor,

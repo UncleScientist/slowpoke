@@ -5,10 +5,7 @@ use std::{
 
 use either::Either;
 use glutin_window::GlutinWindow;
-use graphics::{
-    math::identity,
-    types::{self, Vec2d},
-};
+use graphics::types::{self, Vec2d};
 use graphics::{Context, Transformed};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
@@ -18,18 +15,16 @@ use piston::{
 
 use crate::{
     color_names::TurtleColor,
-    command::{
-        Command, DataCmd, DrawCmd, InputCmd, InstantaneousDrawCmd, MotionCmd, RotateCmd, ScreenCmd,
-        TimedDrawCmd,
-    },
+    command::{Command, DataCmd, DrawRequest, InputCmd, InstantaneousDrawCmd, ScreenCmd},
+    generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
     Request, Response, TurtleShapeName,
 };
 
 #[derive(Debug)]
-struct DrawRequest {
-    cmd: DrawCmd,
+struct TurtleCommand {
+    cmd: DrawRequest,
     turtle_id: u64,
 }
 
@@ -125,7 +120,7 @@ impl Turtle {
         }
     }
 
-    pub(crate) fn do_draw(&mut self, cmd: DrawCmd) {
+    pub(crate) fn do_draw(&mut self, cmd: DrawRequest) {
         let _ = self.do_command(Command::Draw(cmd));
     }
 
@@ -207,170 +202,13 @@ impl PolygonBuilder {
     }
 }
 
-// To calculate points as we go along:
-// For Lines:
-//  - pen color / pen width of each line segment
-//  - start & end of each line segment
-//
-// For polygons:
-//  - fill color
-//  - tesselated verticies
-//  - border color
-
-#[derive(Debug)]
-struct LineInfo {
-    pen_color: TurtleColor,
-    pen_width: f64,
-    points: Vec<Vec2d<isize>>,
-}
-
-#[derive(Debug)]
-struct PolyInfo {
-    fill_color: [f32; 4],
-    border_color: [f32; 4],
-    poly: Vec<TurtlePolygon>,
-}
-
-#[derive(Debug)]
-enum DrawInfo {
-    Line(LineInfo),
-    Poly(PolyInfo),
-}
-
-#[derive(Debug)]
-struct CurrentShape {
-    pen_color: TurtleColor,
-    pen_width: f64,
-    fill_color: TurtleColor,
-    transform: [[f64; 3]; 2],
-    points: Vec<Vec2d<isize>>,
-    angle: f64,
-}
-
-trait TurtlePosition<T> {
-    fn pos(&self) -> [T; 2];
-}
-
-impl TurtlePosition<f64> for CurrentShape {
-    fn pos(&self) -> [f64; 2] {
-        [self.transform[0][2] as f64, self.transform[1][2] as f64]
-    }
-}
-
-impl TurtlePosition<isize> for CurrentShape {
-    fn pos(&self) -> [isize; 2] {
-        [self.transform[0][2] as isize, self.transform[1][2] as isize]
-    }
-}
-
-impl Default for CurrentShape {
-    fn default() -> Self {
-        Self {
-            pen_color: "black".into(),
-            pen_width: 0.5,
-            fill_color: "black".into(),
-            transform: identity(),
-            points: Vec::new(),
-            angle: 0.,
-        }
-    }
-}
-
-impl CurrentShape {
-    fn angle(&self) -> f64 {
-        self.angle
-    }
-
-    fn save_point(&mut self) {
-        let x = self.transform[0][2].round() as isize;
-        let y = self.transform[1][2].round() as isize;
-        self.points.push([x, y]);
-    }
-
-    fn apply(&mut self, cmd: &DrawCmd) -> Option<DrawInfo> {
-        match cmd {
-            DrawCmd::TimedDraw(td) => match td {
-                TimedDrawCmd::Motion(motion) => {
-                    if self.points.is_empty() {
-                        self.save_point();
-                    }
-                    match motion {
-                        MotionCmd::Forward(dist) => {
-                            self.transform = self.transform.trans(*dist, 0.);
-                        }
-                        MotionCmd::Teleport(x, y) | MotionCmd::GoTo(x, y) => {
-                            self.transform = identity().trans(*x, *y).rot_deg(self.angle);
-                        }
-                        MotionCmd::SetX(x) => {
-                            let cur_y = self.transform[1][2];
-                            self.transform = identity().trans(*x, cur_y).rot_deg(self.angle);
-                        }
-                        MotionCmd::SetY(y) => {
-                            let cur_x = self.transform[0][2];
-                            self.transform = identity().trans(cur_x, *y).rot_deg(self.angle);
-                        }
-                    }
-                    self.save_point();
-                }
-                TimedDrawCmd::Rotate(rotation) => match rotation {
-                    RotateCmd::Right(angle) => {
-                        self.transform = self.transform.rot_deg(*angle);
-                        self.angle += angle;
-                    }
-                    RotateCmd::Left(angle) => {
-                        self.transform = self.transform.rot_deg(-*angle);
-                        self.angle -= angle;
-                    }
-                    RotateCmd::SetHeading(h) => {
-                        self.transform = self.transform.rot_deg(h - self.angle);
-                        self.angle = *h;
-                    }
-                },
-            },
-            DrawCmd::InstantaneousDraw(id) => match id {
-                InstantaneousDrawCmd::Undo => {}
-                InstantaneousDrawCmd::BackfillPolygon => {}
-                InstantaneousDrawCmd::PenDown => {}
-                InstantaneousDrawCmd::PenUp => {}
-                InstantaneousDrawCmd::PenColor(pc) => {
-                    let info = self.generate_line_info();
-                    self.pen_color = *pc;
-                    return Some(info);
-                }
-                InstantaneousDrawCmd::FillColor(fc) => {
-                    self.fill_color = *fc;
-                }
-                InstantaneousDrawCmd::PenWidth(pw) => {
-                    let info = self.generate_line_info();
-                    self.pen_width = *pw;
-                    return Some(info);
-                }
-                InstantaneousDrawCmd::Dot(_, _) => {}
-                InstantaneousDrawCmd::Stamp(_) => {}
-                InstantaneousDrawCmd::Fill(_) => {}
-            },
-        }
-
-        None
-    }
-
-    fn generate_line_info(&mut self) -> DrawInfo {
-        let li = LineInfo {
-            pen_color: self.pen_color,
-            pen_width: self.pen_width,
-            points: self.points.split_off(0),
-        };
-        DrawInfo::Line(li)
-    }
-}
-
 #[derive(Default)]
 pub(crate) struct TurtleData {
-    cmds: Vec<DrawCmd>,               // already-drawn elements
-    queue: VecDeque<DrawRequest>,     // new elements to draw
-    current_command: Option<DrawCmd>, // what we're drawing now
-    elements: Vec<DrawInfo>,
-    current_shape: CurrentShape, // per-segment information
+    cmds: Vec<DrawRequest>,               // already-drawn elements
+    queue: VecDeque<TurtleCommand>,       // new elements to draw
+    current_command: Option<DrawRequest>, // what we're drawing now
+    elements: Vec<DrawCommand>,
+    current_shape: CurrentTurtleState,
 
     current_turtle_id: u64, // which thread to notify on completion
     // _turtle_id: u64,               // TODO: doesn't the turtle need to know its own ID?
@@ -387,32 +225,43 @@ pub(crate) struct TurtleData {
 }
 
 impl TurtleData {
-    fn do_command(&mut self, cmd: &DrawCmd) {
-        if let Some(info) = self.current_shape.apply(cmd) {
-            self.elements.push(info);
+    fn do_command(&mut self, cmd: &DrawRequest) {
+        if let Some(command) = self.current_shape.apply(&cmd) {
+            self.elements.push(command);
         }
     }
 
     fn draw(&self, context: &Context, gl: &mut GlGraphics) {
+        let mut pen_color: TurtleColor = "black".into();
+        let mut fill_color: TurtleColor = "grey".into();
+        let mut pen_width = 0.5;
+
         for element in &self.elements {
             match element {
-                DrawInfo::Line(line) => {
-                    for pair in line.points.as_slice().windows(2) {
-                        graphics::line_from_to(
-                            line.pen_color.into(),
-                            line.pen_width,
-                            [pair[0][0] as f64, pair[0][1] as f64],
-                            [pair[1][0] as f64, pair[1][1] as f64],
-                            context.transform,
-                            gl,
-                        );
-                    }
+                DrawCommand::DrawLine(line) => {
+                    graphics::line_from_to(
+                        pen_color.into(),
+                        pen_width,
+                        [line.begin[0] as f64, line.begin[1] as f64],
+                        [line.end[0] as f64, line.end[1] as f64],
+                        context.transform,
+                        gl,
+                    );
                 }
-                DrawInfo::Poly(_) => todo!(),
+                DrawCommand::SetPenColor(pc) => {
+                    pen_color = *pc;
+                }
+                DrawCommand::SetPenWidth(pw) => {
+                    pen_width = *pw;
+                }
+                DrawCommand::SetFillColor(fc) => {
+                    fill_color = *fc;
+                }
             }
         }
 
         // draw the rest of the points
+        /*
         for pair in self.current_shape.points.as_slice().windows(2) {
             graphics::line_from_to(
                 self.current_shape.pen_color.into(),
@@ -423,17 +272,24 @@ impl TurtleData {
                 gl,
             );
         }
+        */
 
+        let pos = self.current_shape.pos();
         let trans = context
             .transform
-            .trans(
-                self.current_shape.transform[0][2],
-                self.current_shape.transform[1][2],
-            )
-            .rot_deg(self.current_shape.angle);
+            .trans(pos[0], pos[1])
+            .rot_deg(self.current_shape.angle());
 
         // draw the turtle
         self.turtle_shape.shape.draw(&crate::BLACK, trans, gl);
+    }
+
+    fn is_instantaneous(&self) -> bool {
+        if let Some(cmd) = self.current_command.as_ref() {
+            matches!(cmd, DrawRequest::InstantaneousDraw(_))
+        } else {
+            false
+        }
     }
 
     fn update(&mut self, delta_t: f64) {
@@ -444,7 +300,7 @@ impl TurtleData {
                 Progression::Forward => self.percent >= 1.,
                 Progression::Reverse => self.percent <= 0.,
             }
-            || matches!(self.current_command, Some(DrawCmd::InstantaneousDraw(_)));
+            || self.is_instantaneous();
         if !self.drawing_done {
             let multiplier = s as f64 * 2.;
 
@@ -460,15 +316,17 @@ impl TurtleData {
             self.shape_poly.update(self.current_shape.pos());
 
             let cmd = self.current_command.take().unwrap();
-            if !matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo))
-                && matches!(self.progression, Progression::Forward)
+            if !matches!(
+                cmd,
+                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Undo)
+            ) && matches!(self.progression, Progression::Forward)
             {
                 self.cmds.push(cmd.clone());
             }
 
             if matches!(
                 cmd,
-                DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
+                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
             ) {
                 self.insert_fill = Some(self.cmds.len() - 1);
             }
@@ -481,12 +339,15 @@ impl TurtleData {
         }
 
         if self.current_command.is_none() && !self.queue.is_empty() {
-            let DrawRequest { cmd, turtle_id } = self.queue.pop_front().unwrap();
+            let TurtleCommand { cmd, turtle_id } = self.queue.pop_front().unwrap();
             self.current_turtle_id = turtle_id;
 
             self.do_command(&cmd);
 
-            if matches!(cmd, DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Undo)) {
+            if matches!(
+                cmd,
+                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Undo)
+            ) {
                 self.current_command = self.cmds.pop();
                 self.progression = Progression::Reverse;
                 self.percent = 1.;
@@ -589,8 +450,8 @@ impl TurtleTask {
             ScreenCmd::BeginFill => {
                 let pos_copy = self.data[which].current_shape.pos();
                 self.data[which].fill_poly.start(pos_copy);
-                self.data[which].queue.push_back(DrawRequest {
-                    cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
+                self.data[which].queue.push_back(TurtleCommand {
+                    cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
                 });
             }
@@ -598,7 +459,7 @@ impl TurtleTask {
                 if let Some(index) = self.data[which].insert_fill.take() {
                     let polygon = TurtlePolygon::new(&self.data[which].fill_poly.verticies);
                     self.data[which].cmds[index] =
-                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
+                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
                     self.data[which].fill_poly.last_point = None;
                 }
                 let _ = resp.send(Response::Done);
@@ -617,11 +478,11 @@ impl TurtleTask {
                 if id < self.data[which].cmds.len()
                     && matches!(
                         self.data[which].cmds[id],
-                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true))
+                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true))
                     )
                 {
                     self.data[which].cmds[id] =
-                        DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false))
+                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false))
                 }
                 let _ = resp.send(Response::Done);
             }
@@ -649,7 +510,7 @@ impl TurtleTask {
             if let Some(cmd) = iter.next() {
                 if cmd.is_stamp() {
                     count -= 1;
-                    *cmd = DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false));
+                    *cmd = DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false));
                 }
             } else {
                 break;
@@ -700,8 +561,8 @@ impl TurtleTask {
                 resp.send(Response::Heading(self.data[which].current_shape.angle()))
             }
             DataCmd::Stamp => {
-                self.data[which].queue.push_back(DrawRequest {
-                    cmd: DrawCmd::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
+                self.data[which].queue.push_back(TurtleCommand {
+                    cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
                     turtle_id,
                 });
                 Ok(())
@@ -712,7 +573,7 @@ impl TurtleTask {
     fn handle_command(&mut self, which: usize, req: Request) {
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(which, cmd, req.turtle_id),
-            Command::Draw(cmd) => self.data[which].queue.push_back(DrawRequest {
+            Command::Draw(cmd) => self.data[which].queue.push_back(TurtleCommand {
                 cmd,
                 turtle_id: req.turtle_id,
             }),

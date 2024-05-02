@@ -6,6 +6,7 @@ pub use turtle::{Turtle, TurtleArgs};
 pub mod color_names;
 mod command;
 mod draw;
+mod generate;
 mod input;
 mod polygon;
 pub mod speed;

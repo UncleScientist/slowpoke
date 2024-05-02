@@ -7,8 +7,12 @@ use crate::{
     Turtle,
 };
 
+//
+// A DrawRequest is something that the turtle thread asks us to put on the screen.
+// This is different to a DrawCommand, which is responsible for containing the
+// rendering information.
 #[derive(Clone, Debug)]
-pub enum DrawCmd {
+pub enum DrawRequest {
     TimedDraw(TimedDrawCmd),
     InstantaneousDraw(InstantaneousDrawCmd),
 }
@@ -82,14 +86,14 @@ pub enum DataCmd {
 
 #[derive(Clone, Debug)]
 pub enum Command {
-    Draw(DrawCmd),
+    Draw(DrawRequest),
     Screen(ScreenCmd),
     Input(InputCmd),
     Data(DataCmd),
     Hatch,
 }
 
-impl DrawCmd {
+impl DrawRequest {
     pub(crate) fn is_stamp(&self) -> bool {
         matches!(
             self,
