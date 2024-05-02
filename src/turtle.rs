@@ -211,7 +211,6 @@ pub(crate) struct TurtleData {
     current_shape: CurrentTurtleState,
 
     current_turtle_id: u64, // which thread to notify on completion
-    // _turtle_id: u64,               // TODO: doesn't the turtle need to know its own ID?
     percent: f64,
     progression: Progression,
     insert_fill: Option<usize>,
@@ -226,18 +225,28 @@ pub(crate) struct TurtleData {
 
 impl TurtleData {
     fn do_command(&mut self, cmd: &DrawRequest) {
-        if let Some(command) = self.current_shape.apply(&cmd) {
-            self.elements.push(command);
+        if let Some(command) = self.current_shape.apply(cmd) {
+            if matches!(command, DrawCommand::Filler) {
+                self.insert_fill = Some(self.elements.len())
+            }
+            if matches!(command, DrawCommand::DrawPolygon(_)) {
+                if let Some(index) = self.insert_fill.take() {
+                    self.elements[index] = command;
+                }
+            } else {
+                self.elements.push(command);
+            }
         }
     }
 
     fn draw(&self, context: &Context, gl: &mut GlGraphics) {
         let mut pen_color: TurtleColor = "black".into();
-        let mut fill_color: TurtleColor = "grey".into();
+        let mut fill_color: TurtleColor = "black".into();
         let mut pen_width = 0.5;
 
         for element in &self.elements {
             match element {
+                DrawCommand::Filler => {}
                 DrawCommand::DrawLine(line) => {
                     graphics::line_from_to(
                         pen_color.into(),
@@ -247,6 +256,9 @@ impl TurtleData {
                         context.transform,
                         gl,
                     );
+                }
+                DrawCommand::DrawPolygon(polygon) => {
+                    polygon.draw(&fill_color, context.transform, gl);
                 }
                 DrawCommand::SetPenColor(pc) => {
                     pen_color = *pc;
@@ -260,20 +272,6 @@ impl TurtleData {
             }
         }
 
-        // draw the rest of the points
-        /*
-        for pair in self.current_shape.points.as_slice().windows(2) {
-            graphics::line_from_to(
-                self.current_shape.pen_color.into(),
-                self.current_shape.pen_width,
-                [pair[0][0] as f64, pair[0][1] as f64],
-                [pair[1][0] as f64, pair[1][1] as f64],
-                context.transform,
-                gl,
-            );
-        }
-        */
-
         let pos = self.current_shape.pos();
         let trans = context
             .transform
@@ -281,7 +279,7 @@ impl TurtleData {
             .rot_deg(self.current_shape.angle());
 
         // draw the turtle
-        self.turtle_shape.shape.draw(&crate::BLACK, trans, gl);
+        self.turtle_shape.shape.draw(&fill_color, trans, gl);
     }
 
     fn is_instantaneous(&self) -> bool {
@@ -322,13 +320,6 @@ impl TurtleData {
             ) && matches!(self.progression, Progression::Forward)
             {
                 self.cmds.push(cmd.clone());
-            }
-
-            if matches!(
-                cmd,
-                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
-            ) {
-                self.insert_fill = Some(self.cmds.len() - 1);
             }
 
             let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
@@ -456,13 +447,14 @@ impl TurtleTask {
                 });
             }
             ScreenCmd::EndFill => {
-                if let Some(index) = self.data[which].insert_fill.take() {
+                if !self.data[which].fill_poly.verticies.is_empty() {
                     let polygon = TurtlePolygon::new(&self.data[which].fill_poly.verticies);
-                    self.data[which].cmds[index] =
-                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon));
                     self.data[which].fill_poly.last_point = None;
+                    self.data[which].queue.push_back(TurtleCommand {
+                        cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon)),
+                        turtle_id,
+                    })
                 }
-                let _ = resp.send(Response::Done);
             }
             ScreenCmd::Background(TurtleColor::CurrentColor) => {}
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {

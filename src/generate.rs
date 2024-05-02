@@ -6,19 +6,23 @@ use graphics::{
 use crate::{
     color_names::TurtleColor,
     command::{DrawRequest, InstantaneousDrawCmd, MotionCmd, RotateCmd, TimedDrawCmd},
+    polygon::TurtlePolygon,
 };
 
+#[derive(Debug)]
 pub(crate) struct LineInfo {
     pub begin: Vec2d<isize>,
     pub end: Vec2d<isize>,
 }
 
+#[derive(Debug)]
 pub(crate) enum DrawCommand {
+    Filler,
     DrawLine(LineInfo),
     SetPenColor(TurtleColor),
     SetPenWidth(f64),
     SetFillColor(TurtleColor),
-    // DrawPolygon(TurtlePolygon),
+    DrawPolygon(TurtlePolygon),
 }
 
 #[derive(Debug)]
@@ -33,7 +37,7 @@ pub(crate) trait TurtlePosition<T> {
 
 impl TurtlePosition<f64> for CurrentTurtleState {
     fn pos(&self) -> [f64; 2] {
-        [self.transform[0][2] as f64, self.transform[1][2] as f64]
+        [self.transform[0][2], self.transform[1][2]]
     }
 }
 
@@ -104,7 +108,7 @@ impl CurrentTurtleState {
             },
             DrawRequest::InstantaneousDraw(id) => match id {
                 InstantaneousDrawCmd::Undo => {}
-                InstantaneousDrawCmd::BackfillPolygon => {}
+                InstantaneousDrawCmd::BackfillPolygon => return Some(DrawCommand::Filler),
                 InstantaneousDrawCmd::PenDown => {}
                 InstantaneousDrawCmd::PenUp => {}
                 InstantaneousDrawCmd::PenColor(pc) => {
@@ -118,7 +122,9 @@ impl CurrentTurtleState {
                 }
                 InstantaneousDrawCmd::Dot(_, _) => {}
                 InstantaneousDrawCmd::Stamp(_) => {}
-                InstantaneousDrawCmd::Fill(_) => {}
+                InstantaneousDrawCmd::Fill(polygon) => {
+                    return Some(DrawCommand::DrawPolygon(polygon.clone()));
+                }
             },
         }
         None

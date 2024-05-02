@@ -6,6 +6,8 @@ use lyon_tessellation::{
 };
 use opengl_graphics::GlGraphics;
 
+use crate::color_names::TurtleColor;
+
 const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
 const ARROW: [[f32; 2]; 4] = [[0., 0.], [-10., 12.], [-10., -12.], [0., 0.]];
 const CIRCLE: [[f32; 2]; 10] = [
@@ -110,7 +112,8 @@ impl TurtlePolygon {
         }
     }
 
-    pub fn draw(&self, color: &[f32; 4], transform: [[f64; 3]; 2], gl: &mut GlGraphics) {
+    pub fn draw(&self, color: &TurtleColor, transform: [[f64; 3]; 2], gl: &mut GlGraphics) {
+        let color: [f32; 4] = (*color).into();
         for i in self.indices.chunks(3) {
             let shape = [
                 self.vertices[i[0]],
@@ -118,7 +121,7 @@ impl TurtlePolygon {
                 self.vertices[i[2]],
             ];
 
-            graphics::polygon(*color, &shape, transform, gl);
+            graphics::polygon(color, &shape, transform, gl);
         }
     }
 }
