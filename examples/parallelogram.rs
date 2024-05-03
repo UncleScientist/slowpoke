@@ -6,7 +6,7 @@ fn main() {
         .with_title("a parallelogram")
         .run(|turtle| {
             println!("start: {:?}", turtle.pos());
-            turtle.speed(1);
+            turtle.speed(6);
 
             turtle.begin_poly();
 

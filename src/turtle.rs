@@ -243,19 +243,36 @@ impl TurtleData {
         let mut pen_color: TurtleColor = "black".into();
         let mut fill_color: TurtleColor = "black".into();
         let mut pen_width = 0.5;
+        let mut iter = self.elements.iter().peekable();
 
-        for element in &self.elements {
+        let mut rotation = self.current_shape.angle();
+        let mut pos = self.current_shape.pos();
+
+        while let Some(element) = iter.next() {
+            let is_last = iter.peek().is_none() && self.percent < 1.;
+
             match element {
                 DrawCommand::Filler => {}
                 DrawCommand::DrawLine(line) => {
-                    graphics::line_from_to(
-                        pen_color.into(),
-                        pen_width,
-                        [line.begin[0] as f64, line.begin[1] as f64],
-                        [line.end[0] as f64, line.end[1] as f64],
-                        context.transform,
-                        gl,
-                    );
+                    let begin = [line.begin[0] as f64, line.begin[1] as f64];
+                    let end = if is_last {
+                        let endx = begin[0] + (line.end[0] as f64 - begin[0]) * self.percent;
+                        let endy = begin[1] + (line.end[1] as f64 - begin[1]) * self.percent;
+                        pos = [endx, endy];
+                        pos
+                    } else {
+                        [line.end[0] as f64, line.end[1] as f64]
+                    };
+                    if line.pen_down {
+                        graphics::line_from_to(
+                            pen_color.into(),
+                            pen_width,
+                            begin,
+                            end,
+                            context.transform,
+                            gl,
+                        );
+                    }
                 }
                 DrawCommand::DrawPolygon(polygon) => {
                     polygon.draw(&fill_color, context.transform, gl);
@@ -269,14 +286,15 @@ impl TurtleData {
                 DrawCommand::SetFillColor(fc) => {
                     fill_color = *fc;
                 }
+                DrawCommand::SetHeading(start, end) => {
+                    if is_last {
+                        rotation = *start + (*end - *start) * self.percent;
+                    }
+                }
             }
         }
 
-        let pos = self.current_shape.pos();
-        let trans = context
-            .transform
-            .trans(pos[0], pos[1])
-            .rot_deg(self.current_shape.angle());
+        let trans = context.transform.trans(pos[0], pos[1]).rot_deg(rotation);
 
         // draw the turtle
         self.turtle_shape.shape.draw(&fill_color, trans, gl);
@@ -299,8 +317,11 @@ impl TurtleData {
                 Progression::Reverse => self.percent <= 0.,
             }
             || self.is_instantaneous();
-        if !self.drawing_done {
-            let multiplier = s as f64 * 2.;
+
+        if self.drawing_done {
+            self.percent = 1.;
+        } else {
+            let multiplier = s as f64 / 2.;
 
             match self.progression {
                 Progression::Forward => self.percent += delta_t * multiplier,

@@ -5,7 +5,7 @@ fn main() {
         .with_size(400, 400)
         .with_title("simple commands")
         .run(|turtle| {
-            turtle.speed(1);
+            turtle.speed(5);
             turtle.bgcolor("grey");
             turtle.dot(None, TurtleColor::CurrentColor);
             turtle.dot(None, "blue");

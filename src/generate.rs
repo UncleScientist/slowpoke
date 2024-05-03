@@ -13,6 +13,7 @@ use crate::{
 pub(crate) struct LineInfo {
     pub begin: Vec2d<isize>,
     pub end: Vec2d<isize>,
+    pub pen_down: bool,
 }
 
 #[derive(Debug)]
@@ -23,12 +24,14 @@ pub(crate) enum DrawCommand {
     SetPenWidth(f64),
     SetFillColor(TurtleColor),
     DrawPolygon(TurtlePolygon),
+    SetHeading(f64, f64),
 }
 
 #[derive(Debug)]
 pub(crate) struct CurrentTurtleState {
     transform: [[f64; 3]; 2],
     angle: f64,
+    pen_down: bool,
 }
 
 pub(crate) trait TurtlePosition<T> {
@@ -50,6 +53,7 @@ impl TurtlePosition<isize> for CurrentTurtleState {
 impl Default for CurrentTurtleState {
     fn default() -> Self {
         Self {
+            pen_down: true,
             transform: identity(),
             angle: 0.,
         }
@@ -72,11 +76,16 @@ impl CurrentTurtleState {
             DrawRequest::TimedDraw(td) => match td {
                 TimedDrawCmd::Motion(motion) => {
                     let begin = self.get_point();
+                    let mut pen_down = self.pen_down;
                     match motion {
                         MotionCmd::Forward(dist) => {
                             self.transform = self.transform.trans(*dist, 0.);
                         }
-                        MotionCmd::Teleport(x, y) | MotionCmd::GoTo(x, y) => {
+                        MotionCmd::Teleport(x, y) => {
+                            self.transform = identity().trans(*x, *y).rot_deg(self.angle);
+                            pen_down = false;
+                        }
+                        MotionCmd::GoTo(x, y) => {
                             self.transform = identity().trans(*x, *y).rot_deg(self.angle);
                         }
                         MotionCmd::SetX(x) => {
@@ -89,28 +98,40 @@ impl CurrentTurtleState {
                         }
                     }
                     let end = self.get_point();
-                    return Some(DrawCommand::DrawLine(LineInfo { begin, end }));
+                    return Some(DrawCommand::DrawLine(LineInfo {
+                        begin,
+                        end,
+                        pen_down,
+                    }));
                 }
-                TimedDrawCmd::Rotate(rotation) => match rotation {
-                    RotateCmd::Right(angle) => {
-                        self.transform = self.transform.rot_deg(*angle);
-                        self.angle += angle;
+                TimedDrawCmd::Rotate(rotation) => {
+                    let start = self.angle;
+                    match rotation {
+                        RotateCmd::Right(angle) => {
+                            self.transform = self.transform.rot_deg(*angle);
+                            self.angle += angle;
+                        }
+                        RotateCmd::Left(angle) => {
+                            self.transform = self.transform.rot_deg(-*angle);
+                            self.angle -= angle;
+                        }
+                        RotateCmd::SetHeading(h) => {
+                            self.transform = self.transform.rot_deg(h - self.angle);
+                            self.angle = *h;
+                        }
                     }
-                    RotateCmd::Left(angle) => {
-                        self.transform = self.transform.rot_deg(-*angle);
-                        self.angle -= angle;
-                    }
-                    RotateCmd::SetHeading(h) => {
-                        self.transform = self.transform.rot_deg(h - self.angle);
-                        self.angle = *h;
-                    }
-                },
+                    return Some(DrawCommand::SetHeading(start, self.angle));
+                }
             },
             DrawRequest::InstantaneousDraw(id) => match id {
                 InstantaneousDrawCmd::Undo => {}
                 InstantaneousDrawCmd::BackfillPolygon => return Some(DrawCommand::Filler),
-                InstantaneousDrawCmd::PenDown => {}
-                InstantaneousDrawCmd::PenUp => {}
+                InstantaneousDrawCmd::PenDown => {
+                    self.pen_down = true;
+                }
+                InstantaneousDrawCmd::PenUp => {
+                    self.pen_down = false;
+                }
                 InstantaneousDrawCmd::PenColor(pc) => {
                     return Some(DrawCommand::SetPenColor(*pc));
                 }
