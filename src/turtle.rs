@@ -18,7 +18,9 @@ use piston::{
 
 use crate::{
     color_names::TurtleColor,
-    command::{Command, DataCmd, DrawRequest, InputCmd, InstantaneousDrawCmd, ScreenCmd},
+    command::{
+        Command, DataCmd, DrawRequest, InputCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd,
+    },
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
@@ -207,7 +209,6 @@ impl PolygonBuilder {
 
 #[derive(Default)]
 pub(crate) struct TurtleData {
-    cmds: Vec<DrawRequest>,               // already-drawn elements
     queue: VecDeque<TurtleCommand>,       // new elements to draw
     current_command: Option<DrawRequest>, // what we're drawing now
     elements: Vec<DrawCommand>,
@@ -227,7 +228,7 @@ pub(crate) struct TurtleData {
 }
 
 impl TurtleData {
-    fn do_command(&mut self, cmd: &DrawRequest) {
+    fn convert_command(&mut self, cmd: &DrawRequest) {
         if let Some(command) = self.current_shape.apply(cmd) {
             if matches!(command, DrawCommand::Filler) {
                 self.insert_fill = Some(self.elements.len())
@@ -299,6 +300,7 @@ impl TurtleData {
                         rotation = *end;
                     }
                 }
+                DrawCommand::Stamp(..) => {}
             }
         }
 
@@ -355,20 +357,12 @@ impl TurtleData {
                         _ => {}
                     }
                 }
-                println!("Elements: {:?}", self.elements);
             }
 
             let cmd = self.current_command.take().unwrap();
-            if !matches!(
-                cmd,
-                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Undo)
-            ) && matches!(self.progression, Progression::Forward)
-            {
-                self.cmds.push(cmd.clone());
-            }
 
             let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
-                Response::StampID(self.cmds.len() - 1)
+                Response::StampID(self.elements.len() - 1)
             } else {
                 Response::Done
             });
@@ -378,20 +372,17 @@ impl TurtleData {
             let TurtleCommand { cmd, turtle_id } = self.queue.pop_front().unwrap();
             self.current_turtle_id = turtle_id;
 
-            self.do_command(&cmd);
+            self.convert_command(&cmd);
 
-            if matches!(
-                cmd,
-                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Undo)
-            ) {
-                self.current_command = self.cmds.pop();
+            if matches!(cmd, DrawRequest::TimedDraw(TimedDrawCmd::Undo)) {
                 self.progression = Progression::Reverse;
                 self.percent = 1.;
             } else {
-                self.current_command = Some(cmd);
                 self.progression = Progression::Forward;
                 self.percent = 0.;
             }
+
+            self.current_command = Some(cmd);
         }
     }
 }
@@ -507,19 +498,15 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
-                self.data[which].cmds.clear();
+                self.data[which].elements.clear();
                 self.bgcolor = crate::BLACK;
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {
-                if id < self.data[which].cmds.len()
-                    && matches!(
-                        self.data[which].cmds[id],
-                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true))
-                    )
+                if id < self.data[which].elements.len()
+                    && matches!(self.data[which].elements[id], DrawCommand::Stamp(true))
                 {
-                    self.data[which].cmds[id] =
-                        DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false))
+                    self.data[which].elements[id] = DrawCommand::Stamp(false);
                 }
                 let _ = resp.send(Response::Done);
             }
@@ -539,15 +526,15 @@ impl TurtleTask {
 
     fn clear_stamps(&mut self, which: usize, mut count: isize, dir: ClearDirection) {
         let mut iter = match dir {
-            ClearDirection::Forward => Either::Right(self.data[which].cmds.iter_mut()),
-            ClearDirection::Reverse => Either::Left(self.data[which].cmds.iter_mut().rev()),
+            ClearDirection::Forward => Either::Right(self.data[which].elements.iter_mut()),
+            ClearDirection::Reverse => Either::Left(self.data[which].elements.iter_mut().rev()),
         };
 
         while count > 0 {
             if let Some(cmd) = iter.next() {
                 if cmd.is_stamp() {
                     count -= 1;
-                    *cmd = DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(false));
+                    *cmd = DrawCommand::Stamp(false);
                 }
             } else {
                 break;
@@ -577,7 +564,9 @@ impl TurtleTask {
                 }
                 resp.send(Response::Name(self.data[which].turtle_shape.name.clone()))
             }
-            DataCmd::UndoBufferEntries => resp.send(Response::Count(self.data[which].cmds.len())),
+            DataCmd::UndoBufferEntries => {
+                resp.send(Response::Count(self.data[which].elements.len()))
+            }
             DataCmd::Towards(xpos, ypos) => {
                 let curpos: [f64; 2] = self.data[which].current_shape.pos();
                 let x = xpos - curpos[0];

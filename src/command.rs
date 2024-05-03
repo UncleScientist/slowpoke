@@ -22,6 +22,7 @@ pub enum DrawRequest {
 pub enum TimedDrawCmd {
     Motion(MotionCmd),
     Rotate(RotateCmd),
+    Undo,
 }
 
 #[derive(Clone, Debug)]
@@ -42,7 +43,6 @@ pub enum RotateCmd {
 
 #[derive(Clone, Debug)]
 pub enum InstantaneousDrawCmd {
-    Undo,
     BackfillPolygon,
     PenDown,
     PenUp,

@@ -27,6 +27,13 @@ pub(crate) enum DrawCommand {
     DrawPolygon(TurtlePolygon),
     SetHeading(f64, f64),
     DrawDot(Rectangle, TurtleColor),
+    Stamp(bool),
+}
+
+impl DrawCommand {
+    pub(crate) fn is_stamp(&self) -> bool {
+        matches!(self, Self::Stamp(_) | Self::DrawPolygon(_))
+    }
 }
 
 #[derive(Debug)]
@@ -132,9 +139,9 @@ impl CurrentTurtleState {
                     }
                     return Some(DrawCommand::SetHeading(start, self.angle));
                 }
+                TimedDrawCmd::Undo => {}
             },
             DrawRequest::InstantaneousDraw(id) => match id {
-                InstantaneousDrawCmd::Undo => {}
                 InstantaneousDrawCmd::BackfillPolygon => return Some(DrawCommand::Filler),
                 InstantaneousDrawCmd::PenDown => {
                     self.pen_down = true;

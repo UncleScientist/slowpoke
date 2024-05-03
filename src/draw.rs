@@ -187,7 +187,7 @@ impl Turtle {
     }
 
     pub fn undo(&mut self) {
-        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Undo));
+        self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Undo));
     }
 
     /*
