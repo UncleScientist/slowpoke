@@ -5,7 +5,10 @@ use std::{
 
 use either::Either;
 use glutin_window::GlutinWindow;
-use graphics::types::{self, Vec2d};
+use graphics::{
+    math::identity,
+    types::{self, Vec2d},
+};
 use graphics::{Context, Transformed};
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::{
@@ -261,8 +264,7 @@ impl TurtleData {
                     let end = if is_last {
                         let endx = begin[0] + (line.end[0] as f64 - begin[0]) * self.percent;
                         let endy = begin[1] + (line.end[1] as f64 - begin[1]) * self.percent;
-                        pos = [endx, endy];
-                        pos
+                        [endx, endy]
                     } else {
                         [line.end[0] as f64, line.end[1] as f64]
                     };
@@ -276,6 +278,7 @@ impl TurtleData {
                             gl,
                         );
                     }
+                    pos = end;
                 }
                 DrawCommand::DrawPolygon(polygon) => {
                     polygon.draw(&fill_color, context.transform, gl);
@@ -292,6 +295,8 @@ impl TurtleData {
                 DrawCommand::SetHeading(start, end) => {
                     if is_last {
                         rotation = *start + (*end - *start) * self.percent;
+                    } else {
+                        rotation = *end;
                     }
                 }
             }
@@ -324,7 +329,7 @@ impl TurtleData {
         if self.drawing_done {
             self.percent = 1.;
         } else {
-            let multiplier = s as f64 / 2.;
+            let multiplier = s as f64;
 
             match self.progression {
                 Progression::Forward => self.percent += delta_t * multiplier,
@@ -336,6 +341,22 @@ impl TurtleData {
             self.drawing_done = false;
             self.fill_poly.update(self.current_shape.pos());
             self.shape_poly.update(self.current_shape.pos());
+
+            if matches!(self.progression, Progression::Reverse) {
+                if let Some(element) = self.elements.pop() {
+                    match element {
+                        DrawCommand::DrawLine(line) => {
+                            let start = [line.begin[0] as f64, line.begin[1] as f64];
+                            self.current_shape.transform = identity().trans_pos(start);
+                        }
+                        DrawCommand::SetHeading(start, _) => {
+                            self.current_shape.angle = start;
+                        }
+                        _ => {}
+                    }
+                }
+                println!("Elements: {:?}", self.elements);
+            }
 
             let cmd = self.current_command.take().unwrap();
             if !matches!(
@@ -606,6 +627,7 @@ impl TurtleTask {
     fn render(&mut self, args: &RenderArgs) {
         self.gl.draw(args.viewport(), |context, gl| {
             graphics::clear(self.bgcolor, gl);
+            // std::thread::sleep(std::time::Duration::from_millis(5));
 
             let centered = context.trans(args.window_size[0] / 2., args.window_size[1] / 2.);
 

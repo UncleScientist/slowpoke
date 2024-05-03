@@ -31,8 +31,8 @@ pub(crate) enum DrawCommand {
 
 #[derive(Debug)]
 pub(crate) struct CurrentTurtleState {
-    transform: [[f64; 3]; 2],
-    angle: f64,
+    pub transform: [[f64; 3]; 2],
+    pub angle: f64,
     pen_down: bool,
     pen_width: f64,
     fill_color: TurtleColor,
