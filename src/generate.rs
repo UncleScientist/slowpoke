@@ -1,5 +1,6 @@
 use graphics::{
     math::{identity, Vec2d},
+    types::Rectangle,
     Transformed,
 };
 
@@ -25,6 +26,7 @@ pub(crate) enum DrawCommand {
     SetFillColor(TurtleColor),
     DrawPolygon(TurtlePolygon),
     SetHeading(f64, f64),
+    DrawDot(Rectangle, TurtleColor),
 }
 
 #[derive(Debug)]
@@ -32,6 +34,8 @@ pub(crate) struct CurrentTurtleState {
     transform: [[f64; 3]; 2],
     angle: f64,
     pen_down: bool,
+    pen_width: f64,
+    fill_color: TurtleColor,
 }
 
 pub(crate) trait TurtlePosition<T> {
@@ -56,6 +60,8 @@ impl Default for CurrentTurtleState {
             pen_down: true,
             transform: identity(),
             angle: 0.,
+            pen_width: 0.5,
+            fill_color: "black".into(),
         }
     }
 }
@@ -65,10 +71,14 @@ impl CurrentTurtleState {
         self.angle
     }
 
-    fn get_point(&mut self) -> Vec2d<isize> {
+    fn get_point(&self) -> Vec2d<isize> {
         let x = self.transform[0][2].round() as isize;
         let y = self.transform[1][2].round() as isize;
         [x, y]
+    }
+
+    fn get_floatpoint(&self) -> Vec2d<f64> {
+        [self.transform[0][2], self.transform[1][2]]
     }
 
     pub(crate) fn apply(&mut self, cmd: &DrawRequest) -> Option<DrawCommand> {
@@ -141,7 +151,21 @@ impl CurrentTurtleState {
                 InstantaneousDrawCmd::PenWidth(pw) => {
                     return Some(DrawCommand::SetPenWidth(*pw));
                 }
-                InstantaneousDrawCmd::Dot(_, _) => {}
+                InstantaneousDrawCmd::Dot(size, color) => {
+                    let size = if let Some(size) = size {
+                        *size
+                    } else {
+                        self.pen_width
+                    };
+                    let point: [f64; 2] = self.get_floatpoint();
+                    let rect = [point[0] - size / 2., point[1] - size / 2., size, size];
+                    let color = if matches!(color, TurtleColor::CurrentColor) {
+                        self.fill_color
+                    } else {
+                        *color
+                    };
+                    return Some(DrawCommand::DrawDot(rect, color));
+                }
                 InstantaneousDrawCmd::Stamp(_) => {}
                 InstantaneousDrawCmd::Fill(polygon) => {
                     return Some(DrawCommand::DrawPolygon(polygon.clone()));

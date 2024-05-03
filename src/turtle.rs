@@ -253,6 +253,9 @@ impl TurtleData {
 
             match element {
                 DrawCommand::Filler => {}
+                DrawCommand::DrawDot(rect, color) => {
+                    graphics::ellipse((*color).into(), *rect, context.transform, gl);
+                }
                 DrawCommand::DrawLine(line) => {
                     let begin = [line.begin[0] as f64, line.begin[1] as f64];
                     let end = if is_last {
