@@ -656,7 +656,6 @@ impl TurtleTask {
         self.gl.draw(args.viewport(), |context, gl| {
             graphics::clear(self.bgcolor, gl);
             self.winsize = args.window_size.into();
-            println!("{:?}", self.winsize);
             // std::thread::sleep(std::time::Duration::from_millis(5));
 
             let centered = context.trans(args.window_size[0] / 2., args.window_size[1] / 2.);
