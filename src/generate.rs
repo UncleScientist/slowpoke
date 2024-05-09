@@ -20,6 +20,7 @@ pub(crate) struct LineInfo {
 #[derive(Debug)]
 pub(crate) enum DrawCommand {
     Filler,
+    StampTurtle,
     DrawLine(LineInfo),
     SetPenColor(TurtleColor),
     SetPenWidth(f64),
@@ -29,6 +30,7 @@ pub(crate) enum DrawCommand {
     DrawDot(Rectangle, TurtleColor),
     Stamp(bool),
     EndFill(usize),
+    DrawPolyAt(TurtlePolygon, [f64; 2], f64), // poly, pos, angle
 }
 
 impl DrawCommand {
@@ -174,7 +176,9 @@ impl CurrentTurtleState {
                     };
                     return Some(DrawCommand::DrawDot(rect, color));
                 }
-                InstantaneousDrawCmd::Stamp(_) => {}
+                InstantaneousDrawCmd::Stamp(_) => {
+                    return Some(DrawCommand::StampTurtle);
+                }
                 InstantaneousDrawCmd::Fill(polygon) => {
                     return Some(DrawCommand::DrawPolygon(polygon.clone()));
                 }

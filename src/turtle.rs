@@ -233,13 +233,23 @@ impl TurtleData {
             if matches!(command, DrawCommand::Filler) {
                 self.insert_fill = Some(self.elements.len())
             }
-            if matches!(command, DrawCommand::DrawPolygon(_)) {
-                if let Some(index) = self.insert_fill.take() {
-                    self.elements[index] = command;
-                    self.elements.push(DrawCommand::EndFill(index));
+            match command {
+                DrawCommand::DrawPolygon(_) => {
+                    if let Some(index) = self.insert_fill.take() {
+                        self.elements[index] = command;
+                        self.elements.push(DrawCommand::EndFill(index));
+                    }
                 }
-            } else {
-                self.elements.push(command);
+                DrawCommand::StampTurtle => {
+                    self.elements.push(DrawCommand::DrawPolyAt(
+                        self.turtle_shape.shape.clone(),
+                        self.current_shape.pos(),
+                        self.current_shape.angle,
+                    ));
+                }
+                _ => {
+                    self.elements.push(command);
+                }
             }
         }
     }
@@ -257,6 +267,7 @@ impl TurtleData {
             let is_last = iter.peek().is_none() && self.percent < 1.;
 
             match element {
+                DrawCommand::StampTurtle => {}
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::Filler => {}
                 DrawCommand::DrawDot(rect, color) => {
@@ -285,6 +296,13 @@ impl TurtleData {
                 }
                 DrawCommand::DrawPolygon(polygon) => {
                     polygon.draw(&fill_color, context.transform, gl);
+                }
+                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
+                    polygon.draw(
+                        &fill_color,
+                        context.transform.trans_pos(*pos).rot_deg(*angle),
+                        gl,
+                    );
                 }
                 DrawCommand::SetPenColor(pc) => {
                     pen_color = *pc;
@@ -367,7 +385,7 @@ impl TurtleData {
             let cmd = self.current_command.take().unwrap();
 
             let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
-                Response::StampID(self.elements.len() - 1)
+                Response::StampID(self.elements.len())
             } else {
                 Response::Done
             });
