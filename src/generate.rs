@@ -28,14 +28,13 @@ pub(crate) enum DrawCommand {
     DrawPolygon(TurtlePolygon),
     SetHeading(f64, f64),
     DrawDot(Rectangle, TurtleColor),
-    Stamp(bool),
     EndFill(usize),
     DrawPolyAt(TurtlePolygon, [f64; 2], f64), // poly, pos, angle
 }
 
 impl DrawCommand {
     pub(crate) fn is_stamp(&self) -> bool {
-        matches!(self, Self::Stamp(_) | Self::DrawPolygon(_))
+        matches!(self, Self::DrawPolyAt(..))
     }
 }
 

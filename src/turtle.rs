@@ -320,7 +320,6 @@ impl TurtleData {
                         rotation = *end;
                     }
                 }
-                DrawCommand::Stamp(..) => {}
             }
         }
 
@@ -527,9 +526,9 @@ impl TurtleTask {
             }
             ScreenCmd::ClearStamp(id) => {
                 if id < self.data[which].elements.len()
-                    && matches!(self.data[which].elements[id], DrawCommand::Stamp(true))
+                    && matches!(self.data[which].elements[id], DrawCommand::DrawPolyAt(..))
                 {
-                    self.data[which].elements[id] = DrawCommand::Stamp(false);
+                    self.data[which].elements[id] = DrawCommand::Filler;
                 }
                 let _ = resp.send(Response::Done);
             }
@@ -557,7 +556,7 @@ impl TurtleTask {
             if let Some(cmd) = iter.next() {
                 if cmd.is_stamp() {
                     count -= 1;
-                    *cmd = DrawCommand::Stamp(false);
+                    *cmd = DrawCommand::Filler
                 }
             } else {
                 break;
