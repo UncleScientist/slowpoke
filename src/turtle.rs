@@ -236,6 +236,7 @@ impl TurtleData {
             if matches!(command, DrawCommand::DrawPolygon(_)) {
                 if let Some(index) = self.insert_fill.take() {
                     self.elements[index] = command;
+                    self.elements.push(DrawCommand::EndFill(index));
                 }
             } else {
                 self.elements.push(command);
@@ -256,6 +257,7 @@ impl TurtleData {
             let is_last = iter.peek().is_none() && self.percent < 1.;
 
             match element {
+                DrawCommand::EndFill(_) => {}
                 DrawCommand::Filler => {}
                 DrawCommand::DrawDot(rect, color) => {
                     graphics::ellipse((*color).into(), *rect, context.transform, gl);
@@ -347,6 +349,9 @@ impl TurtleData {
             if matches!(self.progression, Progression::Reverse) {
                 if let Some(element) = self.elements.pop() {
                     match element {
+                        DrawCommand::EndFill(pos) => {
+                            self.elements[pos] = DrawCommand::Filler;
+                        }
                         DrawCommand::DrawLine(line) => {
                             let start = [line.begin[0] as f64, line.begin[1] as f64];
                             self.current_shape.transform = identity().trans_pos(start);

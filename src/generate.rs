@@ -28,6 +28,7 @@ pub(crate) enum DrawCommand {
     SetHeading(f64, f64),
     DrawDot(Rectangle, TurtleColor),
     Stamp(bool),
+    EndFill(usize),
 }
 
 impl DrawCommand {
