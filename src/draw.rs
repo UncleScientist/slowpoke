@@ -1,6 +1,7 @@
 use std::f64::consts::PI;
 
 use graphics::types::Vec2d;
+use piston::Size;
 
 use crate::{
     color_names::TurtleColor,
@@ -47,6 +48,10 @@ impl Turtle {
 
     pub fn hideturtle(&mut self) {
         self.do_screen(ScreenCmd::ShowTurtle(false));
+    }
+
+    pub fn screensize<S: Into<Size>>(&mut self, s: S) {
+        self.do_screen(ScreenCmd::SetSize(s.into()));
     }
 
     /// Clear a range of stamps. If `which` is 0, clear all stamps; if `which` is < 0, clear
@@ -252,6 +257,14 @@ impl Turtle {
     pub fn isvisible(&mut self) -> bool {
         if let Response::Visibility(can_see) = self.do_data(DataCmd::Visibility) {
             can_see
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    pub fn getscreensize(&mut self) -> Size {
+        if let Response::ScreenSize(size) = self.do_data(DataCmd::GetScreenSize) {
+            size
         } else {
             panic!("invalid response from turtle");
         }

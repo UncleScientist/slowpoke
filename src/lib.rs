@@ -1,5 +1,6 @@
 use command::Command;
 use graphics::types::Vec2d;
+use piston::Size;
 pub use polygon::TurtleShapeName;
 pub use turtle::{Turtle, TurtleArgs};
 
@@ -28,6 +29,7 @@ pub enum Response {
     Name(String),
     Polygon(Vec<[f32; 2]>),
     Visibility(bool),
+    ScreenSize(Size),
 }
 
 pub struct Request {

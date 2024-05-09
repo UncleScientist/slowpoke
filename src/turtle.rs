@@ -3,6 +3,8 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use piston::{AdvancedWindow, Size};
+
 use either::Either;
 use glutin_window::GlutinWindow;
 use graphics::{
@@ -104,6 +106,7 @@ impl Turtle {
             turtle_num: 0,
             bgcolor: crate::WHITE,
             shapes: generate_default_shapes(),
+            winsize: [0, 0].into(),
             data: vec![TurtleData {
                 percent: 2.,
                 ..TurtleData::default()
@@ -419,6 +422,7 @@ struct TurtleTask {
     bgcolor: types::Color,
     data: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
+    winsize: Size,
 }
 
 impl TurtleTask {
@@ -484,6 +488,10 @@ impl TurtleTask {
     fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         match cmd {
+            ScreenCmd::SetSize(s) => {
+                self.window.set_size(s);
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::ShowTurtle(t) => {
                 self.data[which].turtle_invisible = !t;
                 let _ = resp.send(Response::Done);
@@ -582,6 +590,7 @@ impl TurtleTask {
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         let _ = match cmd {
+            DataCmd::GetScreenSize => resp.send(Response::ScreenSize(self.winsize)),
             DataCmd::Visibility => {
                 resp.send(Response::Visibility(!self.data[which].turtle_invisible))
             }
@@ -646,6 +655,8 @@ impl TurtleTask {
     fn render(&mut self, args: &RenderArgs) {
         self.gl.draw(args.viewport(), |context, gl| {
             graphics::clear(self.bgcolor, gl);
+            self.winsize = args.window_size.into();
+            println!("{:?}", self.winsize);
             // std::thread::sleep(std::time::Duration::from_millis(5));
 
             let centered = context.trans(args.window_size[0] / 2., args.window_size[1] / 2.);
@@ -680,6 +691,7 @@ impl TurtleTask {
                 }
             }
         }
+
         for (idx, func, key) in work {
             let mut turtle = self.spawn_turtle(idx);
             let _ = std::thread::spawn(move || func(&mut turtle, key));

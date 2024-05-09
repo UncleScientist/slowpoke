@@ -6,5 +6,8 @@ fn main() {
         .with_title("a line")
         .run(|turtle| {
             turtle.forward(100);
+            println!("size before = {:?}", turtle.getscreensize());
+            turtle.screensize([200, 100]);
+            println!("size after = {:?}", turtle.getscreensize());
         });
 }

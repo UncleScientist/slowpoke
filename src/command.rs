@@ -1,4 +1,4 @@
-use piston::Key;
+use piston::{Key, Size};
 
 use crate::{
     color_names::TurtleColor,
@@ -66,6 +66,7 @@ pub enum ScreenCmd {
     EndPoly,
     Speed(TurtleSpeed),
     ShowTurtle(bool),
+    SetSize(Size),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -76,6 +77,7 @@ pub enum InputCmd {
 // Commands which return data
 #[derive(Clone, Debug)]
 pub enum DataCmd {
+    GetScreenSize,
     GetPoly,
     TurtleShape(TurtleShapeName),
     UndoBufferEntries,
