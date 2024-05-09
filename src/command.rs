@@ -65,6 +65,7 @@ pub enum ScreenCmd {
     BeginPoly,
     EndPoly,
     Speed(TurtleSpeed),
+    ShowTurtle(bool),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -82,6 +83,7 @@ pub enum DataCmd {
     Position,
     Heading,
     Stamp,
+    Visibility,
 }
 
 #[derive(Clone, Debug)]

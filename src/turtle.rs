@@ -221,6 +221,7 @@ pub(crate) struct TurtleData {
     responder: HashMap<u64, Sender<Response>>,
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
+    turtle_invisible: bool,
     speed: TurtleSpeed,
     turtle_shape: TurtleShape,
     fill_poly: PolygonBuilder,
@@ -323,10 +324,10 @@ impl TurtleData {
             }
         }
 
-        let trans = context.transform.trans(pos[0], pos[1]).rot_deg(rotation);
-
-        // draw the turtle
-        self.turtle_shape.shape.draw(&fill_color, trans, gl);
+        if !self.turtle_invisible {
+            let trans = context.transform.trans(pos[0], pos[1]).rot_deg(rotation);
+            self.turtle_shape.shape.draw(&fill_color, trans, gl);
+        }
     }
 
     fn is_instantaneous(&self) -> bool {
@@ -483,6 +484,10 @@ impl TurtleTask {
     fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         match cmd {
+            ScreenCmd::ShowTurtle(t) => {
+                self.data[which].turtle_invisible = !t;
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::Speed(s) => {
                 self.data[which].speed = s;
                 let _ = resp.send(Response::Done);
@@ -577,6 +582,9 @@ impl TurtleTask {
     fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         let _ = match cmd {
+            DataCmd::Visibility => {
+                resp.send(Response::Visibility(!self.data[which].turtle_invisible))
+            }
             DataCmd::GetPoly => resp.send(Response::Polygon(
                 self.data[which].shape_poly.verticies.clone(),
             )),

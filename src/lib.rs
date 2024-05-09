@@ -27,6 +27,7 @@ pub enum Response {
     Count(usize),
     Name(String),
     Polygon(Vec<[f32; 2]>),
+    Visibility(bool),
 }
 
 pub struct Request {

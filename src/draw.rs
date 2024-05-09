@@ -41,6 +41,14 @@ impl Turtle {
         self.do_screen(ScreenCmd::EndPoly);
     }
 
+    pub fn showturtle(&mut self) {
+        self.do_screen(ScreenCmd::ShowTurtle(true));
+    }
+
+    pub fn hideturtle(&mut self) {
+        self.do_screen(ScreenCmd::ShowTurtle(false));
+    }
+
     /// Clear a range of stamps. If `which` is 0, clear all stamps; if `which` is < 0, clear
     /// the last `-which` stamps, and if which is > 0, clear the first `which` stamps.
     ///
@@ -236,6 +244,14 @@ impl Turtle {
     pub fn get_poly(&mut self) -> Vec<[f32; 2]> {
         if let Response::Polygon(polygon) = self.do_data(DataCmd::GetPoly) {
             polygon
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    pub fn isvisible(&mut self) -> bool {
+        if let Response::Visibility(can_see) = self.do_data(DataCmd::Visibility) {
+            can_see
         } else {
             panic!("invalid response from turtle");
         }
