@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use graphics::{
     math::{identity, Vec2d},
     types::Rectangle,
@@ -18,6 +20,19 @@ pub(crate) struct LineInfo {
 }
 
 #[derive(Debug)]
+pub(crate) struct CirclePos {
+    pub angle: f64,
+    pub x: isize,
+    pub y: isize,
+}
+
+impl CirclePos {
+    pub fn get_data(&self) -> (f64, [f64; 2]) {
+        (self.angle, [self.x as f64, self.y as f64])
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum DrawCommand {
     Filler,
     StampTurtle,
@@ -30,6 +45,7 @@ pub(crate) enum DrawCommand {
     DrawDot(Rectangle, TurtleColor),
     EndFill(usize),
     DrawPolyAt(TurtlePolygon, [f64; 2], f64), // poly, pos, angle
+    Circle(Vec<CirclePos>),
 }
 
 impl DrawCommand {
@@ -90,9 +106,42 @@ impl CurrentTurtleState {
         [self.transform[0][2], self.transform[1][2]]
     }
 
+    fn get_circlepos(&self) -> CirclePos {
+        let point = self.get_point();
+        CirclePos {
+            angle: self.angle,
+            x: point[0],
+            y: point[1],
+        }
+    }
+
     pub(crate) fn apply(&mut self, cmd: &DrawRequest) -> Option<DrawCommand> {
         match cmd {
             DrawRequest::TimedDraw(td) => match td {
+                TimedDrawCmd::Circle(radius, extent, steps) => {
+                    let mut pointlist = vec![self.get_circlepos()];
+
+                    let theta_d = *extent / (*steps as f64);
+                    let theta_r = theta_d * (2. * PI / 360.);
+                    let len = 2. * *radius * (theta_r / 2.).sin();
+
+                    for s in 0..*steps {
+                        if s == 0 {
+                            self.transform = self.transform.rot_deg(theta_d / 2.);
+                            self.angle += theta_d / 2.;
+                        } else {
+                            self.transform = self.transform.rot_deg(theta_d);
+                            self.angle += theta_d;
+                        }
+
+                        self.transform = self.transform.trans(len, 0.);
+                        pointlist.push(self.get_circlepos());
+                    }
+
+                    self.transform = self.transform.rot_deg(theta_d / 2.);
+                    self.angle += theta_d / 2.;
+                    return Some(DrawCommand::Circle(pointlist));
+                }
                 TimedDrawCmd::Motion(motion) => {
                     let begin = self.get_point();
                     let mut pen_down = self.pen_down;

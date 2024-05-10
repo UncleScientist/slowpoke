@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use graphics::types::Vec2d;
 use piston::Size;
 
@@ -166,21 +164,11 @@ impl Turtle {
     }
 
     pub fn circle<R: Into<f64>, E: Into<f64>>(&mut self, radius: R, extent: E, steps: usize) {
-        let theta_d = extent.into() / (steps as f64);
-        let theta_r = theta_d * (2. * PI / 360.);
-        let len = 2. * radius.into() * (theta_r / 2.).sin();
-
-        for s in 0..steps {
-            if s == 0 {
-                self.left(theta_d / 2.);
-            } else {
-                self.left(theta_d);
-            }
-
-            self.forward(len);
-        }
-
-        self.left(theta_d / 2.);
+        self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Circle(
+            radius.into(),
+            extent.into(),
+            steps,
+        )));
     }
 
     pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f64>, color: C) {

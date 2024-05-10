@@ -22,6 +22,7 @@ pub enum DrawRequest {
 pub enum TimedDrawCmd {
     Motion(MotionCmd),
     Rotate(RotateCmd),
+    Circle(f64, f64, usize),
     Undo,
 }
 

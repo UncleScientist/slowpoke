@@ -271,6 +271,31 @@ impl TurtleData {
             let is_last = iter.peek().is_none() && self.percent < 1.;
 
             match element {
+                DrawCommand::Circle(points) => {
+                    let total = if is_last {
+                        1.max((points.len() as f64 * self.percent).floor() as usize)
+                    } else {
+                        points.len() + 1
+                    };
+                    let mut last_point = [0., 0.];
+                    let mut last_angle = 0.;
+                    for p in points.windows(2).take(total) {
+                        let (_, begin) = p[0].get_data();
+                        let (angle, end) = p[1].get_data();
+                        graphics::line_from_to(
+                            pen_color.into(),
+                            pen_width,
+                            begin,
+                            end,
+                            context.transform,
+                            gl,
+                        );
+                        last_point = end;
+                        last_angle = angle;
+                    }
+                    pos = last_point;
+                    rotation = last_angle;
+                }
                 DrawCommand::StampTurtle => {}
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::Filler => {}
