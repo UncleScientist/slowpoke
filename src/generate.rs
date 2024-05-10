@@ -24,6 +24,7 @@ pub(crate) struct CirclePos {
     pub angle: f64,
     pub x: isize,
     pub y: isize,
+    pub pen_down: bool,
 }
 
 impl CirclePos {
@@ -112,6 +113,7 @@ impl CurrentTurtleState {
             angle: self.angle,
             x: point[0],
             y: point[1],
+            pen_down: self.pen_down,
         }
     }
 

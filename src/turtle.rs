@@ -258,6 +258,33 @@ impl TurtleData {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn draw_line(
+        &self,
+        pen_color: [f32; 4],
+        pen_width: f64,
+        begin: [f64; 2],
+        end: [f64; 2],
+        pen_down: bool,
+        percent: f64,
+        is_last: bool,
+        context: &Context,
+        gl: &mut GlGraphics,
+    ) -> [f64; 2] {
+        let end = if is_last {
+            let endx = begin[0] + (end[0] - begin[0]) * percent;
+            let endy = begin[1] + (end[1] - begin[1]) * percent;
+            [endx, endy]
+        } else {
+            end
+        };
+        if pen_down {
+            graphics::line_from_to(pen_color, pen_width, begin, end, context.transform, gl);
+        }
+
+        end
+    }
+
     fn draw(&self, context: &Context, gl: &mut GlGraphics) {
         let mut pen_color: TurtleColor = "black".into();
         let mut fill_color: TurtleColor = "black".into();
@@ -272,25 +299,30 @@ impl TurtleData {
 
             match element {
                 DrawCommand::Circle(points) => {
-                    let total = if is_last {
-                        1.max((points.len() as f64 * self.percent).floor() as usize)
+                    // TODO: fix double-drawing of last segment pair bug
+                    let (total, subpercent) = if is_last {
+                        let partial = points.len() as f64 * self.percent;
+                        (partial.floor() as usize, partial - partial.floor())
                     } else {
-                        points.len() + 1
+                        (points.len(), 1.)
                     };
                     let mut last_point = [0., 0.];
                     let mut last_angle = 0.;
-                    for p in points.windows(2).take(total) {
+                    let mut iter = points.windows(2).take(total + 1).peekable();
+                    while let Some(p) = iter.next() {
                         let (_, begin) = p[0].get_data();
                         let (angle, end) = p[1].get_data();
-                        graphics::line_from_to(
+                        last_point = self.draw_line(
                             pen_color.into(),
                             pen_width,
                             begin,
                             end,
-                            context.transform,
+                            p[0].pen_down,
+                            subpercent,
+                            is_last && iter.peek().is_none(),
+                            context,
                             gl,
                         );
-                        last_point = end;
                         last_angle = angle;
                     }
                     pos = last_point;
@@ -304,24 +336,18 @@ impl TurtleData {
                 }
                 DrawCommand::DrawLine(line) => {
                     let begin = [line.begin[0] as f64, line.begin[1] as f64];
-                    let end = if is_last {
-                        let endx = begin[0] + (line.end[0] as f64 - begin[0]) * self.percent;
-                        let endy = begin[1] + (line.end[1] as f64 - begin[1]) * self.percent;
-                        [endx, endy]
-                    } else {
-                        [line.end[0] as f64, line.end[1] as f64]
-                    };
-                    if line.pen_down {
-                        graphics::line_from_to(
-                            pen_color.into(),
-                            pen_width,
-                            begin,
-                            end,
-                            context.transform,
-                            gl,
-                        );
-                    }
-                    pos = end;
+                    let end = [line.end[0] as f64, line.end[1] as f64];
+                    pos = self.draw_line(
+                        pen_color.into(),
+                        pen_width,
+                        begin,
+                        end,
+                        line.pen_down,
+                        self.percent,
+                        is_last,
+                        context,
+                        gl,
+                    );
                 }
                 DrawCommand::DrawPolygon(polygon) => {
                     polygon.draw(&fill_color, context.transform, gl);
