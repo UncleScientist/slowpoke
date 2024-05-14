@@ -17,6 +17,15 @@ impl From<TurtleColor> for [f32; 4] {
 
 impl From<&str> for TurtleColor {
     fn from(color_name: &str) -> Self {
+        if color_name.starts_with('#') {
+            // #rrggbbaa
+            let value = u32::from_str_radix(&color_name[1..=6], 16)
+                .unwrap_or_else(|_| panic!("Could not parse {color_name} as a hex string"));
+            let r = (value >> 16) & 0xff;
+            let g = (value >> 8) & 0xff;
+            let b = value & 0xff;
+            return TurtleColor::Color(r as f32 / 255., g as f32 / 255., b as f32 / 255.);
+        }
         for c in &COLOR {
             if color_name == c.0 {
                 return TurtleColor::Color(c.1 as f32 / 255., c.2 as f32 / 255., c.3 as f32 / 255.);

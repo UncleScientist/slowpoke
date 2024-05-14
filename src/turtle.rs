@@ -579,7 +579,9 @@ impl TurtleTask {
                     })
                 }
             }
-            ScreenCmd::Background(TurtleColor::CurrentColor) => {}
+            ScreenCmd::Background(TurtleColor::CurrentColor) => {
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
                 self.bgcolor = [r, g, b, 1.];
                 let _ = resp.send(Response::Done);
