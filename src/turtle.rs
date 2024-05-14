@@ -237,7 +237,19 @@ impl TurtleData {
             if matches!(command, DrawCommand::Filler) {
                 self.insert_fill = Some(self.elements.len())
             }
-            match command {
+            match &command {
+                DrawCommand::Line(lineinfo) => {
+                    self.fill_poly.update(lineinfo.end);
+                    self.shape_poly.update(lineinfo.end);
+                    self.elements.push(command);
+                }
+                DrawCommand::Circle(circle) => {
+                    for c in circle {
+                        self.fill_poly.update([c.x, c.y]);
+                        self.shape_poly.update([c.x, c.y]);
+                    }
+                    self.elements.push(command);
+                }
                 DrawCommand::DrawPolygon(_) => {
                     if let Some(index) = self.insert_fill.take() {
                         self.elements[index] = command;
@@ -325,9 +337,7 @@ impl TurtleData {
                         last_angle = angle;
                     }
                     pos = last_point;
-                    if is_last {
-                        rotation = last_angle;
-                    }
+                    rotation = last_angle;
                 }
                 DrawCommand::StampTurtle => {}
                 DrawCommand::EndFill(_) => {}
@@ -335,7 +345,7 @@ impl TurtleData {
                 DrawCommand::DrawDot(rect, color) => {
                     graphics::ellipse((*color).into(), *rect, context.transform, gl);
                 }
-                DrawCommand::DrawLine(line) => {
+                DrawCommand::Line(line) => {
                     let begin = [line.begin[0] as f64, line.begin[1] as f64];
                     let end = [line.end[0] as f64, line.end[1] as f64];
                     pos = self.draw_line(
@@ -416,8 +426,6 @@ impl TurtleData {
 
         if self.drawing_done && self.current_command.is_some() {
             self.drawing_done = false;
-            self.fill_poly.update(self.current_shape.pos());
-            self.shape_poly.update(self.current_shape.pos());
 
             if matches!(self.progression, Progression::Reverse) {
                 if let Some(element) = self.elements.pop() {
@@ -425,7 +433,7 @@ impl TurtleData {
                         DrawCommand::EndFill(pos) => {
                             self.elements[pos] = DrawCommand::Filler;
                         }
-                        DrawCommand::DrawLine(line) => {
+                        DrawCommand::Line(line) => {
                             let start = [line.begin[0] as f64, line.begin[1] as f64];
                             self.current_shape.transform = identity().trans_pos(start);
                         }

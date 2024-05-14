@@ -37,7 +37,7 @@ impl CirclePos {
 pub(crate) enum DrawCommand {
     Filler,
     StampTurtle,
-    DrawLine(LineInfo),
+    Line(LineInfo),
     SetPenColor(TurtleColor),
     SetPenWidth(f64),
     SetFillColor(TurtleColor),
@@ -169,7 +169,7 @@ impl CurrentTurtleState {
                         }
                     }
                     let end = self.get_point();
-                    return Some(DrawCommand::DrawLine(LineInfo {
+                    return Some(DrawCommand::Line(LineInfo {
                         begin,
                         end,
                         pen_down,
@@ -187,8 +187,9 @@ impl CurrentTurtleState {
                             self.angle -= angle;
                         }
                         RotateCmd::SetHeading(h) => {
-                            self.transform = self.transform.rot_deg(h - self.angle);
-                            self.angle = *h;
+                            let h = 180. - h;
+                            self.transform = self.transform.rot_deg(h - self.angle + 90.);
+                            self.angle = h + 90.;
                         }
                     }
                     return Some(DrawCommand::SetHeading(start, self.angle));
@@ -210,7 +211,7 @@ impl CurrentTurtleState {
                     return Some(DrawCommand::SetFillColor(*fc));
                 }
                 InstantaneousDrawCmd::PenWidth(pw) => {
-                    return Some(DrawCommand::SetPenWidth(*pw));
+                    return Some(DrawCommand::SetPenWidth(*pw / 2.));
                 }
                 InstantaneousDrawCmd::Dot(size, color) => {
                     let size = if let Some(size) = size {
