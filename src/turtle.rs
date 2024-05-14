@@ -299,12 +299,11 @@ impl TurtleData {
 
             match element {
                 DrawCommand::Circle(points) => {
-                    // TODO: fix double-drawing of last segment pair bug
                     let (total, subpercent) = if is_last {
-                        let partial = points.len() as f64 * self.percent;
+                        let partial = (points.len() - 1) as f64 * self.percent;
                         (partial.floor() as usize, partial - partial.floor())
                     } else {
-                        (points.len(), 1.)
+                        (points.len() - 1, 1.)
                     };
                     let mut last_point = [0., 0.];
                     let mut last_angle = 0.;
