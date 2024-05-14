@@ -305,8 +305,8 @@ impl TurtleData {
                     } else {
                         (points.len() - 1, 1.)
                     };
-                    let mut last_point = [0., 0.];
-                    let mut last_angle = 0.;
+                    let mut last_point = pos;
+                    let mut last_angle = rotation;
                     let mut iter = points.windows(2).take(total + 1).peekable();
                     while let Some(p) = iter.next() {
                         let (_, begin) = p[0].get_data();
@@ -325,7 +325,9 @@ impl TurtleData {
                         last_angle = angle;
                     }
                     pos = last_point;
-                    rotation = last_angle;
+                    if is_last {
+                        rotation = last_angle;
+                    }
                 }
                 DrawCommand::StampTurtle => {}
                 DrawCommand::EndFill(_) => {}

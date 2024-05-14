@@ -122,10 +122,11 @@ impl CurrentTurtleState {
             DrawRequest::TimedDraw(td) => match td {
                 TimedDrawCmd::Circle(radius, extent, steps) => {
                     let mut pointlist = vec![self.get_circlepos()];
+                    let rsign = -radius.signum();
 
-                    let theta_d = *extent / (*steps as f64);
-                    let theta_r = theta_d * (2. * PI / 360.);
-                    let len = 2. * *radius * (theta_r / 2.).sin();
+                    let theta_d = rsign * (extent / (*steps as f64));
+                    let theta_r = rsign * (theta_d * (2. * PI / 360.));
+                    let len = 2. * radius.abs() * (theta_r / 2.).sin();
 
                     for s in 0..*steps {
                         if s == 0 {
