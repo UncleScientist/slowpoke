@@ -43,7 +43,7 @@ fn main() {
                 turtle.fillcolor("#ffffff");
                 turtle.begin_fill();
 
-                //TODO: turtle.tracer(false);
+                turtle.tracer(false);
                 let mut a = 2.5;
                 for i in 0..120 {
                     if (0..30).contains(&i) || (60..90).contains(&i) {
@@ -54,7 +54,7 @@ fn main() {
                     turtle.left(3);
                     turtle.forward(a);
                 }
-                //TODO: turtle.tracer(true);
+                turtle.tracer(true);
                 turtle.end_fill();
             }
 

@@ -197,6 +197,7 @@ impl CurrentTurtleState {
                 TimedDrawCmd::Undo => {}
             },
             DrawRequest::InstantaneousDraw(id) => match id {
+                InstantaneousDrawCmd::Tracer(_) => {}
                 InstantaneousDrawCmd::BackfillPolygon => return Some(DrawCommand::Filler),
                 InstantaneousDrawCmd::PenDown => {
                     self.pen_down = true;

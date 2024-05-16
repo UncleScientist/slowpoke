@@ -107,10 +107,7 @@ impl Turtle {
             bgcolor: crate::WHITE,
             shapes: generate_default_shapes(),
             winsize: [0, 0].into(),
-            data: vec![TurtleData {
-                percent: 2.,
-                ..TurtleData::default()
-            }],
+            data: vec![TurtleData::new()],
         };
 
         tt.run(func);
@@ -225,6 +222,7 @@ pub(crate) struct TurtleData {
     onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
     drawing_done: bool,
     turtle_invisible: bool,
+    tracer: bool,
     speed: TurtleSpeed,
     turtle_shape: TurtleShape,
     fill_poly: PolygonBuilder,
@@ -232,6 +230,14 @@ pub(crate) struct TurtleData {
 }
 
 impl TurtleData {
+    fn new() -> Self {
+        Self {
+            percent: 2.,
+            tracer: true,
+            ..Self::default()
+        }
+    }
+
     fn convert_command(&mut self, cmd: &DrawRequest) {
         if let Some(command) = self.current_shape.apply(cmd) {
             if matches!(command, DrawCommand::Filler) {
@@ -424,6 +430,16 @@ impl TurtleData {
             }
         }
 
+        if !self.tracer {
+            while !self.tracer && !self.queue.is_empty() {
+                self.drawing_done = true;
+                self.do_next_command();
+            }
+        }
+        self.do_next_command();
+    }
+
+    fn do_next_command(&mut self) {
         if self.drawing_done && self.current_command.is_some() {
             self.drawing_done = false;
 
@@ -459,6 +475,10 @@ impl TurtleData {
             self.current_turtle_id = turtle_id;
 
             self.convert_command(&cmd);
+
+            if let DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t)) = &cmd {
+                self.tracer = *t;
+            }
 
             if matches!(cmd, DrawRequest::TimedDraw(TimedDrawCmd::Undo)) {
                 self.progression = Progression::Reverse;
@@ -526,10 +546,7 @@ impl TurtleTask {
         self.turtle_num += 1;
         let newid = self.turtle_num;
 
-        let mut td = TurtleData {
-            percent: 2.,
-            ..TurtleData::default()
-        };
+        let mut td = TurtleData::new();
         td.responder.insert(newid, finished);
         self.data.push(td);
 
@@ -697,13 +714,16 @@ impl TurtleTask {
         };
     }
 
+    fn draw_cmd(&mut self, which: usize, cmd: DrawRequest, turtle_id: u64) {
+        self.data[which]
+            .queue
+            .push_back(TurtleCommand { cmd, turtle_id });
+    }
+
     fn handle_command(&mut self, which: usize, req: Request) {
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(which, cmd, req.turtle_id),
-            Command::Draw(cmd) => self.data[which].queue.push_back(TurtleCommand {
-                cmd,
-                turtle_id: req.turtle_id,
-            }),
+            Command::Draw(cmd) => self.draw_cmd(which, cmd, req.turtle_id),
             Command::Input(cmd) => self.input_cmd(which, cmd, req.turtle_id),
             Command::Data(cmd) => self.data_cmd(which, cmd, req.turtle_id),
             Command::Hatch => {

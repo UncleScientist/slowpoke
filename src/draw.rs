@@ -127,6 +127,12 @@ impl Turtle {
         ));
     }
 
+    pub fn tracer(&mut self, trace: bool) {
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::Tracer(trace),
+        ));
+    }
+
     pub fn goto<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
             MotionCmd::GoTo(xpos.into(), -ypos.into()),

@@ -53,6 +53,7 @@ pub enum InstantaneousDrawCmd {
     Dot(Option<f64>, TurtleColor),
     Stamp(bool),
     Fill(TurtlePolygon),
+    Tracer(bool),
 }
 
 #[derive(Copy, Clone, Debug)]
