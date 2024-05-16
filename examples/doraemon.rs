@@ -34,6 +34,7 @@ fn main() {
                 turtle.circle(-5, 90, 10);
 
                 turtle.forward(7); // FIXME
+                turtle.forward(-7); // FIXME
 
                 turtle.end_fill();
             }
@@ -45,7 +46,7 @@ fn main() {
                 //TODO: turtle.tracer(false);
                 let mut a = 2.5;
                 for i in 0..120 {
-                    if 0 <= i && i < 30 || 60 <= i && i < 90 {
+                    if (0..30).contains(&i) || (60..90).contains(&i) {
                         a -= 0.05;
                     } else {
                         a += 0.05;
