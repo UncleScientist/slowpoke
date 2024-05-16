@@ -223,6 +223,7 @@ pub(crate) struct TurtleData {
     drawing_done: bool,
     turtle_invisible: bool,
     tracer: bool,
+    respond_immediately: bool,
     speed: TurtleSpeed,
     turtle_shape: TurtleShape,
     fill_poly: PolygonBuilder,
@@ -430,11 +431,12 @@ impl TurtleData {
             }
         }
 
-        if !self.tracer {
+        if !self.tracer && !self.queue.is_empty() {
             while !self.tracer && !self.queue.is_empty() {
                 self.drawing_done = true;
                 self.do_next_command();
             }
+            self.respond_immediately = true;
         }
         self.do_next_command();
     }
@@ -463,11 +465,13 @@ impl TurtleData {
 
             let cmd = self.current_command.take().unwrap();
 
-            let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
-                Response::StampID(self.elements.len())
-            } else {
-                Response::Done
-            });
+            if !self.respond_immediately {
+                let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
+                    Response::StampID(self.elements.len())
+                } else {
+                    Response::Done
+                });
+            }
         }
 
         if self.current_command.is_none() && !self.queue.is_empty() {
@@ -504,6 +508,16 @@ struct TurtleTask {
     shapes: HashMap<String, TurtleShape>,
     winsize: Size,
 }
+
+// tracer(true) vs tracer(false)
+//
+// 1 - we have queue of reqeusts coming in
+// 2 - we need to respond to each request, telling the turtle when the request is complete
+// 3 - if tracer is true, then we wait for the drawing to be done before sending the response
+// 4 - if tracer is false, we need to send the response right away
+//              (so that the turtle can immediately send the next request)
+// 5 - the update() function in TurtleData send responses when the command is complete
+// 6 - for tracer(false) we want to send the response from TurtleTask before we get to update()
 
 impl TurtleTask {
     fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
@@ -715,9 +729,18 @@ impl TurtleTask {
     }
 
     fn draw_cmd(&mut self, which: usize, cmd: DrawRequest, turtle_id: u64) {
+        let is_stamp = cmd.is_stamp();
         self.data[which]
             .queue
             .push_back(TurtleCommand { cmd, turtle_id });
+
+        if self.data[which].respond_immediately {
+            let _ = self.data[which].responder[&turtle_id].send(if is_stamp {
+                Response::StampID(self.data[which].elements.len())
+            } else {
+                Response::Done
+            });
+        }
     }
 
     fn handle_command(&mut self, which: usize, req: Request) {
