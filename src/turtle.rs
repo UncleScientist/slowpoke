@@ -410,7 +410,7 @@ impl TurtleData {
         }
     }
 
-    fn update(&mut self, delta_t: f64) {
+    fn time_passes(&mut self, delta_t: f64) {
         let s = self.speed.get();
 
         self.drawing_done = s == 0
@@ -436,7 +436,6 @@ impl TurtleData {
                 self.drawing_done = true;
                 self.do_next_command();
             }
-            self.respond_immediately = true;
         }
         self.do_next_command();
     }
@@ -466,11 +465,14 @@ impl TurtleData {
             let cmd = self.current_command.take().unwrap();
 
             if !self.respond_immediately {
-                let _ = self.responder[&self.current_turtle_id].send(if cmd.is_stamp() {
-                    Response::StampID(self.elements.len())
-                } else {
-                    Response::Done
-                });
+                self.send_response(self.current_turtle_id, cmd.is_stamp());
+            }
+
+            if matches!(
+                cmd,
+                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(false))
+            ) {
+                self.respond_immediately = true;
             }
         }
 
@@ -494,6 +496,14 @@ impl TurtleData {
 
             self.current_command = Some(cmd);
         }
+    }
+
+    fn send_response(&mut self, turtle_id: u64, is_stamp: bool) {
+        let _ = self.responder[&turtle_id].send(if is_stamp {
+            Response::StampID(self.elements.len())
+        } else {
+            Response::Done
+        });
     }
 }
 
@@ -735,11 +745,7 @@ impl TurtleTask {
             .push_back(TurtleCommand { cmd, turtle_id });
 
         if self.data[which].respond_immediately {
-            let _ = self.data[which].responder[&turtle_id].send(if is_stamp {
-                Response::StampID(self.data[which].elements.len())
-            } else {
-                Response::Done
-            });
+            self.data[which].send_response(turtle_id, is_stamp);
         }
     }
 
@@ -773,7 +779,7 @@ impl TurtleTask {
 
     fn update(&mut self, args: &UpdateArgs) {
         for turtle in self.data.iter_mut() {
-            turtle.update(args.dt);
+            turtle.time_passes(args.dt);
         }
     }
 
