@@ -69,6 +69,7 @@ pub struct Turtle {
     issue_command: Sender<Request>,
     command_complete: Receiver<Response>,
     turtle_id: u64,
+    pub tracer: bool,
 }
 
 enum ClearDirection {
@@ -122,6 +123,7 @@ impl Turtle {
             issue_command,
             command_complete,
             turtle_id,
+            tracer: true,
         }
     }
 
@@ -158,9 +160,29 @@ impl Turtle {
     }
 
     fn do_command(&mut self, cmd: Command) -> Response {
+        let is_data_cmd = matches!(cmd, Command::Data(_));
+        if let Command::Draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t))) = &cmd
+        {
+            self.tracer = *t;
+        }
+
         if self.issue_command.send(self.req(cmd)).is_ok() {
-            if let Ok(result) = self.command_complete.recv() {
-                return result;
+            if self.tracer {
+                if let Ok(result) = self.command_complete.recv() {
+                    return result;
+                }
+            } else if is_data_cmd {
+                loop {
+                    if let Ok(result) = self.command_complete.recv() {
+                        if matches!(result, Response::Done) {
+                            continue;
+                        } else {
+                            return result;
+                        }
+                    }
+                }
+            } else {
+                return Response::Done;
             }
         }
 

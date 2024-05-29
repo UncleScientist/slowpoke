@@ -2,8 +2,8 @@ use slowpoke::*;
 
 fn main() {
     Turtle::new()
-        .with_size(400, 400)
-        .with_title("A Spikey Fractal")
+        .with_size(500, 500)
+        .with_title("A Squarish Fractal")
         .run(|turtle| {
             turtle.tracer(false);
             turtle.penup();
@@ -21,6 +21,9 @@ fn square_fractal(turtle: &mut Turtle, order: usize, length: f64) {
     if order == 0 {
         turtle.forward(length);
     } else {
+        if order == 3 {
+            println!("pos = {:?}", turtle.pos());
+        }
         square_fractal(turtle, order - 1, length / 3.);
         turtle.left(90.);
         square_fractal(turtle, order - 1, length / 3.);
