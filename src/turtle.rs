@@ -766,6 +766,8 @@ impl TurtleTask {
             .queue
             .push_back(TurtleCommand { cmd, turtle_id });
 
+        // FIXME: data commands (Command::Data(_)) require all queued entries to be
+        // processed before sending a response, even if `respond_immediately` is set
         if self.data[which].respond_immediately {
             self.data[which].send_response(turtle_id, is_stamp);
         }
