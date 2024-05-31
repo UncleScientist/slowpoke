@@ -66,6 +66,14 @@ impl Turtle {
         self.do_hatch()
     }
 
+    // placeholder until we figure out what we're doing for a GUI
+    pub fn textinput(&mut self, title: &str, prompt: &str) -> String {
+        println!("text input");
+        println!("{title} / {prompt}> ");
+        // make_popup(title, prompt);
+        "foo".to_string()
+    }
+
     /*
      * Drawing commands
      */
