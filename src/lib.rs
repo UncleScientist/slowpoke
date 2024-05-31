@@ -32,6 +32,7 @@ pub enum Response {
     ScreenSize(Size),
 }
 
+#[derive(Debug)]
 pub struct Request {
     turtle_id: u64,
     cmd: Command,

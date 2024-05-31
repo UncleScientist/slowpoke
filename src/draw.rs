@@ -95,7 +95,7 @@ impl Turtle {
         ));
     }
 
-    pub fn forward<N: Into<f64>>(&mut self, distance: N) {
+    pub fn forward<N: Copy + Into<f64>>(&mut self, distance: N) {
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
             MotionCmd::Forward(distance.into()),
         )));

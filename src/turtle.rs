@@ -3,20 +3,24 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
-use piston::{AdvancedWindow, Size};
+use iced::{
+    executor, mouse,
+    widget::{
+        canvas::{self, stroke, Cache, Path, Stroke},
+        Canvas,
+    },
+    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme, Vector,
+};
+use piston::Size;
 
 use either::Either;
-use glutin_window::GlutinWindow;
 use graphics::{
     math::identity,
     types::{self, Vec2d},
 };
 use graphics::{Context, Transformed};
-use opengl_graphics::{GlGraphics, OpenGL};
-use piston::{
-    Button, ButtonArgs, ButtonEvent, ButtonState, EventSettings, Events, Key, RenderArgs,
-    RenderEvent, UpdateArgs, UpdateEvent, WindowSettings,
-};
+use opengl_graphics::GlGraphics;
+use piston::{Button, ButtonArgs, ButtonState, Key, UpdateArgs};
 
 use crate::{
     color_names::TurtleColor,
@@ -28,6 +32,8 @@ use crate::{
     speed::TurtleSpeed,
     Request, Response, TurtleShapeName,
 };
+
+type IcedCommand<T> = iced::Command<T>;
 
 #[derive(Debug)]
 struct TurtleCommand {
@@ -84,34 +90,23 @@ impl Turtle {
     }
 
     pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
-        let xsize: f64 = args.size[0] as f64;
-        let ysize: f64 = args.size[1] as f64;
-
-        // Change this to OpenGL::V2_1 if not working.
-        let opengl = OpenGL::V3_2;
-
-        // Create a Glutin window.
-        let window: GlutinWindow = WindowSettings::new(&args.title, [xsize, ysize])
-            .graphics_api(opengl)
-            .exit_on_esc(true)
-            .samples(8)
-            .build()
-            .unwrap();
+        let _xsize: f64 = args.size[0] as f64;
+        let _ysize: f64 = args.size[1] as f64;
 
         let (issue_command, receive_command) = mpsc::channel();
-        let mut tt = TurtleTask {
-            gl: GlGraphics::new(opengl),
-            window,
-            issue_command,
-            receive_command,
-            turtle_num: 0,
-            bgcolor: crate::WHITE,
-            shapes: generate_default_shapes(),
-            winsize: [0, 0].into(),
-            data: vec![TurtleData::new()],
+
+        let flags = TurtleFlags {
+            start_func: Some(Box::new(func)),
+            issue_command: Some(issue_command),
+            receive_command: Some(receive_command),
+            title: args.title.clone(),
         };
 
-        tt.run(func);
+        let _ = TurtleTask::run(Settings {
+            antialiasing: true,
+            flags,
+            ..Settings::default()
+        });
     }
 
     pub(crate) fn init(
@@ -527,52 +522,184 @@ impl TurtleData {
             Response::Done
         });
     }
+
+    fn draw_iced(&self, center: Point, frame: &mut canvas::Frame) {
+        let mut pencolor = Color::BLACK;
+        for element in &self.elements {
+            match element {
+                DrawCommand::Filler => {}
+                DrawCommand::StampTurtle => todo!(),
+                DrawCommand::Line(l) => {
+                    let start: Vector = [l.begin[0] as f32, l.begin[1] as f32].into();
+                    let end: Vector = [l.end[0] as f32, l.end[1] as f32].into();
+                    let path = Path::new(|b| {
+                        b.move_to(center + start);
+                        b.line_to(center + end);
+                    });
+                    frame.stroke(
+                        &path,
+                        Stroke {
+                            style: stroke::Style::Solid(pencolor),
+                            width: 1.0,
+                            ..Stroke::default()
+                        },
+                    );
+                }
+                DrawCommand::SetPenColor(c) => {
+                    pencolor = c.into();
+                }
+                DrawCommand::SetPenWidth(_) => todo!(),
+                DrawCommand::SetFillColor(_) => {
+                    // TODO: need to fill
+                }
+                DrawCommand::DrawPolygon(p) => {
+                    // TODO: draw that polygon
+                }
+                DrawCommand::SetHeading(_, _) => {}
+                DrawCommand::DrawDot(_, _) => todo!(),
+                DrawCommand::EndFill(_) => {}
+                DrawCommand::DrawPolyAt(_, _, _) => todo!(),
+                DrawCommand::Circle(_) => todo!(),
+            }
+        }
+
+        // TODO: draw turtle afterwards
+    }
 }
 
 struct TurtleTask {
-    gl: GlGraphics, // OpenGL drawing backend.
-    window: GlutinWindow,
+    cache: Cache,
+    flags: TurtleFlags,
     turtle_num: u64,
-    issue_command: Sender<Request>,
-    receive_command: Receiver<Request>,
     bgcolor: types::Color,
     data: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
     winsize: Size,
 }
 
-// tracer(true) vs tracer(false)
-//
-// 1 - we have queue of reqeusts coming in
-// 2 - we need to respond to each request, telling the turtle when the request is complete
-// 3 - if tracer is true, then we wait for the drawing to be done before sending the response
-// 4 - if tracer is false, we need to send the response right away
-//              (so that the turtle can immediately send the next request)
-// 5 - the update() function in TurtleData send responses when the command is complete
-// 6 - for tracer(false) we want to send the response from TurtleTask before we get to update()
+#[derive(Debug)]
+enum Message {
+    Tick,
+}
+
+#[derive(Default)]
+struct TurtleFlags {
+    start_func: Option<Box<dyn FnOnce(&mut Turtle) + Send + 'static>>,
+    issue_command: Option<Sender<Request>>,
+    receive_command: Option<Receiver<Request>>,
+    title: String,
+}
+
+impl Application for TurtleTask {
+    type Executor = executor::Default;
+    type Message = Message;
+    type Theme = iced::Theme;
+    type Flags = TurtleFlags;
+
+    fn new(mut flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        let func = flags.start_func.take();
+        let mut tt = TurtleTask {
+            cache: Cache::default(),
+            flags,
+            turtle_num: 0,
+            bgcolor: crate::WHITE,
+            shapes: generate_default_shapes(),
+            winsize: [0, 0].into(),
+            data: vec![TurtleData::new()],
+        };
+        tt.run_turtle(func.unwrap());
+        (tt, IcedCommand::none())
+    }
+
+    fn title(&self) -> String {
+        self.flags.title.clone()
+    }
+
+    fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
+        self.cache.clear();
+
+        while let Ok(req) = self.flags.receive_command.as_ref().unwrap().try_recv() {
+            let tid = req.turtle_id;
+            let mut found = None;
+            for (index, tdata) in self.data.iter().enumerate() {
+                if tdata.responder.contains_key(&tid) {
+                    found = Some(index);
+                    break;
+                }
+            }
+            if let Some(index) = found {
+                self.handle_command(index, req);
+            }
+        }
+
+        for turtle in self.data.iter_mut() {
+            turtle.time_passes(0.01);
+        }
+
+        IcedCommand::none()
+    }
+
+    fn view(&self) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
+        Canvas::new(self)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced::time::every(std::time::Duration::from_millis(10)).map(|_| Message::Tick)
+    }
+}
+
+impl<Message> canvas::Program<Message> for TurtleTask {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &Self::State,
+        renderer: &Renderer,
+        _theme: &Theme,
+        bounds: Rectangle,
+        _cursor: mouse::Cursor,
+    ) -> Vec<<Renderer as canvas::Renderer>::Geometry> {
+        let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
+            let center = frame.center();
+            for turtle in &self.data {
+                turtle.draw_iced(center, frame);
+            }
+        });
+        vec![geometry]
+
+        /*
+            let start = Vector::new(30., 40.);
+            let end = Vector::new(20., 10.);
+
+            // draw all the things
+            let path = Path::new(|b| {
+                b.move_to(center + start);
+                b.line_to(center + end);
+            });
+            frame.stroke(
+                &path,
+                Stroke {
+                    style: stroke::Style::Solid(Color::BLACK),
+                    width: 10.,
+                    ..Stroke::default()
+                },
+            );
+        */
+    }
+}
 
 impl TurtleTask {
-    fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
+    fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let mut turtle = self.spawn_turtle(0);
         let _ = std::thread::spawn(move || func(&mut turtle));
 
+        /*
         let mut events = Events::new(EventSettings::new());
 
         while let Some(e) = events.next(&mut self.window) {
-            while let Ok(req) = self.receive_command.try_recv() {
-                let tid = req.turtle_id;
-                let mut found = None;
-                for (index, tdata) in self.data.iter().enumerate() {
-                    if tdata.responder.contains_key(&tid) {
-                        found = Some(index);
-                        break;
-                    }
-                }
-                if let Some(index) = found {
-                    self.handle_command(index, req);
-                }
-            }
-
             if let Some(args) = e.render_args() {
                 self.render(&args);
             }
@@ -585,6 +712,7 @@ impl TurtleTask {
                 self.button(&args);
             }
         }
+        */
     }
 
     pub(crate) fn hatch_turtle(&mut self) -> Turtle {
@@ -596,7 +724,11 @@ impl TurtleTask {
         td.responder.insert(newid, finished);
         self.data.push(td);
 
-        Turtle::init(self.issue_command.clone(), command_complete, newid)
+        Turtle::init(
+            self.flags.issue_command.as_ref().unwrap().clone(),
+            command_complete,
+            newid,
+        )
     }
 
     fn spawn_turtle(&mut self, which: usize) -> Turtle {
@@ -605,14 +737,18 @@ impl TurtleTask {
         let newid = self.turtle_num;
         self.data[which].responder.insert(newid, finished);
 
-        Turtle::init(self.issue_command.clone(), command_complete, newid)
+        Turtle::init(
+            self.flags.issue_command.as_ref().unwrap().clone(),
+            command_complete,
+            newid,
+        )
     }
 
     fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         match cmd {
-            ScreenCmd::SetSize(s) => {
-                self.window.set_size(s);
+            ScreenCmd::SetSize(_s) => {
+                // self.window.set_size(s); TODO: figure out how to change window sizes
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ShowTurtle(t) => {
@@ -785,20 +921,6 @@ impl TurtleTask {
                 let _ = resp.send(Response::Turtle(new_turtle));
             }
         }
-    }
-
-    fn render(&mut self, args: &RenderArgs) {
-        self.gl.draw(args.viewport(), |context, gl| {
-            graphics::clear(self.bgcolor, gl);
-            self.winsize = args.window_size.into();
-            // std::thread::sleep(std::time::Duration::from_millis(5));
-
-            let centered = context.trans(args.window_size[0] / 2., args.window_size[1] / 2.);
-
-            for turtle in &self.data {
-                turtle.draw(&centered, gl);
-            }
-        });
     }
 
     fn update(&mut self, args: &UpdateArgs) {
