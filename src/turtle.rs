@@ -6,7 +6,7 @@ use std::{
 use iced::{
     executor, mouse,
     widget::{
-        canvas::{self, stroke, Cache, Path, Stroke},
+        canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
     Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme, Vector,
@@ -525,6 +525,7 @@ impl TurtleData {
 
     fn draw_iced(&self, frame: &mut canvas::Frame) {
         let mut pencolor = Color::BLACK;
+        let mut fillcolor = Color::BLACK;
         let pct = self.percent as f32;
 
         let mut iter = self.elements.iter().peekable();
@@ -557,15 +558,22 @@ impl TurtleData {
                         },
                     );
                 }
-                DrawCommand::SetPenColor(c) => {
-                    pencolor = c.into();
+                DrawCommand::SetPenColor(pc) => {
+                    pencolor = pc.into();
                 }
                 DrawCommand::SetPenWidth(_) => todo!(),
-                DrawCommand::SetFillColor(_) => {
-                    // TODO: need to fill
+                DrawCommand::SetFillColor(fc) => {
+                    fillcolor = fc.into();
                 }
                 DrawCommand::DrawPolygon(p) => {
-                    // TODO: draw that polygon
+                    let path = p.get_path();
+                    frame.fill(
+                        path,
+                        Fill {
+                            style: stroke::Style::Solid(fillcolor),
+                            rule: Rule::EvenOdd,
+                        },
+                    );
                 }
                 DrawCommand::SetHeading(_, _) => {}
                 DrawCommand::DrawDot(_, _) => todo!(),

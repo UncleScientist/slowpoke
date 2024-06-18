@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use iced::widget::canvas::Frame;
+use iced::widget::canvas::Path as IPath;
 use lyon_tessellation::{
     geometry_builder::simple_builder, math::point, math::Point, path::Path, FillOptions,
     FillTessellator, VertexBuffers,
@@ -71,8 +73,9 @@ impl From<&str> for TurtleShapeName {
 
 #[derive(Clone, Debug)]
 pub struct TurtlePolygon {
-    vertices: Vec<[f64; 2]>,
-    indices: Vec<usize>,
+    ipath: IPath,
+    // vertices: Vec<[f64; 2]>,
+    // indices: Vec<usize>,
 }
 
 impl TurtlePolygon {
@@ -81,6 +84,13 @@ impl TurtlePolygon {
         let mut iter = diagram.iter();
 
         let first = iter.next().unwrap();
+        let ipath = IPath::new(|b| {
+            b.move_to((*first).into());
+            for i in iter {
+                b.line_to((*i).into());
+            }
+        });
+        /*
         path_builder.begin(point(first[0], first[1]));
         for i in iter {
             path_builder.line_to(point(i[0], i[1]));
@@ -101,18 +111,23 @@ impl TurtlePolygon {
                 tessellator.tessellate_path(&path, &FillOptions::default(), &mut vertex_builder);
             assert!(result.is_ok());
         }
+        */
 
         Self {
+            ipath,
+            /*
             vertices: buffers
                 .vertices
                 .into_iter()
                 .map(|v| [v.x as f64, v.y as f64])
                 .collect(),
             indices: buffers.indices.into_iter().map(|i| i as usize).collect(),
+            */
         }
     }
 
     pub fn draw(&self, color: &TurtleColor, transform: [[f64; 3]; 2], gl: &mut GlGraphics) {
+        /*
         let color: [f32; 4] = (*color).into();
         for i in self.indices.chunks(3) {
             let shape = [
@@ -123,6 +138,11 @@ impl TurtlePolygon {
 
             graphics::polygon(color, &shape, transform, gl);
         }
+        */
+    }
+
+    pub(crate) fn get_path(&self) -> &IPath {
+        &self.ipath
     }
 }
 
