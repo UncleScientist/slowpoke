@@ -523,18 +523,30 @@ impl TurtleData {
         });
     }
 
-    fn draw_iced(&self, center: Point, frame: &mut canvas::Frame) {
+    fn draw_iced(&self, frame: &mut canvas::Frame) {
         let mut pencolor = Color::BLACK;
-        for element in &self.elements {
+        let pct = self.percent as f32;
+
+        let mut iter = self.elements.iter().peekable();
+
+        while let Some(element) = iter.next() {
+            let last_element = iter.peek().is_none();
             match element {
                 DrawCommand::Filler => {}
                 DrawCommand::StampTurtle => todo!(),
                 DrawCommand::Line(l) => {
-                    let start: Vector = [l.begin[0] as f32, l.begin[1] as f32].into();
-                    let end: Vector = [l.end[0] as f32, l.end[1] as f32].into();
+                    let start: Point = [l.begin[0] as f32, l.begin[1] as f32].into();
+                    let end: Point = if last_element {
+                        let endx = l.begin[0] as f32 + (l.end[0] - l.begin[0]) as f32 * pct;
+                        let endy = l.begin[1] as f32 + (l.end[1] - l.begin[1]) as f32 * pct;
+                        [endx, endy]
+                    } else {
+                        [l.end[0] as f32, l.end[1] as f32]
+                    }
+                    .into();
                     let path = Path::new(|b| {
-                        b.move_to(center + start);
-                        b.line_to(center + end);
+                        b.move_to(start);
+                        b.line_to(end);
                     });
                     frame.stroke(
                         &path,
@@ -664,8 +676,9 @@ impl<Message> canvas::Program<Message> for TurtleTask {
     ) -> Vec<<Renderer as canvas::Renderer>::Geometry> {
         let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
             let center = frame.center();
+            frame.translate([center.x, center.y].into());
             for turtle in &self.data {
-                turtle.draw_iced(center, frame);
+                turtle.draw_iced(frame);
             }
         });
         vec![geometry]
