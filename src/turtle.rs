@@ -9,7 +9,8 @@ use iced::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme,
+    Application, Color, Degrees, Length, Point, Radians, Rectangle, Renderer, Settings,
+    Subscription, Theme,
 };
 use piston::Size;
 
@@ -504,6 +505,9 @@ impl TurtleData {
         let mut fillcolor = Color::BLACK;
         let pct = self.percent as f32;
 
+        let mut tpos = [0f32, 0f32];
+        let mut trot = 0f32;
+
         let mut iter = self.elements.iter().peekable();
 
         while let Some(element) = iter.next() {
@@ -516,6 +520,7 @@ impl TurtleData {
                     let end: Point = if last_element {
                         let endx = l.begin[0] as f32 + (l.end[0] - l.begin[0]) as f32 * pct;
                         let endy = l.begin[1] as f32 + (l.end[1] - l.begin[1]) as f32 * pct;
+                        tpos = [endx, endy];
                         [endx, endy]
                     } else {
                         [l.end[0] as f32, l.end[1] as f32]
@@ -553,7 +558,9 @@ impl TurtleData {
                         },
                     );
                 }
-                DrawCommand::SetHeading(_, _) => {}
+                DrawCommand::SetHeading(from, to) => {
+                    trot = *to as f32;
+                }
                 DrawCommand::DrawDot(_, _) => todo!(),
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::DrawPolyAt(_, _, _) => todo!(),
@@ -567,21 +574,24 @@ impl TurtleData {
                         };
                         let path = Path::new(|b| {
                             let (_, start) = points[0].get_data();
+
                             b.move_to(start.into());
 
                             let mut iter = points.windows(2).take(total + 1).peekable();
                             while let Some(p) = iter.next() {
+                                let (end_angle, end) = p[1].get_data();
                                 let last_segment = iter.peek().is_none();
-                                let (_, end) = p[1].get_data();
                                 let end = if last_element && last_segment {
                                     let (_, begin) = p[0].get_data();
                                     let endx = begin[0] + (end[0] - begin[0]) * subpercent;
                                     let endy = begin[1] + (end[1] - begin[1]) * subpercent;
+                                    tpos = [endx, endy];
                                     [endx, endy]
                                 } else {
                                     end
                                 };
                                 b.line_to(end.into());
+                                trot = end_angle as f32;
                             }
                         });
 
@@ -598,7 +608,17 @@ impl TurtleData {
             }
         }
 
-        // TODO: draw turtle afterwards
+        let path = self.turtle_shape.shape.get_path();
+        let radians: Radians = Degrees(trot).into();
+        frame.translate(tpos.into());
+        frame.rotate(radians.0);
+        frame.fill(
+            path,
+            Fill {
+                style: stroke::Style::Solid(fillcolor),
+                rule: Rule::EvenOdd,
+            },
+        );
     }
 }
 
