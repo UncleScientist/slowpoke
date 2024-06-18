@@ -9,18 +9,18 @@ use iced::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme, Vector,
+    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme,
 };
 use piston::Size;
 
 use either::Either;
+use graphics::Transformed;
 use graphics::{
     math::identity,
     types::{self, Vec2d},
 };
-use graphics::{Context, Transformed};
-use opengl_graphics::GlGraphics;
-use piston::{Button, ButtonArgs, ButtonState, Key, UpdateArgs};
+
+use piston::Key;
 
 use crate::{
     color_names::TurtleColor,
@@ -294,33 +294,7 @@ impl TurtleData {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn draw_line(
-        &self,
-        pen_color: [f32; 4],
-        pen_width: f64,
-        begin: [f64; 2],
-        end: [f64; 2],
-        pen_down: bool,
-        percent: f64,
-        is_last: bool,
-        context: &Context,
-        gl: &mut GlGraphics,
-    ) -> [f64; 2] {
-        let end = if is_last {
-            let endx = begin[0] + (end[0] - begin[0]) * percent;
-            let endy = begin[1] + (end[1] - begin[1]) * percent;
-            [endx, endy]
-        } else {
-            end
-        };
-        if pen_down {
-            graphics::line_from_to(pen_color, pen_width, begin, end, context.transform, gl);
-        }
-
-        end
-    }
-
+    /*
     fn draw(&self, context: &Context, gl: &mut GlGraphics) {
         let mut pen_color: TurtleColor = "black".into();
         let mut fill_color: TurtleColor = "black".into();
@@ -418,6 +392,7 @@ impl TurtleData {
             self.turtle_shape.shape.draw(&fill_color, trans, gl);
         }
     }
+    */
 
     fn is_instantaneous(&self) -> bool {
         if let Some(cmd) = self.current_command.as_ref() {
@@ -525,6 +500,7 @@ impl TurtleData {
 
     fn draw_iced(&self, frame: &mut canvas::Frame) {
         let mut pencolor = Color::BLACK;
+        let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
         let pct = self.percent as f32;
 
@@ -545,23 +521,25 @@ impl TurtleData {
                         [l.end[0] as f32, l.end[1] as f32]
                     }
                     .into();
-                    let path = Path::new(|b| {
-                        b.move_to(start);
-                        b.line_to(end);
-                    });
-                    frame.stroke(
-                        &path,
-                        Stroke {
-                            style: stroke::Style::Solid(pencolor),
-                            width: 1.0,
-                            ..Stroke::default()
-                        },
-                    );
+                    if l.pen_down {
+                        let path = Path::new(|b| {
+                            b.move_to(start);
+                            b.line_to(end);
+                        });
+                        frame.stroke(
+                            &path,
+                            Stroke {
+                                style: stroke::Style::Solid(pencolor),
+                                width: penwidth,
+                                ..Stroke::default()
+                            },
+                        );
+                    }
                 }
                 DrawCommand::SetPenColor(pc) => {
                     pencolor = pc.into();
                 }
-                DrawCommand::SetPenWidth(_) => todo!(),
+                DrawCommand::SetPenWidth(pw) => penwidth = *pw as f32,
                 DrawCommand::SetFillColor(fc) => {
                     fillcolor = fc.into();
                 }
@@ -602,9 +580,11 @@ enum Message {
     Tick,
 }
 
+type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
+
 #[derive(Default)]
 struct TurtleFlags {
-    start_func: Option<Box<dyn FnOnce(&mut Turtle) + Send + 'static>>,
+    start_func: Option<Box<TurtleStartFunc>>,
     issue_command: Option<Sender<Request>>,
     receive_command: Option<Receiver<Request>>,
     title: String,
@@ -653,7 +633,7 @@ impl Application for TurtleTask {
         }
 
         for turtle in self.data.iter_mut() {
-            turtle.time_passes(0.01);
+            turtle.time_passes(0.01); // TODO: use actual time delta
         }
 
         IcedCommand::none()
@@ -941,37 +921,6 @@ impl TurtleTask {
                 let resp = &self.data[which].responder[&req.turtle_id];
                 let _ = resp.send(Response::Turtle(new_turtle));
             }
-        }
-    }
-
-    fn update(&mut self, args: &UpdateArgs) {
-        for turtle in self.data.iter_mut() {
-            turtle.time_passes(args.dt);
-        }
-    }
-
-    fn button(&mut self, args: &ButtonArgs) {
-        let mut work = Vec::new();
-        for (idx, turtle) in self.data.iter().enumerate() {
-            match args {
-                ButtonArgs {
-                    state: ButtonState::Press,
-                    button: Button::Keyboard(key),
-                    ..
-                } => {
-                    if let Some(func) = turtle.onkeypress.get(key).copied() {
-                        work.push((idx, func, *key));
-                    }
-                }
-                ButtonArgs { state, button, .. } => {
-                    println!("state={state:?}, button={button:?}");
-                }
-            }
-        }
-
-        for (idx, func, key) in work {
-            let mut turtle = self.spawn_turtle(idx);
-            let _ = std::thread::spawn(move || func(&mut turtle, key));
         }
     }
 }
