@@ -2,9 +2,9 @@ use std::f64::consts::PI;
 
 use graphics::{
     math::{identity, Vec2d},
-    types::Rectangle,
     Transformed,
 };
+use iced::Point;
 
 use crate::{
     color_names::TurtleColor,
@@ -43,7 +43,7 @@ pub(crate) enum DrawCommand {
     SetFillColor(TurtleColor),
     DrawPolygon(TurtlePolygon),
     SetHeading(f64, f64),
-    DrawDot(Rectangle, TurtleColor),
+    DrawDot(Point, f64, TurtleColor), // center, radius, color
     EndFill(usize),
     DrawPolyAt(TurtlePolygon, [f64; 2], f64), // poly, pos, angle
     Circle(Vec<CirclePos>),
@@ -103,8 +103,8 @@ impl CurrentTurtleState {
         [x, y]
     }
 
-    fn get_floatpoint(&self) -> Vec2d<f64> {
-        [self.transform[0][2], self.transform[1][2]]
+    fn get_floatpoint(&self) -> Vec2d<f32> {
+        [self.transform[0][2] as f32, self.transform[1][2] as f32]
     }
 
     fn get_circlepos(&self) -> CirclePos {
@@ -220,14 +220,14 @@ impl CurrentTurtleState {
                     } else {
                         self.pen_width
                     };
-                    let point: [f64; 2] = self.get_floatpoint();
-                    let rect = [point[0] - size / 2., point[1] - size / 2., size, size];
+                    let point: [f32; 2] = self.get_floatpoint();
+
                     let color = if matches!(color, TurtleColor::CurrentColor) {
                         self.fill_color
                     } else {
                         *color
                     };
-                    return Some(DrawCommand::DrawDot(rect, color));
+                    return Some(DrawCommand::DrawDot(point.into(), size, color));
                 }
                 InstantaneousDrawCmd::Stamp(_) => {
                     return Some(DrawCommand::StampTurtle);

@@ -12,6 +12,7 @@ use iced::{
     Application, Color, Degrees, Length, Point, Radians, Rectangle, Renderer, Settings,
     Subscription, Theme,
 };
+use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use piston::Size;
 
 use either::Either;
@@ -523,6 +524,7 @@ impl TurtleData {
                         tpos = [endx, endy];
                         [endx, endy]
                     } else {
+                        tpos = [l.end[0] as f32, l.end[1] as f32];
                         [l.end[0] as f32, l.end[1] as f32]
                     }
                     .into();
@@ -558,12 +560,39 @@ impl TurtleData {
                         },
                     );
                 }
-                DrawCommand::SetHeading(from, to) => {
-                    trot = *to as f32;
+                DrawCommand::SetHeading(start, end) => {
+                    let rotation = if last_element {
+                        *start + (*end - *start) * self.percent
+                    } else {
+                        *end
+                    };
+                    trot = rotation as f32;
                 }
-                DrawCommand::DrawDot(_, _) => todo!(),
+                DrawCommand::DrawDot(center, radius, color) => {
+                    let circle = Path::circle(*center, *radius as f32);
+                    frame.fill(
+                        &circle,
+                        Fill {
+                            style: stroke::Style::Solid(color.into()),
+                            rule: Rule::NonZero,
+                        },
+                    );
+                }
                 DrawCommand::EndFill(_) => {}
-                DrawCommand::DrawPolyAt(_, _, _) => todo!(),
+                DrawCommand::DrawPolyAt(polygon, _pos, angle) => {
+                    let path = polygon.get_path();
+                    let angle = Angle::degrees(*angle as f32);
+                    let xform = Transform2D::translation(0f32, 0f32).then_rotate(angle);
+                    let path = path.transform(&xform);
+                    frame.stroke(
+                        &path,
+                        Stroke {
+                            style: stroke::Style::Solid(pencolor),
+                            width: penwidth,
+                            ..Stroke::default()
+                        },
+                    );
+                }
                 DrawCommand::Circle(points) => {
                     if points[0].pen_down {
                         let (total, subpercent) = if last_element {
