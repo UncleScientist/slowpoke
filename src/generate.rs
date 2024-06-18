@@ -28,8 +28,8 @@ pub(crate) struct CirclePos {
 }
 
 impl CirclePos {
-    pub fn get_data(&self) -> (f64, [f64; 2]) {
-        (self.angle, [self.x as f64, self.y as f64])
+    pub fn get_data(&self) -> (f64, [f32; 2]) {
+        (self.angle, [self.x as f32, self.y as f32])
     }
 }
 

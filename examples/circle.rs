@@ -5,7 +5,7 @@ fn main() {
         .with_size(800, 800)
         .with_title("Circles")
         .run(|turtle| {
-            turtle.pencolor("white");
+            turtle.pencolor("black");
             turtle.bgcolor("grey");
             turtle.speed(1);
             for i in 3..20 {

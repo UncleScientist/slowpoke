@@ -557,7 +557,44 @@ impl TurtleData {
                 DrawCommand::DrawDot(_, _) => todo!(),
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::DrawPolyAt(_, _, _) => todo!(),
-                DrawCommand::Circle(_) => todo!(),
+                DrawCommand::Circle(points) => {
+                    if points[0].pen_down {
+                        let (total, subpercent) = if last_element {
+                            let partial = (points.len() - 1) as f64 * self.percent;
+                            (partial.floor() as usize, (partial - partial.floor()) as f32)
+                        } else {
+                            (points.len() - 1, 1_f32)
+                        };
+                        let path = Path::new(|b| {
+                            let (_, start) = points[0].get_data();
+                            b.move_to(start.into());
+
+                            let mut iter = points.windows(2).take(total + 1).peekable();
+                            while let Some(p) = iter.next() {
+                                let last_segment = iter.peek().is_none();
+                                let (_, end) = p[1].get_data();
+                                let end = if last_element && last_segment {
+                                    let (_, begin) = p[0].get_data();
+                                    let endx = begin[0] + (end[0] - begin[0]) * subpercent;
+                                    let endy = begin[1] + (end[1] - begin[1]) * subpercent;
+                                    [endx, endy]
+                                } else {
+                                    end
+                                };
+                                b.line_to(end.into());
+                            }
+                        });
+
+                        frame.stroke(
+                            &path,
+                            Stroke {
+                                style: stroke::Style::Solid(pencolor),
+                                width: penwidth,
+                                ..Stroke::default()
+                            },
+                        );
+                    }
+                }
             }
         }
 
