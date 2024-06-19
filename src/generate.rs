@@ -86,7 +86,7 @@ impl Default for CurrentTurtleState {
             pen_down: true,
             transform: identity(),
             angle: 0.,
-            pen_width: 0.5,
+            pen_width: 1.,
             fill_color: "black".into(),
         }
     }
@@ -218,7 +218,7 @@ impl CurrentTurtleState {
                     let size = if let Some(size) = size {
                         *size
                     } else {
-                        self.pen_width
+                        self.pen_width * 2.
                     };
                     let point: [f32; 2] = self.get_floatpoint();
 
