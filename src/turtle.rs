@@ -647,25 +647,27 @@ impl TurtleData {
             }
         }
 
-        let path = self.turtle_shape.shape.get_path();
-        let angle = Angle::degrees(trot);
-        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
-        let path = path.transform(&transform);
-        frame.fill(
-            &path,
-            Fill {
-                style: stroke::Style::Solid(fillcolor),
-                rule: Rule::EvenOdd,
-            },
-        );
-        frame.stroke(
-            &path,
-            Stroke {
-                style: stroke::Style::Solid(pencolor),
-                width: penwidth,
-                ..Stroke::default()
-            },
-        );
+        if !self.turtle_invisible {
+            let path = self.turtle_shape.shape.get_path();
+            let angle = Angle::degrees(trot);
+            let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+            let path = path.transform(&transform);
+            frame.fill(
+                &path,
+                Fill {
+                    style: stroke::Style::Solid(fillcolor),
+                    rule: Rule::EvenOdd,
+                },
+            );
+            frame.stroke(
+                &path,
+                Stroke {
+                    style: stroke::Style::Solid(pencolor),
+                    width: penwidth,
+                    ..Stroke::default()
+                },
+            );
+        }
     }
 }
 
