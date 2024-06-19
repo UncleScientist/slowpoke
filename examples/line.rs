@@ -8,6 +8,7 @@ fn main() {
             turtle.forward(100);
             println!("size before = {:?}", turtle.getscreensize());
             turtle.screensize([200, 100]);
+            std::thread::sleep(std::time::Duration::from_secs(2));
             println!("size after = {:?}", turtle.getscreensize());
         });
 }
