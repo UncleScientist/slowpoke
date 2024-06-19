@@ -4,14 +4,15 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use iced::window::Event::Resized;
 use iced::{
-    executor, mouse,
+    event, executor, mouse,
     widget::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    window, Application, Color, Length, Point, Rectangle, Renderer, Settings, Size, Subscription,
-    Theme,
+    window, Application, Color, Event, Length, Point, Rectangle, Renderer, Settings, Size,
+    Subscription, Theme,
 };
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
@@ -684,11 +685,13 @@ struct TurtleTask {
     data: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
     winsize: Size,
+    wcmds: Vec<IcedCommand<Message>>,
 }
 
 #[derive(Debug)]
 enum Message {
     Tick,
+    Event(Event),
 }
 
 type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
@@ -720,6 +723,7 @@ impl Application for TurtleTask {
             shapes: generate_default_shapes(),
             winsize,
             data: vec![TurtleData::new()],
+            wcmds: Vec::new(),
         };
         tt.run_turtle(func.unwrap());
         (tt, IcedCommand::none())
@@ -729,28 +733,16 @@ impl Application for TurtleTask {
         self.flags.title.clone()
     }
 
-    fn update(&mut self, _message: Self::Message) -> IcedCommand<Self::Message> {
-        self.cache.clear();
-
-        while let Ok(req) = self.flags.receive_command.as_ref().unwrap().try_recv() {
-            let tid = req.turtle_id;
-            let mut found = None;
-            for (index, tdata) in self.data.iter().enumerate() {
-                if tdata.responder.contains_key(&tid) {
-                    found = Some(index);
-                    break;
+    fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
+        match message {
+            Message::Tick => self.tick(),
+            Message::Event(event) => {
+                if let Event::Window(window::Id::MAIN, Resized { width, height }) = event {
+                    self.winsize = Size::new(width as f32, height as f32);
                 }
             }
-            if let Some(index) = found {
-                self.handle_command(index, req);
-            }
         }
-
-        for turtle in self.data.iter_mut() {
-            turtle.time_passes(0.01); // TODO: use actual time delta
-        }
-
-        IcedCommand::none()
+        IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
     fn view(&self) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
@@ -761,7 +753,10 @@ impl Application for TurtleTask {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(std::time::Duration::from_millis(10)).map(|_| Message::Tick)
+        Subscription::batch([
+            iced::time::every(std::time::Duration::from_millis(10)).map(|_| Message::Tick),
+            event::listen().map(Message::Event),
+        ])
     }
 }
 
@@ -801,6 +796,28 @@ impl TurtleTask {
         let _ = std::thread::spawn(move || func(&mut turtle));
     }
 
+    fn tick(&mut self) {
+        self.cache.clear();
+
+        while let Ok(req) = self.flags.receive_command.as_ref().unwrap().try_recv() {
+            let tid = req.turtle_id;
+            let mut found = None;
+            for (index, tdata) in self.data.iter().enumerate() {
+                if tdata.responder.contains_key(&tid) {
+                    found = Some(index);
+                    break;
+                }
+            }
+            if let Some(index) = found {
+                self.handle_command(index, req);
+            }
+        }
+
+        for turtle in self.data.iter_mut() {
+            turtle.time_passes(0.01); // TODO: use actual time delta
+        }
+    }
+
     pub(crate) fn hatch_turtle(&mut self) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
         self.turtle_num += 1;
@@ -834,8 +851,10 @@ impl TurtleTask {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         match cmd {
             ScreenCmd::SetSize(s) => {
-                println!("{:?}", window::resize::<Message>(window::Id::MAIN, s));
-                let _ = resp.send(Response::Done);
+                self.wcmds
+                    .push(window::resize::<Message>(window::Id::MAIN, s));
+                self.winsize = s; // TODO: wait until resize is complete before saving
+                let _ = resp.send(Response::Done); // TODO: don't respond until resize event
             }
             ScreenCmd::ShowTurtle(t) => {
                 self.data[which].turtle_invisible = !t;
