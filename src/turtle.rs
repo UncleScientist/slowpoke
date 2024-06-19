@@ -514,7 +514,7 @@ impl TurtleData {
         let mut iter = self.elements.iter().peekable();
 
         while let Some(element) = iter.next() {
-            let last_element = iter.peek().is_none();
+            let last_element = iter.peek().is_none() && self.percent < 1.;
             match element {
                 DrawCommand::Filler => {}
                 DrawCommand::StampTurtle => todo!(),
