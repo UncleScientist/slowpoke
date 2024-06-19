@@ -1,0 +1,7 @@
+- doreamon freezes for some reason
+- circles flicker on their last line segment
+- notrace-circle doesn't seem to do anything
+- can't set background yet
+- weird gap in doreamon's scarf
+- text and number input
+- weird speed changes in examples/undo.rs ?
