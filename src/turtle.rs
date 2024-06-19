@@ -729,7 +729,7 @@ impl Application for TurtleTask {
         self.flags.title.clone()
     }
 
-    fn update(&mut self, _message: Self::Message) -> iced::Command<Self::Message> {
+    fn update(&mut self, _message: Self::Message) -> IcedCommand<Self::Message> {
         self.cache.clear();
 
         while let Ok(req) = self.flags.receive_command.as_ref().unwrap().try_recv() {
@@ -799,24 +799,6 @@ impl TurtleTask {
     fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let mut turtle = self.spawn_turtle(0);
         let _ = std::thread::spawn(move || func(&mut turtle));
-
-        /*
-        let mut events = Events::new(EventSettings::new());
-
-        while let Some(e) = events.next(&mut self.window) {
-            if let Some(args) = e.render_args() {
-                self.render(&args);
-            }
-
-            if let Some(args) = e.update_args() {
-                self.update(&args);
-            }
-
-            if let Some(args) = e.button_args() {
-                self.button(&args);
-            }
-        }
-        */
     }
 
     pub(crate) fn hatch_turtle(&mut self) -> Turtle {
@@ -851,8 +833,8 @@ impl TurtleTask {
     fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: u64) {
         let resp = self.data[which].responder.get(&turtle_id).unwrap().clone();
         match cmd {
-            ScreenCmd::SetSize(_s) => {
-                // self.window.set_size(s); TODO: figure out how to change window sizes
+            ScreenCmd::SetSize(s) => {
+                println!("{:?}", window::resize::<Message>(window::Id::MAIN, s));
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ShowTurtle(t) => {
