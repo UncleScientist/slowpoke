@@ -283,6 +283,8 @@ impl TurtleData {
                     }
                 }
                 DrawCommand::StampTurtle => {
+                    let pos: [f64; 2] = self.current_shape.pos();
+                    println!("stamping a turtle at {pos:?}");
                     self.elements.push(DrawCommand::DrawPolyAt(
                         self.turtle_shape.shape.clone(),
                         self.current_shape.pos(),
@@ -579,11 +581,19 @@ impl TurtleData {
                     );
                 }
                 DrawCommand::EndFill(_) => {}
-                DrawCommand::DrawPolyAt(polygon, _pos, angle) => {
+                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let path = polygon.get_path();
                     let angle = Angle::degrees(*angle as f32);
-                    let xform = Transform2D::translation(0f32, 0f32).then_rotate(angle);
+                    let xform = Transform2D::rotation(angle)
+                        .then_translate([pos[0] as f32, pos[1] as f32].into());
                     let path = path.transform(&xform);
+                    frame.fill(
+                        &path,
+                        Fill {
+                            style: stroke::Style::Solid(fillcolor),
+                            rule: Rule::NonZero,
+                        },
+                    );
                     frame.stroke(
                         &path,
                         Stroke {
@@ -640,11 +650,20 @@ impl TurtleData {
         let path = self.turtle_shape.shape.get_path();
         let angle = Angle::degrees(trot);
         let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+        let path = path.transform(&transform);
         frame.fill(
-            &path.transform(&transform),
+            &path,
             Fill {
                 style: stroke::Style::Solid(fillcolor),
                 rule: Rule::EvenOdd,
+            },
+        );
+        frame.stroke(
+            &path,
+            Stroke {
+                style: stroke::Style::Solid(pencolor),
+                width: penwidth,
+                ..Stroke::default()
             },
         );
     }
@@ -956,7 +975,7 @@ impl TurtleTask {
             DataCmd::Towards(xpos, ypos) => {
                 let curpos: [f64; 2] = self.data[which].current_shape.pos();
                 let x = xpos - curpos[0];
-                let y = ypos - curpos[1];
+                let y = ypos + curpos[1];
                 let heading = y.atan2(x) * 360. / (2.0 * PI);
 
                 resp.send(Response::Heading(heading))
