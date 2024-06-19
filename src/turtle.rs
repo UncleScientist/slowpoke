@@ -770,31 +770,20 @@ impl<Message> canvas::Program<Message> for TurtleTask {
     ) -> Vec<<Renderer as canvas::Renderer>::Geometry> {
         let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
             let center = frame.center();
+            frame.fill_rectangle(
+                [0., 0.].into(),
+                bounds.size(),
+                Fill {
+                    style: stroke::Style::Solid(self.bgcolor.into()),
+                    rule: Rule::NonZero,
+                },
+            );
             frame.translate([center.x, center.y].into());
             for turtle in &self.data {
                 turtle.draw_iced(frame);
             }
         });
         vec![geometry]
-
-        /*
-            let start = Vector::new(30., 40.);
-            let end = Vector::new(20., 10.);
-
-            // draw all the things
-            let path = Path::new(|b| {
-                b.move_to(center + start);
-                b.line_to(center + end);
-            });
-            frame.stroke(
-                &path,
-                Stroke {
-                    style: stroke::Style::Solid(Color::BLACK),
-                    width: 10.,
-                    ..Stroke::default()
-                },
-            );
-        */
     }
 }
 
