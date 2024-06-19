@@ -70,13 +70,16 @@ pub(crate) trait TurtlePosition<T> {
 
 impl TurtlePosition<f64> for CurrentTurtleState {
     fn pos(&self) -> [f64; 2] {
-        [self.transform[0][2], self.transform[1][2]]
+        [self.transform[0][2], -self.transform[1][2]]
     }
 }
 
 impl TurtlePosition<isize> for CurrentTurtleState {
     fn pos(&self) -> [isize; 2] {
-        [self.transform[0][2] as isize, self.transform[1][2] as isize]
+        [
+            self.transform[0][2] as isize,
+            -self.transform[1][2] as isize,
+        ]
     }
 }
 

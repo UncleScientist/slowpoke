@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
+    f64::consts::PI,
     sync::mpsc::{self, Receiver, Sender},
 };
 
@@ -9,8 +10,7 @@ use iced::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    Application, Color, Degrees, Length, Point, Radians, Rectangle, Renderer, Settings,
-    Subscription, Theme,
+    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme,
 };
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use piston::Size;
@@ -638,11 +638,10 @@ impl TurtleData {
         }
 
         let path = self.turtle_shape.shape.get_path();
-        let radians: Radians = Degrees(trot).into();
-        frame.translate(tpos.into());
-        frame.rotate(radians.0);
+        let angle = Angle::degrees(trot);
+        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
         frame.fill(
-            path,
+            &path.transform(&transform),
             Fill {
                 style: stroke::Style::Solid(fillcolor),
                 rule: Rule::EvenOdd,
@@ -957,15 +956,10 @@ impl TurtleTask {
             DataCmd::Towards(xpos, ypos) => {
                 let curpos: [f64; 2] = self.data[which].current_shape.pos();
                 let x = xpos - curpos[0];
-                let y = ypos + curpos[1];
+                let y = ypos - curpos[1];
+                let heading = y.atan2(x) * 360. / (2.0 * PI);
 
-                if x == 0. {
-                    resp.send(Response::Heading(0.))
-                } else {
-                    resp.send(Response::Heading(
-                        x.atan2(y) * 360. / (2.0 * std::f64::consts::PI),
-                    ))
-                }
+                resp.send(Response::Heading(heading))
             }
             DataCmd::Position => {
                 resp.send(Response::Position(self.data[which].current_shape.pos()))
