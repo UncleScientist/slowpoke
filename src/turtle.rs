@@ -10,10 +10,10 @@ use iced::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    Application, Color, Length, Point, Rectangle, Renderer, Settings, Subscription, Theme,
+    window, Application, Color, Length, Point, Rectangle, Renderer, Settings, Size, Subscription,
+    Theme,
 };
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
-use piston::Size;
 
 use either::Either;
 use graphics::Transformed;
@@ -92,8 +92,8 @@ impl Turtle {
     }
 
     pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
-        let _xsize: f64 = args.size[0] as f64;
-        let _ysize: f64 = args.size[1] as f64;
+        let xsize = args.size[0] as f32;
+        let ysize = args.size[1] as f32;
 
         let (issue_command, receive_command) = mpsc::channel();
 
@@ -102,11 +102,16 @@ impl Turtle {
             issue_command: Some(issue_command),
             receive_command: Some(receive_command),
             title: args.title.clone(),
+            size: [xsize, ysize],
         };
 
         let _ = TurtleTask::run(Settings {
             antialiasing: true,
             flags,
+            window: window::Settings {
+                size: Size::new(xsize, ysize),
+                ..Default::default()
+            },
             ..Settings::default()
         });
     }
@@ -694,6 +699,7 @@ struct TurtleFlags {
     issue_command: Option<Sender<Request>>,
     receive_command: Option<Receiver<Request>>,
     title: String,
+    size: [f32; 2],
 }
 
 impl Application for TurtleTask {
@@ -704,13 +710,15 @@ impl Application for TurtleTask {
 
     fn new(mut flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         let func = flags.start_func.take();
+        let winsize = flags.size.into();
+
         let mut tt = TurtleTask {
             cache: Cache::default(),
             flags,
             turtle_num: 0,
             bgcolor: crate::WHITE,
             shapes: generate_default_shapes(),
-            winsize: [0, 0].into(),
+            winsize,
             data: vec![TurtleData::new()],
         };
         tt.run_turtle(func.unwrap());

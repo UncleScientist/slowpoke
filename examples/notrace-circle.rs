@@ -2,7 +2,7 @@ use slowpoke::*;
 
 fn main() {
     TurtleArgs::default()
-        .with_size(800, 800)
+        .with_size(500, 850)
         .with_title("Circles")
         .run(|turtle| {
             turtle.pencolor("white");
