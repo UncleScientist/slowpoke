@@ -289,8 +289,6 @@ impl TurtleData {
                     }
                 }
                 DrawCommand::StampTurtle => {
-                    let pos: [f64; 2] = self.current_shape.pos();
-                    println!("stamping a turtle at {pos:?}");
                     self.elements.push(DrawCommand::DrawPolyAt(
                         self.turtle_shape.shape.clone(),
                         self.current_shape.pos(),
@@ -303,106 +301,6 @@ impl TurtleData {
             }
         }
     }
-
-    /*
-    fn draw(&self, context: &Context, gl: &mut GlGraphics) {
-        let mut pen_color: TurtleColor = "black".into();
-        let mut fill_color: TurtleColor = "black".into();
-        let mut pen_width = 0.5;
-        let mut iter = self.elements.iter().peekable();
-
-        let mut rotation = self.current_shape.angle();
-        let mut pos = self.current_shape.pos();
-
-        while let Some(element) = iter.next() {
-            let is_last = iter.peek().is_none() && self.percent < 1.;
-
-            match element {
-                DrawCommand::Circle(points) => {
-                    let (total, subpercent) = if is_last {
-                        let partial = (points.len() - 1) as f64 * self.percent;
-                        (partial.floor() as usize, partial - partial.floor())
-                    } else {
-                        (points.len() - 1, 1.)
-                    };
-                    let mut last_point = pos;
-                    let mut last_angle = rotation;
-                    let mut iter = points.windows(2).take(total + 1).peekable();
-                    while let Some(p) = iter.next() {
-                        let (_, begin) = p[0].get_data();
-                        let (angle, end) = p[1].get_data();
-                        last_point = self.draw_line(
-                            pen_color.into(),
-                            pen_width,
-                            begin,
-                            end,
-                            p[0].pen_down,
-                            subpercent,
-                            is_last && iter.peek().is_none(),
-                            context,
-                            gl,
-                        );
-                        last_angle = angle;
-                    }
-                    pos = last_point;
-                    rotation = last_angle;
-                }
-                DrawCommand::StampTurtle => {}
-                DrawCommand::EndFill(_) => {}
-                DrawCommand::Filler => {}
-                DrawCommand::DrawDot(rect, color) => {
-                    graphics::ellipse((*color).into(), *rect, context.transform, gl);
-                }
-                DrawCommand::Line(line) => {
-                    let begin = [line.begin[0] as f64, line.begin[1] as f64];
-                    let end = [line.end[0] as f64, line.end[1] as f64];
-                    pos = self.draw_line(
-                        pen_color.into(),
-                        pen_width,
-                        begin,
-                        end,
-                        line.pen_down,
-                        self.percent,
-                        is_last,
-                        context,
-                        gl,
-                    );
-                }
-                DrawCommand::DrawPolygon(polygon) => {
-                    polygon.draw(&fill_color, context.transform, gl);
-                }
-                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
-                    polygon.draw(
-                        &fill_color,
-                        context.transform.trans_pos(*pos).rot_deg(*angle),
-                        gl,
-                    );
-                }
-                DrawCommand::SetPenColor(pc) => {
-                    pen_color = *pc;
-                }
-                DrawCommand::SetPenWidth(pw) => {
-                    pen_width = *pw;
-                }
-                DrawCommand::SetFillColor(fc) => {
-                    fill_color = *fc;
-                }
-                DrawCommand::SetHeading(start, end) => {
-                    if is_last {
-                        rotation = *start + (*end - *start) * self.percent;
-                    } else {
-                        rotation = *end;
-                    }
-                }
-            }
-        }
-
-        if !self.turtle_invisible {
-            let trans = context.transform.trans(pos[0], pos[1]).rot_deg(rotation);
-            self.turtle_shape.shape.draw(&fill_color, trans, gl);
-        }
-    }
-    */
 
     fn is_instantaneous(&self) -> bool {
         if let Some(cmd) = self.current_command.as_ref() {
@@ -988,7 +886,7 @@ impl TurtleTask {
             }
             DataCmd::Stamp => {
                 self.data[which].queue.push_back(TurtleCommand {
-                    cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp(true)),
+                    cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp),
                     turtle_id,
                 });
                 Ok(())

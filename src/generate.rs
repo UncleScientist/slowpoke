@@ -229,7 +229,7 @@ impl CurrentTurtleState {
                     };
                     return Some(DrawCommand::DrawDot(point.into(), size, color));
                 }
-                InstantaneousDrawCmd::Stamp(_) => {
+                InstantaneousDrawCmd::Stamp => {
                     return Some(DrawCommand::StampTurtle);
                 }
                 InstantaneousDrawCmd::Fill(polygon) => {

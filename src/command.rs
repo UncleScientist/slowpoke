@@ -52,7 +52,7 @@ pub enum InstantaneousDrawCmd {
     FillColor(TurtleColor),
     PenWidth(f64),
     Dot(Option<f64>, TurtleColor),
-    Stamp(bool),
+    Stamp,
     Fill(TurtlePolygon),
     Tracer(bool),
 }
@@ -105,7 +105,7 @@ impl DrawRequest {
         matches!(
             self,
             Self::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
-                | Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp(_))
+                | Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp)
         )
     }
 }
