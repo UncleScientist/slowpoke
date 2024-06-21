@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    f64::consts::PI,
+    f32::consts::PI,
     sync::mpsc::{self, Receiver, Sender},
 };
 
@@ -17,11 +17,7 @@ use iced::{
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use either::Either;
-use graphics::Transformed;
-use graphics::{
-    math::identity,
-    types::{self, Vec2d},
-};
+use graphics::types::{self, Vec2d};
 
 use piston::Key;
 
@@ -240,7 +236,7 @@ pub(crate) struct TurtleData {
     current_shape: CurrentTurtleState,
 
     current_turtle_id: u64, // which thread to notify on completion
-    percent: f64,
+    percent: f32,
     progression: Progression,
     insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
@@ -271,8 +267,8 @@ impl TurtleData {
             }
             match &command {
                 DrawCommand::Line(lineinfo) => {
-                    self.fill_poly.update(lineinfo.end);
-                    self.shape_poly.update(lineinfo.end);
+                    self.fill_poly.update(lineinfo.end.into());
+                    self.shape_poly.update(lineinfo.end.into());
                     self.elements.push(command);
                 }
                 DrawCommand::Circle(circle) => {
@@ -310,7 +306,7 @@ impl TurtleData {
         }
     }
 
-    fn time_passes(&mut self, delta_t: f64) {
+    fn time_passes(&mut self, delta_t: f32) {
         let s = self.speed.get();
 
         self.drawing_done = s == 0
@@ -323,7 +319,7 @@ impl TurtleData {
         if self.drawing_done {
             self.percent = 1.;
         } else {
-            let multiplier = s as f64;
+            let multiplier = s as f32;
 
             match self.progression {
                 Progression::Forward => self.percent += delta_t * multiplier,
@@ -351,8 +347,9 @@ impl TurtleData {
                             self.elements[pos] = DrawCommand::Filler;
                         }
                         DrawCommand::Line(line) => {
-                            let start = [line.begin[0] as f64, line.begin[1] as f64];
-                            self.current_shape.transform = identity().trans_pos(start);
+                            let x = line.begin.x as f32;
+                            let y = line.begin.y as f32;
+                            self.current_shape.transform = Transform2D::translation(x, y);
                         }
                         DrawCommand::SetHeading(start, _) => {
                             self.current_shape.angle = start;
@@ -410,7 +407,7 @@ impl TurtleData {
         let mut pencolor = Color::BLACK;
         let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
-        let pct = self.percent as f32;
+        let pct = self.percent;
 
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
@@ -423,15 +420,15 @@ impl TurtleData {
                 DrawCommand::Filler => {}
                 DrawCommand::StampTurtle => todo!(),
                 DrawCommand::Line(l) => {
-                    let start: Point = [l.begin[0] as f32, l.begin[1] as f32].into();
+                    let start: Point = [l.begin.x as f32, l.begin.y as f32].into();
                     let end: Point = if last_element {
-                        let endx = l.begin[0] as f32 + (l.end[0] - l.begin[0]) as f32 * pct;
-                        let endy = l.begin[1] as f32 + (l.end[1] - l.begin[1]) as f32 * pct;
+                        let endx = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
+                        let endy = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
                         tpos = [endx, endy];
                         [endx, endy]
                     } else {
-                        tpos = [l.end[0] as f32, l.end[1] as f32];
-                        [l.end[0] as f32, l.end[1] as f32]
+                        tpos = [l.end.x as f32, l.end.y as f32];
+                        [l.end.x as f32, l.end.y as f32]
                     }
                     .into();
                     if l.pen_down {
@@ -452,7 +449,7 @@ impl TurtleData {
                 DrawCommand::SetPenColor(pc) => {
                     pencolor = pc.into();
                 }
-                DrawCommand::SetPenWidth(pw) => penwidth = *pw as f32,
+                DrawCommand::SetPenWidth(pw) => penwidth = *pw,
                 DrawCommand::SetFillColor(fc) => {
                     fillcolor = fc.into();
                 }
@@ -472,10 +469,11 @@ impl TurtleData {
                     } else {
                         *end
                     };
-                    trot = rotation as f32;
+                    trot = rotation;
                 }
                 DrawCommand::DrawDot(center, radius, color) => {
-                    let circle = Path::circle(*center, *radius as f32);
+                    let center: Point = Point::new(center.x, center.y);
+                    let circle = Path::circle(center, *radius);
                     frame.fill(
                         &circle,
                         Fill {
@@ -487,9 +485,8 @@ impl TurtleData {
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let path = polygon.get_path();
-                    let angle = Angle::degrees(*angle as f32);
-                    let xform = Transform2D::rotation(angle)
-                        .then_translate([pos.x as f32, pos.y as f32].into());
+                    let angle = Angle::degrees(*angle);
+                    let xform = Transform2D::rotation(angle).then_translate([pos.x, pos.y].into());
                     let path = path.transform(&xform);
                     frame.fill(
                         &path,
@@ -510,8 +507,8 @@ impl TurtleData {
                 DrawCommand::Circle(points) => {
                     if points[0].pen_down {
                         let (total, subpercent) = if last_element {
-                            let partial = (points.len() - 1) as f64 * self.percent;
-                            (partial.floor() as usize, (partial - partial.floor()) as f32)
+                            let partial = (points.len() - 1) as f32 * self.percent;
+                            (partial.floor() as usize, (partial - partial.floor()))
                         } else {
                             (points.len() - 1, 1_f32)
                         };
@@ -534,7 +531,7 @@ impl TurtleData {
                                     end
                                 };
                                 b.line_to(end.into());
-                                trot = end_angle as f32;
+                                trot = end_angle;
                             }
                         });
 
@@ -871,7 +868,7 @@ impl TurtleTask {
                 resp.send(Response::Count(self.data[which].elements.len()))
             }
             DataCmd::Towards(xpos, ypos) => {
-                let curpos: ScreenPosition<f64> = self.data[which].current_shape.pos();
+                let curpos: ScreenPosition<f32> = self.data[which].current_shape.pos();
                 let x = xpos - curpos.x;
                 let y = ypos + curpos.y;
                 let heading = y.atan2(x) * 360. / (2.0 * PI);

@@ -23,24 +23,24 @@ pub enum DrawRequest {
 pub enum TimedDrawCmd {
     Motion(MotionCmd),
     Rotate(RotateCmd),
-    Circle(f64, f64, usize),
+    Circle(f32, f32, usize),
     Undo,
 }
 
 #[derive(Clone, Debug)]
 pub enum MotionCmd {
-    Forward(f64),
-    GoTo(f64, f64),
-    Teleport(f64, f64),
-    SetX(f64),
-    SetY(f64),
+    Forward(f32),
+    GoTo(f32, f32),
+    Teleport(f32, f32),
+    SetX(f32),
+    SetY(f32),
 }
 
 #[derive(Clone, Debug)]
 pub enum RotateCmd {
-    Right(f64),
-    Left(f64),
-    SetHeading(f64),
+    Right(f32),
+    Left(f32),
+    SetHeading(f32),
 }
 
 #[derive(Clone, Debug)]
@@ -50,8 +50,8 @@ pub enum InstantaneousDrawCmd {
     PenUp,
     PenColor(TurtleColor),
     FillColor(TurtleColor),
-    PenWidth(f64),
-    Dot(Option<f64>, TurtleColor),
+    PenWidth(f32),
+    Dot(Option<f32>, TurtleColor),
     Stamp,
     Fill(TurtlePolygon),
     Tracer(bool),
@@ -84,7 +84,7 @@ pub enum DataCmd {
     GetPoly,
     TurtleShape(TurtleShapeName),
     UndoBufferEntries,
-    Towards(f64, f64),
+    Towards(f32, f32),
     Position,
     Heading,
     Stamp,

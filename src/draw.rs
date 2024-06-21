@@ -89,38 +89,44 @@ impl Turtle {
     }
 
     pub fn penwidth<N: Into<f64>>(&mut self, width: N) {
+        let width = width.into() as f32;
         self.do_draw(DrawRequest::InstantaneousDraw(
-            InstantaneousDrawCmd::PenWidth(width.into()),
+            InstantaneousDrawCmd::PenWidth(width),
         ));
     }
 
     pub fn forward<N: Copy + Into<f64>>(&mut self, distance: N) {
+        let distance = distance.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::Forward(distance.into()),
+            MotionCmd::Forward(distance),
         )));
     }
 
     pub fn backward<N: Into<f64>>(&mut self, distance: N) {
+        let distance = -(distance.into() as f32);
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::Forward(-distance.into()),
+            MotionCmd::Forward(-distance),
         )));
     }
 
     pub fn right<N: Into<f64>>(&mut self, rotation: N) {
+        let rotation = rotation.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Rotate(
-            RotateCmd::Right(rotation.into()),
+            RotateCmd::Right(rotation),
         )));
     }
 
     pub fn left<N: Into<f64>>(&mut self, rotation: N) {
+        let rotation = rotation.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Rotate(
-            RotateCmd::Left(rotation.into()),
+            RotateCmd::Left(rotation),
         )));
     }
 
     pub fn setheading<N: Into<f64>>(&mut self, heading: N) {
+        let heading = heading.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Rotate(
-            RotateCmd::SetHeading(heading.into() - 90.),
+            RotateCmd::SetHeading(heading - 90.),
         )));
     }
 
@@ -141,26 +147,32 @@ impl Turtle {
     }
 
     pub fn goto<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        let x = xpos.into() as f32;
+        let y = ypos.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::GoTo(xpos.into(), -ypos.into()),
+            MotionCmd::GoTo(x, -y),
         )));
     }
 
     pub fn teleport<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        let x = xpos.into() as f32;
+        let y = ypos.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::Teleport(xpos.into(), -ypos.into()),
+            MotionCmd::Teleport(x, y),
         )));
     }
 
     pub fn setx<N: Into<f64>>(&mut self, xpos: N) {
+        let x = xpos.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::SetX(xpos.into()),
+            MotionCmd::SetX(x),
         )));
     }
 
-    pub fn sety<N: Into<f64>>(&mut self, ypos: N) {
+    pub fn sety<N: Into<f32>>(&mut self, ypos: N) {
+        let y = ypos.into();
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::SetY(-ypos.into()),
+            MotionCmd::SetY(-y),
         )));
     }
 
@@ -177,14 +189,14 @@ impl Turtle {
     }
 
     pub fn circle<R: Into<f64>, E: Into<f64>>(&mut self, radius: R, extent: E, steps: usize) {
+        let radius = radius.into() as f32;
+        let extent = extent.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Circle(
-            radius.into(),
-            extent.into(),
-            steps,
+            radius, extent, steps,
         )));
     }
 
-    pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f64>, color: C) {
+    pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f32>, color: C) {
         self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Dot(
             width,
             color.into(),
@@ -215,7 +227,7 @@ impl Turtle {
         }
     }
 
-    pub fn heading(&mut self) -> f64 {
+    pub fn heading(&mut self) -> f32 {
         if let Response::Heading(angle) = self.do_data(DataCmd::Heading) {
             angle
         } else {
@@ -223,8 +235,10 @@ impl Turtle {
         }
     }
 
-    pub fn towards<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) -> f64 {
-        if let Response::Heading(angle) = self.do_data(DataCmd::Towards(xpos.into(), ypos.into())) {
+    pub fn towards<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) -> f32 {
+        let x = xpos.into() as f32;
+        let y = ypos.into() as f32;
+        if let Response::Heading(angle) = self.do_data(DataCmd::Towards(x, y)) {
             angle
         } else {
             panic!("invalid response from turtle");

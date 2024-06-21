@@ -1,7 +1,8 @@
 - doreamon freezes for some reason
-- notrace-circle doesn't seem to do anything
+- fix circle code
 - weird gap in doreamon's scarf
 - text and number input
 - weird speed changes in examples/undo.rs ?
 - clean up / remove piston graphics library
 - find out how to calculate delta-t for update() function
+- setheading example is broken

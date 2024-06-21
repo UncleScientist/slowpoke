@@ -1,35 +1,34 @@
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
-use graphics::{
-    math::{identity, Vec2d},
-    Transformed,
+use lyon_tessellation::{
+    geom::euclid::{default::Point2D, default::Transform2D},
+    math::Angle,
 };
-use iced::Point;
 
 use crate::{
     color_names::TurtleColor,
     command::{DrawRequest, InstantaneousDrawCmd, MotionCmd, RotateCmd, TimedDrawCmd},
     polygon::TurtlePolygon,
-    ScreenCoords, ScreenPosition,
+    ScreenPosition,
 };
 
 #[derive(Debug)]
 pub(crate) struct LineInfo {
-    pub begin: Vec2d<isize>,
-    pub end: Vec2d<isize>,
+    pub begin: ScreenPosition<isize>,
+    pub end: ScreenPosition<isize>,
     pub pen_down: bool,
 }
 
 #[derive(Debug)]
 pub(crate) struct CirclePos {
-    pub angle: f64,
+    pub angle: f32,
     pub x: isize,
     pub y: isize,
     pub pen_down: bool,
 }
 
 impl CirclePos {
-    pub fn get_data(&self) -> (f64, [f32; 2]) {
+    pub fn get_data(&self) -> (f32, [f32; 2]) {
         (self.angle, [self.x as f32, self.y as f32])
     }
 }
@@ -40,13 +39,13 @@ pub(crate) enum DrawCommand {
     StampTurtle,
     Line(LineInfo),
     SetPenColor(TurtleColor),
-    SetPenWidth(f64),
+    SetPenWidth(f32),
     SetFillColor(TurtleColor),
     DrawPolygon(TurtlePolygon),
-    SetHeading(f64, f64),
-    DrawDot(Point, f64, TurtleColor), // center, radius, color
+    SetHeading(f32, f32),
+    DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
     EndFill(usize),
-    DrawPolyAt(TurtlePolygon, ScreenPosition<f64>, f64), // poly, pos, angle
+    DrawPolyAt(TurtlePolygon, ScreenPosition<f32>, f32), // poly, pos, angle
     Circle(Vec<CirclePos>),
 }
 
@@ -58,10 +57,10 @@ impl DrawCommand {
 
 #[derive(Debug)]
 pub(crate) struct CurrentTurtleState {
-    pub transform: [[f64; 3]; 2],
-    pub angle: f64,
+    pub transform: Transform2D<f32>,
+    pub angle: f32,
     pen_down: bool,
-    pen_width: f64,
+    pen_width: f32,
     fill_color: TurtleColor,
 }
 
@@ -69,15 +68,19 @@ pub(crate) trait TurtlePosition<T> {
     fn pos(&self) -> ScreenPosition<T>;
 }
 
-impl TurtlePosition<f64> for CurrentTurtleState {
-    fn pos(&self) -> ScreenPosition<f64> {
-        ScreenCoords::from([self.transform[0][2], self.transform[1][2]])
+impl TurtlePosition<f32> for CurrentTurtleState {
+    fn pos(&self) -> ScreenPosition<f32> {
+        self.transform
+            .transform_point(ScreenPosition::new(0f32, 0f32))
     }
 }
 
 impl TurtlePosition<isize> for CurrentTurtleState {
     fn pos(&self) -> ScreenPosition<isize> {
-        [self.transform[0][2] as isize, self.transform[1][2] as isize].into()
+        let point = self
+            .transform
+            .transform_point(ScreenPosition::new(0f32, 0f32));
+        ScreenPosition::new(point.x as isize, point.y as isize)
     }
 }
 
@@ -85,7 +88,7 @@ impl Default for CurrentTurtleState {
     fn default() -> Self {
         Self {
             pen_down: true,
-            transform: identity(),
+            transform: Transform2D::identity(),
             angle: 0.,
             pen_width: 1.,
             fill_color: "black".into(),
@@ -94,26 +97,25 @@ impl Default for CurrentTurtleState {
 }
 
 impl CurrentTurtleState {
-    pub fn angle(&self) -> f64 {
+    pub fn angle(&self) -> f32 {
         self.angle
     }
 
-    fn get_point(&self) -> Vec2d<isize> {
-        let x = self.transform[0][2].round() as isize;
-        let y = self.transform[1][2].round() as isize;
-        [x, y]
+    fn get_point(&self) -> ScreenPosition<isize> {
+        let point: ScreenPosition<f32> = self.pos();
+        [point.x.round() as isize, point.y.round() as isize].into()
     }
 
-    fn get_floatpoint(&self) -> Vec2d<f32> {
-        [self.transform[0][2] as f32, self.transform[1][2] as f32]
+    fn get_floatpoint(&self) -> ScreenPosition<f32> {
+        self.pos()
     }
 
     fn get_circlepos(&self) -> CirclePos {
         let point = self.get_point();
         CirclePos {
             angle: self.angle,
-            x: point[0],
-            y: point[1],
+            x: point.x,
+            y: point.y,
             pen_down: self.pen_down,
         }
     }
@@ -125,48 +127,54 @@ impl CurrentTurtleState {
                     let mut pointlist = vec![self.get_circlepos()];
                     let rsign = -radius.signum();
 
-                    let theta_d = rsign * (extent / (*steps as f64));
+                    let theta_d = rsign * (extent / (*steps as f32));
                     let theta_r = rsign * (theta_d * (2. * PI / 360.));
                     let len = 2. * radius.abs() * (theta_r / 2.).sin();
 
+                    let half_d: Angle = Angle::degrees(theta_d / 2.);
+                    let angle_d = Angle::degrees(theta_d);
+
                     for s in 0..*steps {
                         if s == 0 {
-                            self.transform = self.transform.rot_deg(theta_d / 2.);
+                            self.transform = self.transform.then_rotate(half_d);
                             self.angle += theta_d / 2.;
                         } else {
-                            self.transform = self.transform.rot_deg(theta_d);
+                            self.transform = self.transform.then_rotate(angle_d);
                             self.angle += theta_d;
                         }
 
-                        self.transform = self.transform.trans(len, 0.);
+                        self.transform = self.transform.then_translate([len, 0.].into());
                         pointlist.push(self.get_circlepos());
                     }
 
-                    self.transform = self.transform.rot_deg(theta_d / 2.);
+                    self.transform = self.transform.then_rotate(half_d);
                     self.angle += theta_d / 2.;
                     return Some(DrawCommand::Circle(pointlist));
                 }
                 TimedDrawCmd::Motion(motion) => {
                     let begin = self.get_point();
+                    let start = self.get_floatpoint();
+                    let angle = Angle::degrees(self.angle);
+
                     let mut pen_down = self.pen_down;
                     match motion {
                         MotionCmd::Forward(dist) => {
-                            self.transform = self.transform.trans(*dist, 0.);
+                            self.transform = self.transform.pre_translate([*dist, 0.].into());
                         }
                         MotionCmd::Teleport(x, y) => {
-                            self.transform = identity().trans(*x, *y).rot_deg(self.angle);
+                            self.transform = Transform2D::translation(*x, *y).then_rotate(angle);
                             pen_down = false;
                         }
                         MotionCmd::GoTo(x, y) => {
-                            self.transform = identity().trans(*x, *y).rot_deg(self.angle);
+                            self.transform = Transform2D::translation(*x, *y).then_rotate(angle);
                         }
                         MotionCmd::SetX(x) => {
-                            let cur_y = self.transform[1][2];
-                            self.transform = identity().trans(*x, cur_y).rot_deg(self.angle);
+                            self.transform =
+                                Transform2D::translation(*x, start.y).then_rotate(angle);
                         }
                         MotionCmd::SetY(y) => {
-                            let cur_x = self.transform[0][2];
-                            self.transform = identity().trans(cur_x, *y).rot_deg(self.angle);
+                            self.transform =
+                                Transform2D::translation(start.x, *y).then_rotate(angle);
                         }
                     }
                     let end = self.get_point();
@@ -180,16 +188,19 @@ impl CurrentTurtleState {
                     let start = self.angle;
                     match rotation {
                         RotateCmd::Right(angle) => {
-                            self.transform = self.transform.rot_deg(*angle);
+                            let radians = Angle::degrees(*angle);
+                            self.transform = self.transform.pre_rotate(radians);
                             self.angle += angle;
                         }
                         RotateCmd::Left(angle) => {
-                            self.transform = self.transform.rot_deg(-*angle);
+                            let radians = Angle::degrees(-*angle);
+                            self.transform = self.transform.pre_rotate(radians);
                             self.angle -= angle;
                         }
                         RotateCmd::SetHeading(h) => {
                             let h = 180. - h;
-                            self.transform = self.transform.rot_deg(h - self.angle + 90.);
+                            let radians = Angle::degrees(h - self.angle + 90.);
+                            self.transform = self.transform.pre_rotate(radians);
                             self.angle = h + 90.;
                         }
                     }
@@ -221,14 +232,14 @@ impl CurrentTurtleState {
                     } else {
                         self.pen_width * 2.
                     };
-                    let point: [f32; 2] = self.get_floatpoint();
+                    let point = self.get_floatpoint();
 
                     let color = if matches!(color, TurtleColor::CurrentColor) {
                         self.fill_color
                     } else {
                         *color
                     };
-                    return Some(DrawCommand::DrawDot(point.into(), size, color));
+                    return Some(DrawCommand::DrawDot(point, size, color));
                 }
                 InstantaneousDrawCmd::Stamp => {
                     return Some(DrawCommand::StampTurtle);
