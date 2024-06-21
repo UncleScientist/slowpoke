@@ -35,7 +35,7 @@ fn main() {
                 for t in tlist.iter_mut() {
                     let dist: f64 = 10. + rng.gen::<f64>() * 20.;
                     let pos = t.pos();
-                    if pos[0] > 200 || pos[0] < -200 || pos[1] > 200 || pos[1] < -200 {
+                    if pos.x > 200 || pos.x < -200 || pos.y > 200 || pos.y < -200 {
                         let h = t.towards(0, 0);
                         t.setheading(h);
                     } else {

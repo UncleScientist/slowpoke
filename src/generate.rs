@@ -10,6 +10,7 @@ use crate::{
     color_names::TurtleColor,
     command::{DrawRequest, InstantaneousDrawCmd, MotionCmd, RotateCmd, TimedDrawCmd},
     polygon::TurtlePolygon,
+    ScreenCoords, ScreenPosition,
 };
 
 #[derive(Debug)]
@@ -45,7 +46,7 @@ pub(crate) enum DrawCommand {
     SetHeading(f64, f64),
     DrawDot(Point, f64, TurtleColor), // center, radius, color
     EndFill(usize),
-    DrawPolyAt(TurtlePolygon, [f64; 2], f64), // poly, pos, angle
+    DrawPolyAt(TurtlePolygon, ScreenPosition<f64>, f64), // poly, pos, angle
     Circle(Vec<CirclePos>),
 }
 
@@ -65,18 +66,18 @@ pub(crate) struct CurrentTurtleState {
 }
 
 pub(crate) trait TurtlePosition<T> {
-    fn pos(&self) -> [T; 2];
+    fn pos(&self) -> ScreenPosition<T>;
 }
 
 impl TurtlePosition<f64> for CurrentTurtleState {
-    fn pos(&self) -> [f64; 2] {
-        [self.transform[0][2], self.transform[1][2]]
+    fn pos(&self) -> ScreenPosition<f64> {
+        ScreenCoords::from([self.transform[0][2], self.transform[1][2]])
     }
 }
 
 impl TurtlePosition<isize> for CurrentTurtleState {
-    fn pos(&self) -> [isize; 2] {
-        [self.transform[0][2] as isize, self.transform[1][2] as isize]
+    fn pos(&self) -> ScreenPosition<isize> {
+        [self.transform[0][2] as isize, self.transform[1][2] as isize].into()
     }
 }
 

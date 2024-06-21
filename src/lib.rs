@@ -1,6 +1,6 @@
 use command::Command;
-use graphics::types::Vec2d;
 use iced::Size;
+use lyon_tessellation::geom::euclid::Point2D;
 pub use polygon::TurtleShapeName;
 pub use turtle::{Turtle, TurtleArgs};
 
@@ -16,13 +16,22 @@ mod turtle;
 pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
+pub struct ScreenCoords;
+pub type ScreenPosition<T> = Point2D<T, ScreenCoords>;
+
+impl ScreenCoords {
+    fn from<T: Copy>(value: [T; 2]) -> ScreenPosition<T> {
+        Point2D::new(value[0] as T, value[1] as T)
+    }
+}
+
 pub type StampID = usize;
 
 #[derive(Debug)]
 pub enum Response {
     Done,
     Heading(f64),
-    Position(Vec2d<isize>),
+    Position(ScreenPosition<isize>),
     StampID(StampID),
     Turtle(Turtle),
     Count(usize),

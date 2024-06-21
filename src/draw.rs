@@ -1,4 +1,3 @@
-use graphics::types::Vec2d;
 use iced::Size;
 
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
     polygon::TurtleShapeName,
     speed::TurtleSpeed,
     turtle::Turtle,
-    Response, StampID,
+    Response, ScreenPosition, StampID,
 };
 
 impl Turtle {
@@ -208,7 +207,7 @@ impl Turtle {
     /*
      * Info requests
      */
-    pub fn pos(&mut self) -> Vec2d<isize> {
+    pub fn pos(&mut self) -> ScreenPosition<isize> {
         if let Response::Position(pos) = self.do_data(DataCmd::Position) {
             pos
         } else {

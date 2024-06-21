@@ -33,7 +33,7 @@ use crate::{
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
-    Request, Response, TurtleShapeName,
+    Request, Response, ScreenPosition, TurtleShapeName,
 };
 
 type IcedCommand<T> = iced::Command<T>;
@@ -489,7 +489,7 @@ impl TurtleData {
                     let path = polygon.get_path();
                     let angle = Angle::degrees(*angle as f32);
                     let xform = Transform2D::rotation(angle)
-                        .then_translate([pos[0] as f32, pos[1] as f32].into());
+                        .then_translate([pos.x as f32, pos.y as f32].into());
                     let path = path.transform(&xform);
                     frame.fill(
                         &path,
@@ -764,7 +764,7 @@ impl TurtleTask {
             }
             ScreenCmd::BeginPoly => {
                 let pos_copy = self.data[which].current_shape.pos();
-                self.data[which].shape_poly.start(pos_copy);
+                self.data[which].shape_poly.start(pos_copy.into());
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndPoly => {
@@ -773,7 +773,7 @@ impl TurtleTask {
             }
             ScreenCmd::BeginFill => {
                 let pos_copy = self.data[which].current_shape.pos();
-                self.data[which].fill_poly.start(pos_copy);
+                self.data[which].fill_poly.start(pos_copy.into());
                 self.data[which].queue.push_back(TurtleCommand {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
@@ -871,9 +871,9 @@ impl TurtleTask {
                 resp.send(Response::Count(self.data[which].elements.len()))
             }
             DataCmd::Towards(xpos, ypos) => {
-                let curpos: [f64; 2] = self.data[which].current_shape.pos();
-                let x = xpos - curpos[0];
-                let y = ypos + curpos[1];
+                let curpos: ScreenPosition<f64> = self.data[which].current_shape.pos();
+                let x = xpos - curpos.x;
+                let y = ypos + curpos.y;
                 let heading = y.atan2(x) * 360. / (2.0 * PI);
 
                 resp.send(Response::Heading(heading))
