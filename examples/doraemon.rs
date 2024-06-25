@@ -33,9 +33,6 @@ fn main() {
                 turtle.forward(10);
                 turtle.circle(-5, 90, 10);
 
-                turtle.forward(7); // FIXME
-                turtle.forward(-7); // FIXME
-
                 turtle.end_fill();
             }
 
