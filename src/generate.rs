@@ -162,11 +162,11 @@ impl CurrentTurtleState {
                             self.transform = self.transform.pre_translate([*dist, 0.].into());
                         }
                         MotionCmd::Teleport(x, y) => {
-                            self.transform = Transform2D::translation(*x, *y).then_rotate(angle);
+                            self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
                             pen_down = false;
                         }
                         MotionCmd::GoTo(x, y) => {
-                            self.transform = Transform2D::translation(*x, *y).then_rotate(angle);
+                            self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
                         }
                         MotionCmd::SetX(x) => {
                             self.transform =

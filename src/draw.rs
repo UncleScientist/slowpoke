@@ -158,7 +158,7 @@ impl Turtle {
         let x = xpos.into() as f32;
         let y = ypos.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
-            MotionCmd::Teleport(x, y),
+            MotionCmd::Teleport(x, -y),
         )));
     }
 
@@ -221,7 +221,7 @@ impl Turtle {
      */
     pub fn pos(&mut self) -> ScreenPosition<isize> {
         if let Response::Position(pos) = self.do_data(DataCmd::Position) {
-            pos
+            [pos.x, -pos.y].into()
         } else {
             panic!("invalid response from turtle");
         }

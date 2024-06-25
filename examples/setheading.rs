@@ -6,19 +6,25 @@ fn main() {
         .with_title("heading demo")
         .run(|turtle| {
             turtle.speed(1);
+            turtle.dot(Some(3.), "red");
             turtle.teleport(10, 20);
+            println!("teleported to 10,20; pos = {:?}", turtle.pos());
 
             // draw to the right
             turtle.setheading(0);
             turtle.forward(100);
-            println!("pos = {:?}", turtle.pos());
+            println!("heading 0; forward 100; pos = {:?}", turtle.pos());
+
             turtle.teleport(10, 20);
+            println!("teleported to 10,20; pos = {:?}", turtle.pos());
 
             // draw "south" or down
             turtle.setheading(270);
             turtle.forward(100);
-            println!("pos = {:?}", turtle.pos());
+            println!("heading 270; forward 100; pos = {:?}", turtle.pos());
+
             turtle.teleport(10, 20);
+            println!("teleported to 10,20; pos = {:?}", turtle.pos());
 
             // draw "north" or up
             turtle.setheading(90);

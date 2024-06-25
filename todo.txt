@@ -2,4 +2,3 @@
 - weird gap in doreamon's scarf
 - text and number input
 - find out how to calculate delta-t for update() function
-- setheading example is broken
