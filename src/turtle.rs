@@ -4,6 +4,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender},
 };
 
+use iced::keyboard::{Event::KeyPressed, Key};
 use iced::window::Event::Resized;
 use iced::{
     event, executor, mouse,
@@ -17,9 +18,6 @@ use iced::{
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use either::Either;
-use graphics::types::{self, Vec2d};
-
-use piston::Key;
 
 use crate::{
     color_names::TurtleColor,
@@ -201,20 +199,20 @@ enum Progression {
 
 #[derive(Default)]
 struct PolygonBuilder {
-    last_point: Option<Vec2d<isize>>,
+    last_point: Option<ScreenPosition<isize>>,
     verticies: Vec<[f32; 2]>,
 }
 
 impl PolygonBuilder {
-    fn start(&mut self, pos: Vec2d<isize>) {
+    fn start(&mut self, pos: ScreenPosition<isize>) {
         self.last_point = Some(pos);
-        self.verticies = vec![[pos[0] as f32, pos[1] as f32]];
+        self.verticies = vec![[pos.x as f32, pos.y as f32]];
     }
 
-    fn update(&mut self, pos: Vec2d<isize>) {
+    fn update(&mut self, pos: ScreenPosition<isize>) {
         if let Some(p) = self.last_point {
             if p != pos {
-                let new_point = [pos[0] as f32, pos[1] as f32];
+                let new_point = [pos.x as f32, pos.y as f32];
                 self.verticies.push(new_point);
                 self.last_point = Some(pos);
             }
@@ -240,7 +238,7 @@ pub(crate) struct TurtleData {
     progression: Progression,
     insert_fill: Option<usize>,
     responder: HashMap<u64, Sender<Response>>,
-    onkeypress: HashMap<Key, fn(&mut Turtle, Key)>,
+    onkeypress: HashMap<char, fn(&mut Turtle, char)>,
     drawing_done: bool,
     turtle_invisible: bool,
     tracer: bool,
@@ -267,14 +265,14 @@ impl TurtleData {
             }
             match &command {
                 DrawCommand::Line(lineinfo) => {
-                    self.fill_poly.update(lineinfo.end.into());
-                    self.shape_poly.update(lineinfo.end.into());
+                    self.fill_poly.update(lineinfo.end);
+                    self.shape_poly.update(lineinfo.end);
                     self.elements.push(command);
                 }
                 DrawCommand::Circle(circle) => {
                     for c in circle {
-                        self.fill_poly.update([c.x, c.y]);
-                        self.shape_poly.update([c.x, c.y]);
+                        self.fill_poly.update([c.x, c.y].into());
+                        self.shape_poly.update([c.x, c.y].into());
                     }
                     self.elements.push(command);
                 }
@@ -576,7 +574,7 @@ struct TurtleTask {
     cache: Cache,
     flags: TurtleFlags,
     turtle_num: u64,
-    bgcolor: types::Color,
+    bgcolor: TurtleColor,
     data: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
     winsize: Size,
@@ -614,7 +612,7 @@ impl Application for TurtleTask {
             cache: Cache::default(),
             flags,
             turtle_num: 0,
-            bgcolor: crate::WHITE,
+            bgcolor: TurtleColor::from("white"),
             shapes: generate_default_shapes(),
             winsize,
             data: vec![TurtleData::new()],
@@ -631,11 +629,7 @@ impl Application for TurtleTask {
     fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
         match message {
             Message::Tick => self.tick(),
-            Message::Event(event) => {
-                if let Event::Window(window::Id::MAIN, Resized { width, height }) = event {
-                    self.winsize = Size::new(width as f32, height as f32);
-                }
-            }
+            Message::Event(event) => self.handle_event(event),
         }
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
@@ -672,7 +666,7 @@ impl<Message> canvas::Program<Message> for TurtleTask {
                 [0., 0.].into(),
                 bounds.size(),
                 Fill {
-                    style: stroke::Style::Solid(self.bgcolor.into()),
+                    style: stroke::Style::Solid((&self.bgcolor).into()),
                     rule: Rule::NonZero,
                 },
             );
@@ -686,6 +680,32 @@ impl<Message> canvas::Program<Message> for TurtleTask {
 }
 
 impl TurtleTask {
+    fn handle_event(&mut self, event: Event) {
+        let mut work = Vec::new();
+
+        match event {
+            Event::Window(window::Id::MAIN, Resized { width, height }) => {
+                self.winsize = Size::new(width as f32, height as f32);
+            }
+            Event::Keyboard(KeyPressed { key, .. }) => {
+                if let Key::Character(s) = key.as_ref() {
+                    let ch = s.chars().next().unwrap();
+                    for (idx, turtle) in self.data.iter().enumerate() {
+                        if let Some(func) = turtle.onkeypress.get(&ch).copied() {
+                            work.push((idx, func, ch));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        for (idx, func, key) in work {
+            let mut new_turtle = self.spawn_turtle(idx);
+            let _ = std::thread::spawn(move || func(&mut new_turtle, key));
+        }
+    }
+
     fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let mut turtle = self.spawn_turtle(0);
         let _ = std::thread::spawn(move || func(&mut turtle));
@@ -761,7 +781,7 @@ impl TurtleTask {
             }
             ScreenCmd::BeginPoly => {
                 let pos_copy = self.data[which].current_shape.pos();
-                self.data[which].shape_poly.start(pos_copy.into());
+                self.data[which].shape_poly.start(pos_copy);
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndPoly => {
@@ -770,7 +790,7 @@ impl TurtleTask {
             }
             ScreenCmd::BeginFill => {
                 let pos_copy = self.data[which].current_shape.pos();
-                self.data[which].fill_poly.start(pos_copy.into());
+                self.data[which].fill_poly.start(pos_copy);
                 self.data[which].queue.push_back(TurtleCommand {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
                     turtle_id,
@@ -790,12 +810,12 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
-                self.bgcolor = [r, g, b, 1.];
+                self.bgcolor = [r, g, b, 1.].into();
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
                 self.data[which].elements.clear();
-                self.bgcolor = crate::BLACK;
+                self.bgcolor = TurtleColor::from("black");
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {

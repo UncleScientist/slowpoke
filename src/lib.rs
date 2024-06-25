@@ -19,6 +19,9 @@ pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 pub type ScreenCoords = UnknownUnit;
 pub type ScreenPosition<T> = Point2D<T, ScreenCoords>;
 
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub struct Key;
+
 /*
 impl ScreenCoords {
     fn from<T: Copy>(value: [T; 2]) -> ScreenPosition<T> {

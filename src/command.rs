@@ -1,5 +1,4 @@
 use iced::Size;
-use piston::Key;
 
 use crate::{
     color_names::TurtleColor,
@@ -74,7 +73,7 @@ pub enum ScreenCmd {
 
 #[derive(Copy, Clone, Debug)]
 pub enum InputCmd {
-    OnKeyPress(fn(&mut Turtle, Key), Key),
+    OnKeyPress(fn(&mut Turtle, char), char),
 }
 
 // Commands which return data
