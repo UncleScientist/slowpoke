@@ -103,7 +103,7 @@ impl Turtle {
     }
 
     pub fn backward<N: Into<f64>>(&mut self, distance: N) {
-        let distance = -(distance.into() as f32);
+        let distance = distance.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
             MotionCmd::Forward(-distance),
         )));
