@@ -136,18 +136,18 @@ impl CurrentTurtleState {
 
                     for s in 0..*steps {
                         if s == 0 {
-                            self.transform = self.transform.then_rotate(half_d);
+                            self.transform = self.transform.pre_rotate(half_d);
                             self.angle += theta_d / 2.;
                         } else {
-                            self.transform = self.transform.then_rotate(angle_d);
+                            self.transform = self.transform.pre_rotate(angle_d);
                             self.angle += theta_d;
                         }
 
-                        self.transform = self.transform.then_translate([len, 0.].into());
+                        self.transform = self.transform.pre_translate([len, 0.].into());
                         pointlist.push(self.get_circlepos());
                     }
 
-                    self.transform = self.transform.then_rotate(half_d);
+                    self.transform = self.transform.pre_rotate(half_d);
                     self.angle += theta_d / 2.;
                     return Some(DrawCommand::Circle(pointlist));
                 }
