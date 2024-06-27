@@ -4,7 +4,10 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
+use iced::window::Id as WindowID;
+
 use iced::keyboard::{Event::KeyPressed, Key};
+use iced::multi_window::Application;
 use iced::window::Event::Resized;
 use iced::{
     event, executor, mouse,
@@ -12,8 +15,7 @@ use iced::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
         Canvas,
     },
-    window, Application, Color, Event, Length, Point, Rectangle, Renderer, Settings, Size,
-    Subscription, Theme,
+    window, Color, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
@@ -629,7 +631,7 @@ impl Application for TurtleTask {
         (tt, IcedCommand::none())
     }
 
-    fn title(&self) -> String {
+    fn title(&self, _win_id: WindowID) -> String {
         self.flags.title.clone()
     }
 
@@ -641,7 +643,10 @@ impl Application for TurtleTask {
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
-    fn view(&self) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
+    fn view(
+        &self,
+        _win_id: WindowID,
+    ) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
         Canvas::new(self)
             .width(Length::Fill)
             .height(Length::Fill)

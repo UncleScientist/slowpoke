@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 either = "1.10.0"
-iced = { version = "0.12.1", features = ["canvas", "smol"] }
+iced = { version = "0.12.1", features = ["canvas", "smol", "multi-window"] }
 lyon_tessellation = "1.0.13"
 
 [dev-dependencies]
