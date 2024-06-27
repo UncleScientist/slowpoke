@@ -107,4 +107,18 @@ impl DrawRequest {
                 | Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp)
         )
     }
+
+    pub(crate) fn tracer_true(&self) -> bool {
+        matches!(
+            self,
+            DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(true))
+        )
+    }
+
+    pub(crate) fn tracer_false(&self) -> bool {
+        matches!(
+            self,
+            DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(false))
+        )
+    }
 }

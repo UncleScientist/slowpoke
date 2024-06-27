@@ -245,6 +245,7 @@ impl CurrentTurtleState {
                     return Some(DrawCommand::StampTurtle);
                 }
                 InstantaneousDrawCmd::Fill(polygon) => {
+                    // TODO: move instead of clone? cmd: &DrawRequest -> cmd: DrawRequest ?
                     return Some(DrawCommand::DrawPolygon(polygon.clone()));
                 }
             },

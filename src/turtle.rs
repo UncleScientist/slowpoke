@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     f32::consts::PI,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
 use iced::keyboard::{Event::KeyPressed, Key};
@@ -179,7 +179,13 @@ impl Turtle {
                     }
                 }
             } else {
-                return Response::Done;
+                loop {
+                    match self.command_complete.try_recv() {
+                        Ok(response) => assert!(matches!(response, Response::Done)),
+                        Err(TryRecvError::Empty) => return Response::Done,
+                        Err(TryRecvError::Disconnected) => panic!("lost main thread"),
+                    }
+                }
             }
         }
 
@@ -359,14 +365,15 @@ impl TurtleData {
 
             let cmd = self.current_command.take().unwrap();
 
+            if cmd.tracer_true() {
+                self.respond_immediately = false;
+            }
+
             if !self.respond_immediately {
                 self.send_response(self.current_turtle_id, cmd.is_stamp());
             }
 
-            if matches!(
-                cmd,
-                DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(false))
-            ) {
+            if cmd.tracer_false() {
                 self.respond_immediately = true;
             }
         }
