@@ -1,4 +1,5 @@
 - doreamon freezes for some reason
 - weird gap in doreamon's scarf
-- text and number input
+- number input
+- fix window size for text-input popup
 - find out how to calculate delta-t for update() function

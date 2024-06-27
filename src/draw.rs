@@ -65,14 +65,6 @@ impl Turtle {
         self.do_hatch()
     }
 
-    // placeholder until we figure out what we're doing for a GUI
-    pub fn textinput(&mut self, title: &str, prompt: &str) -> String {
-        println!("text input");
-        println!("{title} / {prompt}> ");
-        // make_popup(title, prompt);
-        "foo".to_string()
-    }
-
     /*
      * Drawing commands
      */
@@ -280,6 +272,21 @@ impl Turtle {
     pub fn getscreensize(&mut self) -> Size {
         if let Response::ScreenSize(size) = self.do_data(DataCmd::GetScreenSize) {
             size
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    /*
+     * popup requests
+     */
+
+    // placeholder until we figure out what we're doing for a GUI
+    pub fn textinput(&mut self, title: &str, prompt: &str) -> String {
+        if let Response::TextInput(string) =
+            self.do_data(DataCmd::TextInput(title.into(), prompt.into()))
+        {
+            string
         } else {
             panic!("invalid response from turtle");
         }

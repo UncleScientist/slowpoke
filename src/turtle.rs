@@ -4,16 +4,17 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
-use iced::window::Id as WindowID;
+use iced::{widget::text, window::Id as WindowID};
 
 use iced::keyboard::{Event::KeyPressed, Key};
 use iced::multi_window::Application;
 use iced::window::Event::Resized;
+use iced::window::Settings as WindowSettings;
 use iced::{
     event, executor, mouse,
     widget::{
         canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
-        Canvas,
+        column, container, text_input, Canvas,
     },
     window, Color, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
@@ -579,6 +580,13 @@ impl TurtleData {
     }
 }
 
+#[derive(Default)]
+struct PopupData {
+    title: String,
+    prompt: String,
+    turtle_id: u64,
+}
+
 struct TurtleTask {
     cache: Cache,
     flags: TurtleFlags,
@@ -588,12 +596,16 @@ struct TurtleTask {
     shapes: HashMap<String, TurtleShape>,
     winsize: Size,
     wcmds: Vec<IcedCommand<Message>>,
+    popups: HashMap<WindowID, PopupData>,
+    text_input_field: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Message {
     Tick,
     Event(Event),
+    TextInputChanged(WindowID, String),
+    TextInputSubmit(WindowID, String),
 }
 
 type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
@@ -617,6 +629,7 @@ impl Application for TurtleTask {
         let func = flags.start_func.take();
         let winsize = flags.size.into();
 
+        let title = flags.title.clone();
         let mut tt = TurtleTask {
             cache: Cache::default(),
             flags,
@@ -626,31 +639,66 @@ impl Application for TurtleTask {
             winsize,
             data: vec![TurtleData::new()],
             wcmds: Vec::new(),
+            popups: HashMap::from([(
+                WindowID::MAIN,
+                PopupData {
+                    title,
+                    ..Default::default()
+                },
+            )]),
+            text_input_field: "".to_string(),
         };
         tt.run_turtle(func.unwrap());
         (tt, IcedCommand::none())
     }
 
-    fn title(&self, _win_id: WindowID) -> String {
-        self.flags.title.clone()
+    fn title(&self, win_id: WindowID) -> String {
+        self.popups.get(&win_id).unwrap().title.clone()
     }
 
     fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
         match message {
             Message::Tick => self.tick(),
             Message::Event(event) => self.handle_event(event),
+            Message::TextInputChanged(_id, msg) => {
+                self.text_input_field = msg;
+            }
+            Message::TextInputSubmit(id, msg) => {
+                let tid = self.popups.get(&id).unwrap().turtle_id;
+                for (index, tdata) in self.data.iter().enumerate() {
+                    if tdata.responder.contains_key(&tid) {
+                        let _ = self.data[index].responder[&tid].send(Response::TextInput(msg));
+                        break;
+                    }
+                }
+                self.wcmds.push(window::close(id));
+            }
         }
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
     fn view(
         &self,
-        _win_id: WindowID,
+        win_id: WindowID,
     ) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
-        Canvas::new(self)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+        if win_id == WindowID::MAIN {
+            Canvas::new(self)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        } else {
+            let prompt = self.popups.get(&win_id).unwrap().prompt.clone();
+            let text_field = text_input(&prompt, &self.text_input_field)
+                .on_input(move |msg| Message::TextInputChanged(win_id, msg))
+                .on_submit(Message::TextInputSubmit(
+                    win_id,
+                    self.text_input_field.clone(),
+                ));
+            container(column![text(prompt), text_field])
+                .width(200)
+                .center_x()
+                .into()
+        }
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -918,6 +966,19 @@ impl TurtleTask {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp),
                     turtle_id,
                 });
+                Ok(())
+            }
+            DataCmd::TextInput(title, prompt) => {
+                let (id, wcmd) = window::spawn(WindowSettings::default());
+                self.wcmds.push(wcmd);
+                self.popups.insert(
+                    id,
+                    PopupData {
+                        title,
+                        prompt,
+                        turtle_id,
+                    },
+                );
                 Ok(())
             }
         };

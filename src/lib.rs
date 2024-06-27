@@ -44,6 +44,7 @@ pub enum Response {
     Polygon(Vec<[f32; 2]>),
     Visibility(bool),
     ScreenSize(Size),
+    TextInput(String),
 }
 
 #[derive(Debug)]

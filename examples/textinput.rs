@@ -5,7 +5,7 @@ fn main() {
         .with_size(400, 400)
         .with_title("a line")
         .run(|turtle| {
-            let name = turtle.textinput("Title", "What is your name");
+            let name = turtle.textinput("This is a request...", "What is your name");
             turtle.forward(100);
             println!("your name is {name}");
         });
