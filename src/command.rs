@@ -89,6 +89,7 @@ pub enum DataCmd {
     Stamp,
     Visibility,
     TextInput(String, String), // title, prompt
+    NumInput(String, String),  // title, prompt
 }
 
 #[derive(Clone, Debug)]

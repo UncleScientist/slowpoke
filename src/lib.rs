@@ -45,6 +45,7 @@ pub enum Response {
     Visibility(bool),
     ScreenSize(Size),
     TextInput(String),
+    NumInput(f32),
 }
 
 #[derive(Debug)]
