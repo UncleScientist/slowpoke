@@ -4,6 +4,9 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
+mod popup;
+use popup::PopupData;
+
 use iced::{widget::text, window::Id as WindowID};
 
 use iced::keyboard::{Event::KeyPressed, Key};
@@ -580,13 +583,6 @@ impl TurtleData {
     }
 }
 
-#[derive(Default)]
-struct PopupData {
-    title: String,
-    prompt: String,
-    turtle_id: u64,
-}
-
 struct TurtleTask {
     cache: Cache,
     flags: TurtleFlags,
@@ -597,7 +593,6 @@ struct TurtleTask {
     winsize: Size,
     wcmds: Vec<IcedCommand<Message>>,
     popups: HashMap<WindowID, PopupData>,
-    text_input_field: String,
 }
 
 #[derive(Debug, Clone)]
@@ -639,38 +634,29 @@ impl Application for TurtleTask {
             winsize,
             data: vec![TurtleData::new()],
             wcmds: Vec::new(),
-            popups: HashMap::from([(
-                WindowID::MAIN,
-                PopupData {
-                    title,
-                    ..Default::default()
-                },
-            )]),
-            text_input_field: "".to_string(),
+            popups: HashMap::from([(WindowID::MAIN, PopupData::mainwin(&title))]),
         };
         tt.run_turtle(func.unwrap());
         (tt, IcedCommand::none())
     }
 
     fn title(&self, win_id: WindowID) -> String {
-        self.popups.get(&win_id).unwrap().title.clone()
+        self.popups.get(&win_id).expect("lookup popup data").title()
     }
 
     fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
         match message {
             Message::Tick => self.tick(),
             Message::Event(event) => self.handle_event(event),
-            Message::TextInputChanged(_id, msg) => {
-                self.text_input_field = msg;
+            Message::TextInputChanged(id, msg) => {
+                let popup = self.popups.get_mut(&id).expect("looking up popup data");
+                popup.set_message(&msg);
             }
             Message::TextInputSubmit(id, msg) => {
-                let tid = self.popups.get(&id).unwrap().turtle_id;
-                for (index, tdata) in self.data.iter().enumerate() {
-                    if tdata.responder.contains_key(&tid) {
-                        let _ = self.data[index].responder[&tid].send(Response::TextInput(msg));
-                        break;
-                    }
-                }
+                let popup = self.popups.get(&id).expect("looking up popup data");
+                let tid = popup.id();
+                let index = popup.which();
+                let _ = self.data[index].responder[&tid].send(Response::TextInput(msg));
                 self.wcmds.push(window::close(id));
             }
         }
@@ -687,13 +673,11 @@ impl Application for TurtleTask {
                 .height(Length::Fill)
                 .into()
         } else {
-            let prompt = self.popups.get(&win_id).unwrap().prompt.clone();
-            let text_field = text_input(&prompt, &self.text_input_field)
+            let popup = self.popups.get(&win_id).expect("looking up window data");
+            let prompt = popup.prompt();
+            let text_field = text_input(&prompt, &popup.get_text())
                 .on_input(move |msg| Message::TextInputChanged(win_id, msg))
-                .on_submit(Message::TextInputSubmit(
-                    win_id,
-                    self.text_input_field.clone(),
-                ));
+                .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
             container(column![text(prompt), text_field])
                 .width(200)
                 .center_x()
@@ -971,14 +955,8 @@ impl TurtleTask {
             DataCmd::TextInput(title, prompt) => {
                 let (id, wcmd) = window::spawn(WindowSettings::default());
                 self.wcmds.push(wcmd);
-                self.popups.insert(
-                    id,
-                    PopupData {
-                        title,
-                        prompt,
-                        turtle_id,
-                    },
-                );
+                self.popups
+                    .insert(id, PopupData::new(&title, &prompt, turtle_id, which));
                 Ok(())
             }
         };
