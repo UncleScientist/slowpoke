@@ -675,12 +675,20 @@ impl Application for TurtleTask {
         } else {
             let popup = self.popups.get(&win_id).expect("looking up window data");
             let prompt = popup.prompt();
-            let text_field = text_input(&prompt, &popup.get_text())
-                .on_input(move |msg| Message::TextInputChanged(win_id, msg))
-                .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
-            container(column![text(prompt), text_field])
-                .width(200)
+            let text_field: iced::widget::TextInput<'_, Self::Message, Theme, Renderer> =
+                text_input(&prompt, &popup.get_text())
+                    .on_input(move |msg| Message::TextInputChanged(win_id, msg))
+                    .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
+            let data: iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> =
+                container(column![text(prompt), text_field])
+                    .width(200)
+                    .center_x()
+                    .into();
+            container(data)
+                .width(Length::Fill)
+                .height(Length::Fill)
                 .center_x()
+                .center_y()
                 .into()
         }
     }
@@ -953,7 +961,12 @@ impl TurtleTask {
                 Ok(())
             }
             DataCmd::TextInput(title, prompt) => {
-                let (id, wcmd) = window::spawn(WindowSettings::default());
+                let (id, wcmd) = window::spawn(WindowSettings {
+                    size: [250f32, 150f32].into(),
+                    resizable: false,
+                    exit_on_close_request: false,
+                    ..WindowSettings::default()
+                });
                 self.wcmds.push(wcmd);
                 self.popups
                     .insert(id, PopupData::new(&title, &prompt, turtle_id, which));
