@@ -604,7 +604,7 @@ enum Message {
     Tick,
     Event(Event),
     TextInputChanged(WindowID, String),
-    TextInputSubmit(WindowID, String),
+    TextInputSubmit(WindowID),
     AckError(WindowID),
     Cancel(WindowID),
 }
@@ -659,7 +659,7 @@ impl Application for TurtleTask {
                 let popup = self.popups.get_mut(&id).expect("looking up popup data");
                 popup.set_message(&msg);
             }
-            Message::TextInputSubmit(id, _msg) => {
+            Message::TextInputSubmit(id) => {
                 let popup = self.popups.get(&id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
@@ -710,10 +710,10 @@ impl Application for TurtleTask {
                 .into()
             } else {
                 let prompt = popup.prompt();
-                let text_field: TextInput<Self::Message> = text_input(&prompt, &popup.get_text())
+                let text_field: TextInput<Self::Message> = text_input(prompt, popup.get_text())
                     .width(200)
                     .on_input(move |msg| Message::TextInputChanged(win_id, msg))
-                    .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
+                    .on_submit(Message::TextInputSubmit(win_id));
                 let data: Element<Self::Message> = container(row![
                     horizontal_space(),
                     column![text(prompt), text_field],
@@ -725,7 +725,7 @@ impl Application for TurtleTask {
                     horizontal_space(),
                     button("Cancel").on_press(Message::Cancel(win_id)),
                     horizontal_space(),
-                    button("OK").on_press(Message::TextInputSubmit(win_id, popup.get_text())),
+                    button("OK").on_press(Message::TextInputSubmit(win_id)),
                     horizontal_space(),
                 ])
                 .padding(10)

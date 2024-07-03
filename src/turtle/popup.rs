@@ -35,23 +35,23 @@ impl PopupType {
         }
     }
 
-    fn prompt(&self) -> String {
+    fn prompt(&self) -> &str {
         match self {
             PopupType::TextInput { prompt, .. } | PopupType::NumericalInput { prompt, .. } => {
-                prompt.clone()
+                prompt
             }
             _ => panic!("invalid popup for turtle id"),
         }
     }
 
-    fn text_input_field(&self) -> String {
+    fn text_input_field(&self) -> &str {
         match self {
             PopupType::TextInput {
                 text_input_field, ..
             }
             | PopupType::NumericalInput {
                 text_input_field, ..
-            } => text_input_field.clone(),
+            } => text_input_field,
             _ => panic!("invalid popup for turtle id"),
         }
     }
@@ -119,11 +119,11 @@ impl PopupData {
         self.popup.which()
     }
 
-    pub(crate) fn prompt(&self) -> String {
+    pub(crate) fn prompt(&self) -> &str {
         self.popup.prompt()
     }
 
-    pub(crate) fn get_text(&self) -> String {
+    pub(crate) fn get_text(&self) -> &str {
         self.popup.text_input_field()
     }
 
