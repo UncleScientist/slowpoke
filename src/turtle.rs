@@ -168,6 +168,7 @@ impl Turtle {
 
     fn do_command(&mut self, cmd: Command) -> Response {
         let is_data_cmd = matches!(cmd, Command::Data(_));
+        let tracer_was_off = self.tracer;
         if let Command::Draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t))) = &cmd
         {
             self.tracer = *t;
@@ -175,7 +176,20 @@ impl Turtle {
 
         if self.issue_command.send(self.req(cmd)).is_ok() {
             if self.tracer {
-                if let Ok(result) = self.command_complete.recv() {
+                if tracer_was_off {
+                    // need to consume all but the last response
+                    let saved_response = self.command_complete.recv();
+                    if let Ok(response) = saved_response {
+                        let mut return_value = response;
+                        loop {
+                            match self.command_complete.try_recv() {
+                                Ok(response) => return_value = response,
+                                Err(TryRecvError::Empty) => return return_value,
+                                Err(TryRecvError::Disconnected) => panic!("lost main thread"),
+                            }
+                        }
+                    }
+                } else if let Ok(result) = self.command_complete.recv() {
                     return result;
                 }
             } else if is_data_cmd {
@@ -184,6 +198,7 @@ impl Turtle {
                         if matches!(result, Response::Done) {
                             continue;
                         } else {
+                            println!("Got response: {result:?}");
                             return result;
                         }
                     }
@@ -191,7 +206,13 @@ impl Turtle {
             } else {
                 loop {
                     match self.command_complete.try_recv() {
-                        Ok(response) => assert!(matches!(response, Response::Done)),
+                        Ok(response) => {
+                            if matches!(response, Response::Done) {
+                                continue;
+                            } else {
+                                panic!("Received data response: {response:?}");
+                            }
+                        }
                         Err(TryRecvError::Empty) => return Response::Done,
                         Err(TryRecvError::Disconnected) => panic!("lost main thread"),
                     }

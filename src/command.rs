@@ -103,11 +103,7 @@ pub enum Command {
 
 impl DrawRequest {
     pub(crate) fn is_stamp(&self) -> bool {
-        matches!(
-            self,
-            Self::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon)
-                | Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp)
-        )
+        matches!(self, Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp))
     }
 
     pub(crate) fn tracer_true(&self) -> bool {
