@@ -8,7 +8,7 @@ mod popup;
 use popup::PopupData;
 
 use iced::{
-    widget::{button, text},
+    widget::{button, horizontal_space, row, text, TextInput},
     window::Id as WindowID,
     Element,
 };
@@ -606,6 +606,7 @@ enum Message {
     TextInputChanged(WindowID, String),
     TextInputSubmit(WindowID, String),
     AckError(WindowID),
+    Cancel(WindowID),
 }
 
 type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
@@ -680,6 +681,11 @@ impl Application for TurtleTask {
                     }
                 }
             }
+            Message::Cancel(id) => {
+                let popup = self.popups.get(&id).expect("looking up popup data");
+                let _ = self.data[popup.which()].responder[&popup.id()].send(Response::Cancel);
+                self.wcmds.push(window::close(id));
+            }
         }
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
@@ -704,15 +710,27 @@ impl Application for TurtleTask {
                 .into()
             } else {
                 let prompt = popup.prompt();
-                let text_field: iced::widget::TextInput<'_, Self::Message, Theme, Renderer> =
-                    text_input(&prompt, &popup.get_text())
-                        .on_input(move |msg| Message::TextInputChanged(win_id, msg))
-                        .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
-                let data: Element<Self::Message> = container(column![text(prompt), text_field])
+                let text_field: TextInput<Self::Message> = text_input(&prompt, &popup.get_text())
                     .width(200)
-                    .center_x()
-                    .into();
-                container(data)
+                    .on_input(move |msg| Message::TextInputChanged(win_id, msg))
+                    .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
+                let data: Element<Self::Message> = container(row![
+                    horizontal_space(),
+                    column![text(prompt), text_field],
+                    horizontal_space(),
+                ])
+                .center_x()
+                .into();
+                let buttons: Element<Self::Message> = container(row![
+                    horizontal_space(),
+                    button("Cancel").on_press(Message::Cancel(win_id)),
+                    horizontal_space(),
+                    button("OK").on_press(Message::TextInputSubmit(win_id, popup.get_text())),
+                    horizontal_space(),
+                ])
+                .padding(10)
+                .into();
+                container(column![data, buttons])
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .center_x()

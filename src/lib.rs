@@ -35,6 +35,7 @@ pub type StampID = usize;
 #[derive(Debug)]
 pub enum Response {
     Done,
+    Cancel,
     Heading(f32),
     Position(ScreenPosition<isize>),
     StampID(StampID),

@@ -281,23 +281,19 @@ impl Turtle {
      * popup requests
      */
 
-    pub fn textinput(&mut self, title: &str, prompt: &str) -> String {
-        if let Response::TextInput(string) =
-            self.do_data(DataCmd::TextInput(title.into(), prompt.into()))
-        {
-            string
-        } else {
-            panic!("invalid response from turtle");
+    pub fn textinput(&mut self, title: &str, prompt: &str) -> Option<String> {
+        match self.do_data(DataCmd::TextInput(title.into(), prompt.into())) {
+            Response::TextInput(string) => Some(string),
+            Response::Cancel => None,
+            bad_response => panic!("invalid response '{bad_response:?}' from turtle"),
         }
     }
 
-    pub fn numinput(&mut self, title: &str, prompt: &str) -> f32 {
-        if let Response::NumInput(num) =
-            self.do_data(DataCmd::NumInput(title.into(), prompt.into()))
-        {
-            num
-        } else {
-            panic!("invalid response from turtle");
+    pub fn numinput(&mut self, title: &str, prompt: &str) -> Option<f32> {
+        match self.do_data(DataCmd::NumInput(title.into(), prompt.into())) {
+            Response::NumInput(num) => Some(num),
+            Response::Cancel => None,
+            bad_response => panic!("invalid response '{bad_response:?}' from turtle"),
         }
     }
 }

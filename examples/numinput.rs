@@ -7,6 +7,10 @@ fn main() {
         .run(|turtle| {
             let num = turtle.numinput("This is a request...", "Gimmie a floating point number");
             turtle.forward(100);
-            println!("double your number is {}", num * 2.);
+            if let Some(num) = num {
+                println!("double your number is {}", num * 2.);
+            } else {
+                println!("you cancelled the dialogue box");
+            }
         });
 }

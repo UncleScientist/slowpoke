@@ -7,6 +7,10 @@ fn main() {
         .run(|turtle| {
             let name = turtle.textinput("This is a request...", "What is your name");
             turtle.forward(100);
-            println!("your name is {name}");
+            if let Some(name) = name {
+                println!("your name is {name}");
+            } else {
+                println!("ok, anonymous");
+            }
         });
 }
