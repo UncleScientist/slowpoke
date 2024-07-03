@@ -10,6 +10,7 @@ use popup::PopupData;
 use iced::{
     widget::{button, text},
     window::Id as WindowID,
+    Element,
 };
 
 use iced::keyboard::{Event::KeyPressed, Key};
@@ -683,10 +684,7 @@ impl Application for TurtleTask {
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
-    fn view(
-        &self,
-        win_id: WindowID,
-    ) -> iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> {
+    fn view(&self, win_id: WindowID) -> Element<Self::Message> {
         if win_id == WindowID::MAIN {
             Canvas::new(self)
                 .width(Length::Fill)
@@ -710,11 +708,10 @@ impl Application for TurtleTask {
                     text_input(&prompt, &popup.get_text())
                         .on_input(move |msg| Message::TextInputChanged(win_id, msg))
                         .on_submit(Message::TextInputSubmit(win_id, popup.get_text()));
-                let data: iced::Element<'_, Self::Message, Self::Theme, iced::Renderer> =
-                    container(column![text(prompt), text_field])
-                        .width(200)
-                        .center_x()
-                        .into();
+                let data: Element<Self::Message> = container(column![text(prompt), text_field])
+                    .width(200)
+                    .center_x()
+                    .into();
                 container(data)
                     .width(Length::Fill)
                     .height(Length::Fill)
