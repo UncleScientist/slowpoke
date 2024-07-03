@@ -10,6 +10,12 @@ fn main() {
         .with_size(600, 800)
         .with_title("a doraemon")
         .run(|turtle| {
+            fn move_to(turtle: &mut Turtle, x: f32, y: f32) {
+                turtle.penup();
+                turtle.goto(x, y);
+                turtle.pendown();
+            }
+
             fn taauko(turtle: &mut Turtle) {
                 turtle.penup();
                 turtle.circle(150, 40, 30);
@@ -81,10 +87,77 @@ fn main() {
                 turtle.forward(64);
             }
 
+            fn nak(turtle: &mut Turtle) {
+                move_to(turtle, -10., 158.);
+                turtle.setheading(315);
+                turtle.fillcolor("#e70010");
+                turtle.begin_fill();
+                turtle.circle(20, 360, 20);
+                turtle.end_fill();
+            }
+
+            fn mukh(turtle: &mut Turtle) {
+                move_to(turtle, 5., 148.);
+                turtle.setheading(270);
+                turtle.forward(100);
+                turtle.setheading(0);
+                turtle.circle(120, 50, 20);
+                turtle.setheading(230);
+                turtle.circle(-120, 100, 20);
+            }
+
+            fn daari(turtle: &mut Turtle) {
+                move_to(turtle, -32., 135.);
+                turtle.setheading(165);
+                turtle.forward(60);
+
+                move_to(turtle, -32., 125.);
+                turtle.setheading(180);
+                turtle.forward(60);
+
+                move_to(turtle, -32., 115.);
+                turtle.setheading(193);
+                turtle.forward(60);
+
+                move_to(turtle, 37., 135.);
+                turtle.setheading(15);
+                turtle.forward(60);
+
+                move_to(turtle, 37., 125.);
+                turtle.setheading(0);
+                turtle.forward(60);
+
+                move_to(turtle, 37., 115.);
+                turtle.setheading(-13);
+                turtle.forward(60);
+            }
+
             fn doraemon(turtle: &mut Turtle) {
                 taauko(turtle);
                 muflar(turtle);
                 face(turtle);
+                nak(turtle);
+                mukh(turtle);
+                daari(turtle);
+
+                move_to(turtle, 0., 0.);
+                turtle.setheading(0);
+                turtle.penup();
+                turtle.circle(150, 50, 20);
+                turtle.pendown();
+                turtle.setheading(30);
+                turtle.forward(40);
+                turtle.setheading(70);
+                turtle.circle(-30, 270, 20);
+
+                turtle.fillcolor("#00a0de");
+                turtle.begin_fill();
+                turtle.setheading(230);
+                turtle.forward(80);
+                turtle.setheading(90);
+                turtle.circle(1000, 1, 250);
+                turtle.setheading(-89);
+                turtle.circle(-1000, 10, 250);
             }
 
             turtle.bgcolor("#f0f0f0");
