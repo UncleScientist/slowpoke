@@ -8,7 +8,7 @@ mod popup;
 use popup::PopupData;
 
 use iced::{
-    widget::{button, horizontal_space, row, text, TextInput},
+    widget::{button, horizontal_space, row, text, vertical_space, TextInput},
     window::Id as WindowID,
     Element,
 };
@@ -653,14 +653,17 @@ impl Application for TurtleTask {
     fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
         match message {
             Message::Tick => self.tick(),
-            Message::AckError(id) => self.wcmds.push(window::close(id)),
+            Message::AckError(id) => {
+                let popup = self.popups.get_mut(&id).expect("looking up popup data");
+                popup.clear_error();
+            }
             Message::Event(event) => self.handle_event(event),
             Message::TextInputChanged(id, msg) => {
                 let popup = self.popups.get_mut(&id).expect("looking up popup data");
                 popup.set_message(&msg);
             }
             Message::TextInputSubmit(id) => {
-                let popup = self.popups.get(&id).expect("looking up popup data");
+                let popup = self.popups.get_mut(&id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
                         let tid = popup.id();
@@ -669,6 +672,8 @@ impl Application for TurtleTask {
                         self.wcmds.push(window::close(id));
                     }
                     Err(message) => {
+                        popup.set_error(message);
+                        /*
                         let (id, wcmd) = window::spawn(WindowSettings {
                             size: [250f32, 150f32].into(),
                             resizable: false,
@@ -678,6 +683,7 @@ impl Application for TurtleTask {
                         });
                         self.wcmds.push(wcmd);
                         self.popups.insert(id, PopupData::error_message(&message));
+                        */
                     }
                 }
             }
@@ -701,12 +707,22 @@ impl Application for TurtleTask {
             if let Some(error) = popup.get_error() {
                 container(
                     column![
-                        text(error),
-                        button("OK").on_press(Message::AckError(win_id))
+                        vertical_space(),
+                        row![horizontal_space(), text(error), horizontal_space()],
+                        vertical_space(),
+                        row![
+                            horizontal_space(),
+                            button("OK").on_press(Message::AckError(win_id)),
+                            horizontal_space(),
+                        ],
+                        vertical_space(),
                     ]
                     .width(200),
                 )
+                .width(Length::Fill)
+                .height(Length::Fill)
                 .center_x()
+                .center_y()
                 .into()
             } else {
                 let prompt = popup.prompt();

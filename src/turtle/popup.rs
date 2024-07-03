@@ -14,7 +14,7 @@ enum PopupType {
         prompt: String,
         text_input_field: String,
     },
-    ErrorMessage(String),
+    // ErrorMessage(String),
     #[default]
     Null,
 }
@@ -60,6 +60,7 @@ impl PopupType {
 #[derive(Default)]
 pub(super) struct PopupData {
     title: String,
+    err: Option<String>,
     popup: PopupType,
 }
 
@@ -74,6 +75,7 @@ impl PopupData {
     pub fn text_input(title: &str, prompt: &str, turtle_id: u64, which: usize) -> Self {
         Self {
             title: title.to_string(),
+            err: None,
             popup: PopupType::TextInput {
                 prompt: prompt.to_string(),
                 turtle_id,
@@ -86,6 +88,7 @@ impl PopupData {
     pub fn num_input(title: &str, prompt: &str, turtle_id: u64, which: usize) -> Self {
         Self {
             title: title.to_string(),
+            err: None,
             popup: PopupType::NumericalInput {
                 prompt: prompt.to_string(),
                 turtle_id,
@@ -145,18 +148,15 @@ impl PopupData {
         }
     }
 
-    pub(crate) fn error_message(message: &str) -> PopupData {
-        PopupData {
-            title: "".to_string(),
-            popup: PopupType::ErrorMessage(message.to_string()),
-        }
+    pub(crate) fn get_error(&self) -> &Option<String> {
+        &self.err
     }
 
-    pub(crate) fn get_error(&self) -> Option<String> {
-        if let PopupType::ErrorMessage(msg) = &self.popup {
-            Some(msg.clone())
-        } else {
-            None
-        }
+    pub(crate) fn set_error<S: Into<String>>(&mut self, msg: S) {
+        self.err = Some(msg.into());
+    }
+
+    pub(crate) fn clear_error(&mut self) {
+        self.err = None;
     }
 }
