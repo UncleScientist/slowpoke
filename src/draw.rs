@@ -1,6 +1,7 @@
 use iced::Size;
 
 mod circle;
+mod dot;
 
 use crate::{
     color_names::TurtleColor,
@@ -212,12 +213,6 @@ impl Turtle {
 
     pub fn home(&mut self) {
         self.goto(0., 0.);
-    }
-    pub fn dot<C: Into<TurtleColor>>(&mut self, width: Option<f32>, color: C) {
-        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Dot(
-            width,
-            color.into(),
-        )));
     }
 
     pub fn stamp(&mut self) -> StampID {

@@ -1,4 +1,4 @@
-use slowpoke::{color_names::TurtleColor, *};
+use slowpoke::*;
 
 fn main() {
     TurtleArgs::default()
@@ -7,8 +7,8 @@ fn main() {
         .run(|turtle| {
             turtle.speed(5);
             turtle.bgcolor("grey");
-            turtle.dot(None, TurtleColor::CurrentColor);
-            turtle.dot(None, "blue");
+            turtle.dot();
+            turtle.dot().with_color("blue");
             turtle.right(0);
             println!(
                 "starting at {:?}, heading of {:?}",
@@ -46,7 +46,7 @@ fn main() {
             turtle.forward(100);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
-            turtle.dot(Some(20.), (0.8, 0.4, 0.5));
+            turtle.dot().with_size(20).with_color((0.8, 0.4, 0.5));
 
             turtle.right(90);
             turtle.backward(100);
@@ -54,6 +54,8 @@ fn main() {
 
             turtle.setx(-175);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
+
+            turtle.dot().with_size(10);
 
             println!("press return to finish");
             let mut s = String::new();

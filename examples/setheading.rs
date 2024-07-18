@@ -6,7 +6,7 @@ fn main() {
         .with_title("heading demo")
         .run(|turtle| {
             turtle.speed(1);
-            turtle.dot(Some(3.), "red");
+            turtle.dot().with_size(3).with_color("red");
             turtle.teleport(10, 20);
             println!("teleported to 10,20; pos = {:?}", turtle.pos());
 

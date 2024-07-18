@@ -1,4 +1,4 @@
-use slowpoke::{color_names::TurtleColor, *};
+use slowpoke::*;
 
 fn main() {
     TurtleArgs::default()
@@ -6,7 +6,7 @@ fn main() {
         .with_title("headings")
         .run(|turtle| {
             turtle.goto(90, 160);
-            turtle.dot(None, TurtleColor::CurrentColor);
+            turtle.dot();
 
             turtle.goto(-50, 17);
             let h = turtle.towards(90, 160);
