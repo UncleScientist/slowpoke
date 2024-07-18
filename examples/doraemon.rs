@@ -18,11 +18,11 @@ fn main() {
 
             fn taauko(turtle: &mut Turtle) {
                 turtle.penup();
-                turtle.circle(150, 40, 30);
+                turtle.extent(40).circle(150);
                 turtle.pendown();
                 turtle.fillcolor("#00a0de");
                 turtle.begin_fill();
-                turtle.circle(150, 280, 30);
+                turtle.extent(280).circle(150);
                 turtle.end_fill();
             }
 
@@ -31,13 +31,13 @@ fn main() {
                 turtle.begin_fill();
                 turtle.setheading(0);
                 turtle.forward(200);
-                turtle.circle(-5, 90, 10);
+                turtle.extent(90).circle(-5);
                 turtle.forward(10);
-                turtle.circle(-5, 90, 10);
+                turtle.extent(90).circle(-5);
                 turtle.forward(207);
-                turtle.circle(-5, 90, 10);
+                turtle.extent(90).circle(-5);
                 turtle.forward(10);
-                turtle.circle(-5, 90, 10);
+                turtle.extent(90).circle(-5);
 
                 turtle.end_fill();
             }
@@ -66,12 +66,12 @@ fn main() {
                 turtle.left(45);
                 turtle.fillcolor("#ffffff");
                 turtle.begin_fill();
-                turtle.circle(120, 100, 25);
+                turtle.extent(100).circle(120);
                 turtle.setheading(180);
                 turtle.forward(121);
                 turtle.pendown();
                 turtle.setheading(215);
-                turtle.circle(120, 100, 25);
+                turtle.extent(100).circle(120);
                 turtle.end_fill();
                 turtle.teleport(63.56, 218.24);
                 turtle.setheading(90);
@@ -92,7 +92,7 @@ fn main() {
                 turtle.setheading(315);
                 turtle.fillcolor("#e70010");
                 turtle.begin_fill();
-                turtle.circle(20, 360, 20);
+                turtle.circle(20);
                 turtle.end_fill();
             }
 
@@ -101,9 +101,9 @@ fn main() {
                 turtle.setheading(270);
                 turtle.forward(100);
                 turtle.setheading(0);
-                turtle.circle(120, 50, 20);
+                turtle.extent(50).circle(120);
                 turtle.setheading(230);
-                turtle.circle(-120, 100, 20);
+                turtle.extent(100).circle(-120);
             }
 
             fn daari(turtle: &mut Turtle) {
@@ -143,21 +143,21 @@ fn main() {
                 move_to(turtle, 0., 0.);
                 turtle.setheading(0);
                 turtle.penup();
-                turtle.circle(150, 50, 20);
+                turtle.extent(50).circle(150);
                 turtle.pendown();
                 turtle.setheading(30);
                 turtle.forward(40);
                 turtle.setheading(70);
-                turtle.circle(-30, 270, 20);
+                turtle.extent(270).circle(-30);
 
                 turtle.fillcolor("#00a0de");
                 turtle.begin_fill();
                 turtle.setheading(230);
                 turtle.forward(80);
                 turtle.setheading(90);
-                turtle.circle(1000, 1, 250);
+                turtle.extent(1).circle(1000);
                 turtle.setheading(-89);
-                turtle.circle(-1000, 10, 250);
+                turtle.extent(10).circle(-1000);
             }
 
             turtle.bgcolor("#f0f0f0");

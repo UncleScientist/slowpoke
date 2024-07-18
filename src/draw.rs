@@ -87,11 +87,23 @@ impl Turtle {
         ));
     }
 
+    pub fn fd<N: Copy + Into<f64>>(&mut self, distance: N) {
+        self.forward(distance);
+    }
+
     pub fn forward<N: Copy + Into<f64>>(&mut self, distance: N) {
         let distance = distance.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
             MotionCmd::Forward(distance),
         )));
+    }
+
+    pub fn bk<N: Into<f64>>(&mut self, distance: N) {
+        self.backward(distance);
+    }
+
+    pub fn back<N: Into<f64>>(&mut self, distance: N) {
+        self.backward(distance);
     }
 
     pub fn backward<N: Into<f64>>(&mut self, distance: N) {
@@ -101,6 +113,10 @@ impl Turtle {
         )));
     }
 
+    pub fn rt<N: Into<f64>>(&mut self, rotation: N) {
+        self.right(rotation);
+    }
+
     pub fn right<N: Into<f64>>(&mut self, rotation: N) {
         let rotation = rotation.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Rotate(
@@ -108,11 +124,19 @@ impl Turtle {
         )));
     }
 
+    pub fn lt<N: Into<f64>>(&mut self, rotation: N) {
+        self.left(rotation);
+    }
+
     pub fn left<N: Into<f64>>(&mut self, rotation: N) {
         let rotation = rotation.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Rotate(
             RotateCmd::Left(rotation),
         )));
+    }
+
+    pub fn seth<N: Into<f64>>(&mut self, heading: N) {
+        self.setheading(heading);
     }
 
     pub fn setheading<N: Into<f64>>(&mut self, heading: N) {
@@ -136,6 +160,14 @@ impl Turtle {
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::Tracer(trace),
         ));
+    }
+
+    pub fn setpos<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        self.goto(xpos, ypos);
+    }
+
+    pub fn setposition<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        self.goto(xpos, ypos);
     }
 
     pub fn goto<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
@@ -180,11 +212,27 @@ impl Turtle {
         self.goto(0., 0.);
     }
 
-    pub fn circle<R: Into<f64>, E: Into<f64>>(&mut self, radius: R, extent: E, steps: usize) {
+    pub fn extent<E: Into<f64>>(&mut self, extent: E) -> Extent {
+        Extent::new(self, extent.into())
+    }
+
+    pub fn steps(&mut self, steps: usize) -> Steps {
+        Steps::new(self, steps)
+    }
+
+    fn circle_full<R: Into<f64>, E: Into<f64>>(&mut self, radius: R, extent: E, steps: usize) {
         let radius = radius.into() as f32;
         let extent = extent.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Circle(
             radius, extent, steps,
+        )));
+    }
+
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) {
+        self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Circle(
+            radius.into() as f32,
+            360.,
+            42,
         )));
     }
 
@@ -295,5 +343,64 @@ impl Turtle {
             Response::Cancel => None,
             bad_response => panic!("invalid response '{bad_response:?}' from turtle"),
         }
+    }
+}
+
+pub struct Extent<'a> {
+    extent: f64,
+    turtle: &'a mut Turtle,
+}
+
+impl<'a> Extent<'a> {
+    pub(crate) fn new(turtle: &'a mut Turtle, extent: f64) -> Self {
+        Self { extent, turtle }
+    }
+
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) {
+        self.turtle.circle_full(radius.into(), self.extent, 20);
+    }
+
+    pub fn steps(self, steps: usize) -> ExtentAndSteps<'a> {
+        ExtentAndSteps {
+            extent: self.extent,
+            steps,
+            turtle: self.turtle,
+        }
+    }
+}
+
+pub struct Steps<'a> {
+    steps: usize,
+    turtle: &'a mut Turtle,
+}
+
+impl<'a> Steps<'a> {
+    pub(crate) fn new(turtle: &'a mut Turtle, steps: usize) -> Self {
+        Self { steps, turtle }
+    }
+
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) {
+        self.turtle.circle_full(radius.into(), 360., self.steps);
+    }
+
+    pub fn extent<E: Into<f64>>(self, extent: E) -> ExtentAndSteps<'a> {
+        ExtentAndSteps {
+            extent: extent.into(),
+            steps: self.steps,
+            turtle: self.turtle,
+        }
+    }
+}
+
+pub struct ExtentAndSteps<'a> {
+    extent: f64,
+    steps: usize,
+    turtle: &'a mut Turtle,
+}
+
+impl<'a> ExtentAndSteps<'a> {
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) {
+        self.turtle
+            .circle_full(radius.into(), self.extent, self.steps);
     }
 }

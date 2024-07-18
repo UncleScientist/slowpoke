@@ -10,10 +10,10 @@ fn main() {
             turtle.speed(1);
             turtle.tracer(false);
             for i in 3..20 {
-                turtle.circle(10 + i as u32 * 10, 360., i);
+                turtle.steps(i).circle(10 + i as u32 * 10);
             }
             for i in 3..20 {
-                turtle.circle(-(10 + i as i32 * 10), 360., i);
+                turtle.steps(i).circle(-(10. + i as f64 * 10.));
             }
             turtle.tracer(true);
         });
