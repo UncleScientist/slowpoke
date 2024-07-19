@@ -239,6 +239,28 @@ impl Turtle {
         }
     }
 
+    pub fn position(&mut self) -> ScreenPosition<isize> {
+        self.pos()
+    }
+
+    pub fn xcor(&mut self) -> isize {
+        self.pos().x
+    }
+
+    pub fn ycor(&mut self) -> isize {
+        self.pos().y
+    }
+
+    pub fn distance<D: Into<ScreenPosition<isize>>>(&mut self, other: D) -> f64 {
+        let self_pos = self.pos();
+        let other_pos: ScreenPosition<isize> = other.into();
+
+        let dx = (other_pos.x - self_pos.x) as f64;
+        let dy = (other_pos.y - self_pos.y) as f64;
+
+        (dx * dx + dy * dy).sqrt()
+    }
+
     pub fn heading(&mut self) -> f32 {
         if let Response::Heading(angle) = self.do_data(DataCmd::Heading) {
             angle
@@ -315,5 +337,11 @@ impl Turtle {
             Response::Cancel => None,
             bad_response => panic!("invalid response '{bad_response:?}' from turtle"),
         }
+    }
+}
+
+impl From<&mut Turtle> for ScreenPosition<isize> {
+    fn from(other_turtle: &mut Turtle) -> Self {
+        other_turtle.pos()
     }
 }
