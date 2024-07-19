@@ -302,6 +302,8 @@ impl TurtleData {
             }
             match &command {
                 DrawCommand::Line(lineinfo) => {
+                    // TODO: when "teleporting" instead of goto/setpos, we're only supposed
+                    // to continue the current polygon if fill_gap=True (see python docs)
                     self.fill_poly.update(lineinfo.end);
                     self.shape_poly.update(lineinfo.end);
                     self.elements.push(command);
