@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, VecDeque},
     f32::consts::PI,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
@@ -82,7 +83,7 @@ pub struct Turtle {
     issue_command: Sender<Request>,
     command_complete: Receiver<Response>,
     turtle_id: u64,
-    pub tracer: bool,
+    tracer: RefCell<bool>,
 }
 
 enum ClearDirection {
@@ -130,7 +131,7 @@ impl Turtle {
             issue_command,
             command_complete,
             turtle_id,
-            tracer: true,
+            tracer: true.into(),
         }
     }
 
@@ -142,15 +143,15 @@ impl Turtle {
         let _ = self.do_command(Command::Screen(cmd));
     }
 
-    pub(crate) fn do_input(&mut self, cmd: InputCmd) {
+    pub(crate) fn do_input(&self, cmd: InputCmd) {
         let _ = self.do_command(Command::Input(cmd));
     }
 
-    pub(crate) fn do_data(&mut self, cmd: DataCmd) -> Response {
+    pub(crate) fn do_data(&self, cmd: DataCmd) -> Response {
         self.do_command(Command::Data(cmd))
     }
 
-    pub(crate) fn do_hatch(&mut self) -> Turtle {
+    pub(crate) fn do_hatch(&self) -> Turtle {
         let response = self.do_command(Command::Hatch);
         if let Response::Turtle(t) = response {
             t
@@ -166,16 +167,16 @@ impl Turtle {
         }
     }
 
-    fn do_command(&mut self, cmd: Command) -> Response {
+    fn do_command(&self, cmd: Command) -> Response {
         let is_data_cmd = matches!(cmd, Command::Data(_));
-        let tracer_was_off = self.tracer;
+        let tracer_was_off = *self.tracer.borrow();
         if let Command::Draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t))) = &cmd
         {
-            self.tracer = *t;
+            *self.tracer.borrow_mut() = *t;
         }
 
         if self.issue_command.send(self.req(cmd)).is_ok() {
-            if self.tracer {
+            if *self.tracer.borrow() {
                 if tracer_was_off {
                     // need to consume all but the last response
                     let saved_response = self.command_complete.recv();

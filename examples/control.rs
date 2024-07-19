@@ -5,7 +5,7 @@ fn main() {
 
     Turtle::run(&ta, |turtle| {
         turtle.onkey(left, 'h');
-        let mut t1 = turtle.hatch();
+        let t1 = turtle.hatch();
         t1.onkey(right, 'j');
 
         turtle.onkey(forward20, 'w');

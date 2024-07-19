@@ -215,6 +215,7 @@ impl Turtle {
         self.goto(0., 0.);
     }
 
+    // TODO: this changes the turtle's state even though we're calling do_data()
     pub fn stamp(&mut self) -> StampID {
         let response = self.do_data(DataCmd::Stamp);
         if let Response::StampID(id) = response {
@@ -231,7 +232,7 @@ impl Turtle {
     /*
      * Info requests
      */
-    pub fn pos(&mut self) -> ScreenPosition<isize> {
+    pub fn pos(&self) -> ScreenPosition<isize> {
         if let Response::Position(pos) = self.do_data(DataCmd::Position) {
             [pos.x, -pos.y].into()
         } else {
@@ -239,19 +240,19 @@ impl Turtle {
         }
     }
 
-    pub fn position(&mut self) -> ScreenPosition<isize> {
+    pub fn position(&self) -> ScreenPosition<isize> {
         self.pos()
     }
 
-    pub fn xcor(&mut self) -> isize {
+    pub fn xcor(&self) -> isize {
         self.pos().x
     }
 
-    pub fn ycor(&mut self) -> isize {
+    pub fn ycor(&self) -> isize {
         self.pos().y
     }
 
-    pub fn distance<D: Into<ScreenPosition<isize>>>(&mut self, other: D) -> f64 {
+    pub fn distance<D: Into<ScreenPosition<isize>>>(&self, other: D) -> f64 {
         let self_pos = self.pos();
         let other_pos: ScreenPosition<isize> = other.into();
 
@@ -261,7 +262,7 @@ impl Turtle {
         (dx * dx + dy * dy).sqrt()
     }
 
-    pub fn heading(&mut self) -> f32 {
+    pub fn heading(&self) -> f32 {
         if let Response::Heading(angle) = self.do_data(DataCmd::Heading) {
             angle
         } else {
@@ -269,7 +270,7 @@ impl Turtle {
         }
     }
 
-    pub fn towards<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) -> f32 {
+    pub fn towards<X: Into<f64>, Y: Into<f64>>(&self, xpos: X, ypos: Y) -> f32 {
         let x = xpos.into() as f32;
         let y = ypos.into() as f32;
         if let Response::Heading(angle) = self.do_data(DataCmd::Towards(x, y)) {
@@ -279,7 +280,7 @@ impl Turtle {
         }
     }
 
-    pub fn undobufferentries(&mut self) -> usize {
+    pub fn undobufferentries(&self) -> usize {
         if let Response::Count(count) = self.do_data(DataCmd::UndoBufferEntries) {
             count
         } else {
@@ -287,7 +288,7 @@ impl Turtle {
         }
     }
 
-    pub fn shape<S: Into<TurtleShapeName>>(&mut self, shape: S) -> String {
+    pub fn shape<S: Into<TurtleShapeName>>(&self, shape: S) -> String {
         if let Response::Name(shape) = self.do_data(DataCmd::TurtleShape(shape.into())) {
             shape
         } else {
@@ -295,7 +296,7 @@ impl Turtle {
         }
     }
 
-    pub fn get_poly(&mut self) -> Vec<[f32; 2]> {
+    pub fn get_poly(&self) -> Vec<[f32; 2]> {
         if let Response::Polygon(polygon) = self.do_data(DataCmd::GetPoly) {
             polygon
         } else {
@@ -303,7 +304,7 @@ impl Turtle {
         }
     }
 
-    pub fn isvisible(&mut self) -> bool {
+    pub fn isvisible(&self) -> bool {
         if let Response::Visibility(can_see) = self.do_data(DataCmd::Visibility) {
             can_see
         } else {
@@ -311,7 +312,7 @@ impl Turtle {
         }
     }
 
-    pub fn getscreensize(&mut self) -> Size {
+    pub fn getscreensize(&self) -> Size {
         if let Response::ScreenSize(size) = self.do_data(DataCmd::GetScreenSize) {
             size
         } else {
@@ -323,7 +324,7 @@ impl Turtle {
      * popup requests
      */
 
-    pub fn textinput(&mut self, title: &str, prompt: &str) -> Option<String> {
+    pub fn textinput(&self, title: &str, prompt: &str) -> Option<String> {
         match self.do_data(DataCmd::TextInput(title.into(), prompt.into())) {
             Response::TextInput(string) => Some(string),
             Response::Cancel => None,
@@ -331,7 +332,7 @@ impl Turtle {
         }
     }
 
-    pub fn numinput(&mut self, title: &str, prompt: &str) -> Option<f32> {
+    pub fn numinput(&self, title: &str, prompt: &str) -> Option<f32> {
         match self.do_data(DataCmd::NumInput(title.into(), prompt.into())) {
             Response::NumInput(num) => Some(num),
             Response::Cancel => None,
@@ -340,8 +341,8 @@ impl Turtle {
     }
 }
 
-impl From<&mut Turtle> for ScreenPosition<isize> {
-    fn from(other_turtle: &mut Turtle) -> Self {
+impl From<&Turtle> for ScreenPosition<isize> {
+    fn from(other_turtle: &Turtle) -> Self {
         other_turtle.pos()
     }
 }

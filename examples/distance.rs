@@ -11,7 +11,7 @@ fn main() {
             other_turtle.goto(50, 50);
             println!(
                 "distance to other turtle: {}",
-                turtle.distance(&mut other_turtle)
+                turtle.distance(&other_turtle)
             );
         });
 }
