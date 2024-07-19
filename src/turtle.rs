@@ -435,7 +435,7 @@ impl TurtleData {
 
     fn send_response(&mut self, turtle_id: u64, is_stamp: bool) {
         let _ = self.responder[&turtle_id].send(if is_stamp {
-            Response::StampID(self.elements.len())
+            Response::StampID(self.elements.len() - 1)
         } else {
             Response::Done
         });
