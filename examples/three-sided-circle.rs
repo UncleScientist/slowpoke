@@ -7,6 +7,6 @@ fn main() {
         .run(|turtle| {
             turtle.teleport(0, -300);
             turtle.speed(1);
-            turtle.steps(3).circle(300);
+            turtle.circle(300).with_steps(3);
         });
 }

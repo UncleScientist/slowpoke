@@ -9,8 +9,8 @@ fn main() {
             turtle.right(90);
             turtle.speed(1);
             turtle.pencolor("green");
-            turtle.extent(180).circle(125);
+            turtle.circle(125).with_extent(180);
             turtle.pencolor("grey");
-            turtle.extent(270).circle(50);
+            turtle.circle(50).with_extent(270);
         });
 }
