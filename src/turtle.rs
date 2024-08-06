@@ -43,6 +43,26 @@ use crate::{
 
 type IcedCommand<T> = iced::Command<T>;
 
+//
+// whenver we get a new command from the turtle, we're going to add to
+// the Turtle::iced_draw_commands vec. We need to convert the command into
+// drawing coordinates first (see the CurrentTurtleState::apply function),
+// and then from those coordinates into Iced Stroke/Fill for paths.
+//
+// Once the conversion is done, we should be able just draw in a fast loop.
+//
+// Complications:
+// 1/ When we draw lines, or move the turtle, we want to see it happen via
+//    animation. This means that the most recent command happens over a period
+//    of time.
+//
+// 2/ When we get a new command, we want to see if we can "attach" it to a
+//    previous command. For example, two lines in a row, separated by a
+//    rotation, should be able to be a single path with a single stroke.
+//
+// 3/ If the user modifies the pencolor/penwidth values, then we need to start
+//    a new path/stroke.
+//
 #[derive(Debug)]
 enum IcedDrawCmd {
     Stroke(Path, Color, f32),
@@ -340,7 +360,6 @@ impl TurtleData {
                     self.elements.push(command);
                 }
             }
-            self.convert_to_iced();
         }
     }
 
@@ -380,6 +399,7 @@ impl TurtleData {
             }
         }
         self.do_next_command();
+        self.convert_to_iced();
     }
 
     fn do_next_command(&mut self) {
@@ -484,9 +504,24 @@ impl TurtleData {
         self.iced_commands.clear();
 
         let mut iter = self.elements.iter().peekable();
+        let mut cur_path: Vec<Point> = Vec::new();
 
         while let Some(element) = iter.next() {
             let last_element = iter.peek().is_none() && self.percent < 1.;
+            if !matches!(element, DrawCommand::Line(..))
+                && !matches!(element, DrawCommand::SetHeading(..))
+                && !cur_path.is_empty()
+            {
+                let path = Path::new(|b| {
+                    b.move_to(cur_path[0]);
+                    for pos in &cur_path[1..] {
+                        b.line_to(*pos);
+                    }
+                });
+                cur_path = Vec::new();
+                self.iced_commands
+                    .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+            }
             match element {
                 DrawCommand::Filler => {}
                 DrawCommand::StampTurtle => todo!(),
@@ -503,12 +538,10 @@ impl TurtleData {
                     }
                     .into();
                     if l.pen_down {
-                        let path = Path::new(|b| {
-                            b.move_to(start);
-                            b.line_to(end);
-                        });
-                        self.iced_commands
-                            .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                        if cur_path.is_empty() {
+                            cur_path.push(start);
+                        }
+                        cur_path.push(end);
                     }
                 }
                 DrawCommand::SetPenColor(pc) => {
@@ -564,16 +597,14 @@ impl TurtleData {
                             while let Some(p) = iter.next() {
                                 let (end_angle, end) = p[1].get_data();
                                 let last_segment = iter.peek().is_none();
-                                let end = if last_element && last_segment {
+                                tpos = end;
+                                if last_element && last_segment {
                                     let (_, begin) = p[0].get_data();
                                     let endx = begin[0] + (end[0] - begin[0]) * subpercent;
                                     let endy = begin[1] + (end[1] - begin[1]) * subpercent;
                                     tpos = [endx, endy];
-                                    [endx, endy]
-                                } else {
-                                    end
-                                };
-                                b.line_to(end.into());
+                                }
+                                b.line_to(tpos.into());
                                 trot = end_angle;
                             }
                         });
@@ -583,6 +614,17 @@ impl TurtleData {
                     }
                 }
             }
+        }
+
+        if !cur_path.is_empty() {
+            let path = Path::new(|b| {
+                b.move_to(cur_path[0]);
+                for pos in &cur_path[1..] {
+                    b.line_to(*pos);
+                }
+            });
+            self.iced_commands
+                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
         }
 
         if !self.turtle_invisible {
