@@ -44,6 +44,12 @@ use crate::{
 type IcedCommand<T> = iced::Command<T>;
 
 #[derive(Debug)]
+enum IcedDrawCmd {
+    Stroke(Path, Color, f32),
+    Fill(Path, Color),
+}
+
+#[derive(Debug)]
 struct TurtleCommand {
     cmd: DrawRequest,
     turtle_id: u64,
@@ -269,6 +275,7 @@ pub(crate) struct TurtleData {
     queue: VecDeque<TurtleCommand>,       // new elements to draw
     current_command: Option<DrawRequest>, // what we're drawing now
     elements: Vec<DrawCommand>,
+    iced_commands: Vec<IcedDrawCmd>,
     current_shape: CurrentTurtleState,
 
     current_turtle_id: u64, // which thread to notify on completion
@@ -333,6 +340,7 @@ impl TurtleData {
                     self.elements.push(command);
                 }
             }
+            self.convert_to_iced();
         }
     }
 
@@ -442,7 +450,29 @@ impl TurtleData {
         });
     }
 
-    fn draw_iced(&self, frame: &mut canvas::Frame) {
+    fn draw(&self, frame: &mut canvas::Frame) {
+        for draw_iced_cmd in &self.iced_commands {
+            match draw_iced_cmd {
+                IcedDrawCmd::Stroke(path, pencolor, penwidth) => frame.stroke(
+                    path,
+                    Stroke {
+                        style: stroke::Style::Solid(*pencolor),
+                        width: *penwidth,
+                        ..Stroke::default()
+                    },
+                ),
+                IcedDrawCmd::Fill(path, fillcolor) => frame.fill(
+                    path,
+                    Fill {
+                        style: stroke::Style::Solid(*fillcolor),
+                        rule: Rule::EvenOdd,
+                    },
+                ),
+            }
+        }
+    }
+
+    fn convert_to_iced(&mut self) {
         let mut pencolor = Color::BLACK;
         let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
@@ -450,6 +480,8 @@ impl TurtleData {
 
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
+
+        self.iced_commands.clear();
 
         let mut iter = self.elements.iter().peekable();
 
@@ -475,14 +507,8 @@ impl TurtleData {
                             b.move_to(start);
                             b.line_to(end);
                         });
-                        frame.stroke(
-                            &path,
-                            Stroke {
-                                style: stroke::Style::Solid(pencolor),
-                                width: penwidth,
-                                ..Stroke::default()
-                            },
-                        );
+                        self.iced_commands
+                            .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                     }
                 }
                 DrawCommand::SetPenColor(pc) => {
@@ -493,14 +519,8 @@ impl TurtleData {
                     fillcolor = fc.into();
                 }
                 DrawCommand::DrawPolygon(p) => {
-                    let path = p.get_path();
-                    frame.fill(
-                        path,
-                        Fill {
-                            style: stroke::Style::Solid(fillcolor),
-                            rule: Rule::EvenOdd,
-                        },
-                    );
+                    self.iced_commands
+                        .push(IcedDrawCmd::Fill(p.get_path().clone(), fillcolor));
                 }
                 DrawCommand::SetHeading(start, end) => {
                     let rotation = if last_element {
@@ -513,13 +533,8 @@ impl TurtleData {
                 DrawCommand::DrawDot(center, radius, color) => {
                     let center: Point = Point::new(center.x, center.y);
                     let circle = Path::circle(center, *radius);
-                    frame.fill(
-                        &circle,
-                        Fill {
-                            style: stroke::Style::Solid(color.into()),
-                            rule: Rule::NonZero,
-                        },
-                    );
+                    self.iced_commands
+                        .push(IcedDrawCmd::Fill(circle, color.into()));
                 }
                 DrawCommand::EndFill(_) => {}
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
@@ -527,21 +542,10 @@ impl TurtleData {
                     let angle = Angle::degrees(*angle);
                     let xform = Transform2D::rotation(angle).then_translate([pos.x, pos.y].into());
                     let path = path.transform(&xform);
-                    frame.fill(
-                        &path,
-                        Fill {
-                            style: stroke::Style::Solid(fillcolor),
-                            rule: Rule::NonZero,
-                        },
-                    );
-                    frame.stroke(
-                        &path,
-                        Stroke {
-                            style: stroke::Style::Solid(pencolor),
-                            width: penwidth,
-                            ..Stroke::default()
-                        },
-                    );
+                    self.iced_commands
+                        .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+                    self.iced_commands
+                        .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                 }
                 DrawCommand::Circle(points) => {
                     if points[0].pen_down {
@@ -574,14 +578,8 @@ impl TurtleData {
                             }
                         });
 
-                        frame.stroke(
-                            &path,
-                            Stroke {
-                                style: stroke::Style::Solid(pencolor),
-                                width: penwidth,
-                                ..Stroke::default()
-                            },
-                        );
+                        self.iced_commands
+                            .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                     }
                 }
             }
@@ -592,21 +590,10 @@ impl TurtleData {
             let angle = Angle::degrees(trot);
             let transform = Transform2D::rotation(angle).then_translate(tpos.into());
             let path = path.transform(&transform);
-            frame.fill(
-                &path,
-                Fill {
-                    style: stroke::Style::Solid(fillcolor),
-                    rule: Rule::EvenOdd,
-                },
-            );
-            frame.stroke(
-                &path,
-                Stroke {
-                    style: stroke::Style::Solid(pencolor),
-                    width: penwidth,
-                    ..Stroke::default()
-                },
-            );
+            self.iced_commands
+                .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+            self.iced_commands
+                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
         }
     }
 }
@@ -811,7 +798,7 @@ impl<Message> canvas::Program<Message> for TurtleTask {
             );
             frame.translate([center.x, center.y].into());
             for turtle in &self.data {
-                turtle.draw_iced(frame);
+                turtle.draw(frame);
             }
         });
         vec![geometry]
