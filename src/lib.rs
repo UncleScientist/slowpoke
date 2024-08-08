@@ -8,6 +8,7 @@ pub mod color_names;
 mod command;
 mod draw;
 mod generate;
+mod gui;
 mod input;
 mod polygon;
 pub mod speed;
