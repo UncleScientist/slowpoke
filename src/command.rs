@@ -1,5 +1,3 @@
-use iced::Size;
-
 use crate::{
     color_names::TurtleColor,
     polygon::{TurtlePolygon, TurtleShapeName},
@@ -68,7 +66,7 @@ pub enum ScreenCmd {
     EndPoly,
     Speed(TurtleSpeed),
     ShowTurtle(bool),
-    SetSize(Size),
+    SetSize([isize; 2]),
 }
 
 #[derive(Copy, Clone, Debug)]

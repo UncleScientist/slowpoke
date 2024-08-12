@@ -1,27 +1,29 @@
+mod popup;
+
 use crate::generate::DrawCommand;
 
 pub(crate) mod iced_gui;
 
 pub(crate) trait TurtleGui: Default + Sized {
     // Generate a new connection to the windowing system
-    fn new_connection() -> Self;
+    fn new_turtle(&mut self) -> usize;
 
     // Call this to update the current location of the turtle, along with
     // whatever line is being drawn behind it (if any)
-    fn current_command(&mut self, cmd: DrawCommand);
+    fn current_command(&mut self, turtle_id: usize, cmd: DrawCommand);
 
     // Call this to add a drawing command to the screen. These will be drawn
     // before the "current_command" gets drawn
-    fn append_command(&mut self, cmd: DrawCommand);
+    fn append_command(&mut self, turtle_id: usize, cmd: DrawCommand);
 
     // Save the drawing position for a fill command
-    fn get_position(&self) -> usize;
+    fn get_position(&self, turtle_id: usize) -> usize;
 
     // backfill a polygon at a given position
-    fn fill_polygon(&mut self, cmd: DrawCommand, index: usize);
+    fn fill_polygon(&mut self, turtle_id: usize, cmd: DrawCommand, index: usize);
 
     // undo last command
-    fn undo(&mut self);
+    fn undo(&mut self, turtle_id: usize);
 
     // needs functions for:
     //  - numinput

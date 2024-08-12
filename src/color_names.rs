@@ -6,6 +6,12 @@ pub enum TurtleColor {
     Color(f32, f32, f32),
 }
 
+impl Default for TurtleColor {
+    fn default() -> Self {
+        Self::Color(0., 0., 0.)
+    }
+}
+
 impl From<[f32; 4]> for TurtleColor {
     fn from(color: [f32; 4]) -> TurtleColor {
         TurtleColor::Color(color[0], color[1], color[2])

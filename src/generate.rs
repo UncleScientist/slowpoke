@@ -12,14 +12,14 @@ use crate::{
     ScreenPosition,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct LineInfo {
     pub begin: ScreenPosition<isize>,
     pub end: ScreenPosition<isize>,
     pub pen_down: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct CirclePos {
     pub angle: f32,
     pub x: isize,
@@ -33,7 +33,7 @@ impl CirclePos {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
     Filler,
     StampTurtle,

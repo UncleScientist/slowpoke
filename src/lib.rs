@@ -1,7 +1,7 @@
 use command::Command;
-use iced::Size;
 use lyon_tessellation::geom::euclid::{Point2D, UnknownUnit};
 pub use polygon::TurtleShapeName;
+use turtle::TurtleID;
 pub use turtle::{Turtle, TurtleArgs};
 
 pub mod color_names;
@@ -45,13 +45,13 @@ pub enum Response {
     Name(String),
     Polygon(Vec<[f32; 2]>),
     Visibility(bool),
-    ScreenSize(Size),
+    ScreenSize([isize; 2]),
     TextInput(String),
     NumInput(f32),
 }
 
 #[derive(Debug)]
 pub struct Request {
-    turtle_id: u64,
+    turtle_id: TurtleID,
     cmd: Command,
 }

@@ -1,5 +1,3 @@
-use iced::Size;
-
 mod circle;
 mod dot;
 
@@ -50,7 +48,7 @@ impl Turtle {
         self.do_screen(ScreenCmd::ShowTurtle(false));
     }
 
-    pub fn screensize<S: Into<Size>>(&mut self, s: S) {
+    pub fn screensize<S: Into<[isize; 2]>>(&mut self, s: S) {
         self.do_screen(ScreenCmd::SetSize(s.into()));
     }
 
@@ -312,7 +310,7 @@ impl Turtle {
         }
     }
 
-    pub fn getscreensize(&self) -> Size {
+    pub fn getscreensize(&self) -> [isize; 2] {
         if let Response::ScreenSize(size) = self.do_data(DataCmd::GetScreenSize) {
             size
         } else {

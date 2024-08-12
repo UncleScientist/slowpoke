@@ -5,28 +5,16 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
-mod popup;
-use popup::PopupData;
-
 use crate::gui::iced_gui::{IcedDrawCmd, IcedGui};
 
-use iced::{
-    widget::{button, horizontal_space, row, text, vertical_space, TextInput},
-    window::Id as WindowID,
-    Element,
-};
-
-use iced::keyboard::{Event::KeyPressed, Key};
-use iced::multi_window::Application;
 use iced::window::Event::Resized;
-use iced::window::Settings as WindowSettings;
 use iced::{
-    event, executor, mouse,
-    widget::{
-        canvas::{self, fill::Rule, stroke, Cache, Fill, Path, Stroke},
-        column, container, text_input, Canvas,
-    },
-    window, Color, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
+    keyboard::{Event::KeyPressed, Key},
+    widget::canvas,
+};
+use iced::{
+    widget::canvas::{fill::Rule, stroke, Fill, Path, Stroke},
+    window, Color, Event, Point,
 };
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
@@ -42,8 +30,6 @@ use crate::{
     speed::TurtleSpeed,
     Request, Response, ScreenPosition, TurtleShapeName,
 };
-
-type IcedCommand<T> = iced::Command<T>;
 
 //
 // whenver we get a new command from the turtle, we're going to add to
@@ -84,10 +70,12 @@ type IcedCommand<T> = iced::Command<T>;
 //       - iced->draw will draw all the converted ones, and then draw the
 //         the final "in progress" one
 
+pub(crate) type TurtleID = usize;
+
 #[derive(Debug)]
 struct TurtleCommand {
     cmd: DrawRequest,
-    turtle_id: u64,
+    turtle_id: TurtleID,
 }
 
 pub struct TurtleArgs {
@@ -123,7 +111,7 @@ impl TurtleArgs {
 pub struct Turtle {
     issue_command: Sender<Request>,
     command_complete: Receiver<Response>,
-    turtle_id: u64,
+    turtle_id: TurtleID,
     tracer: RefCell<bool>,
 }
 
@@ -146,28 +134,20 @@ impl Turtle {
 
         let flags = TurtleFlags {
             start_func: Some(Box::new(func)),
-            gui: Some(IcedGui::default()),
             issue_command: Some(issue_command),
             receive_command: Some(receive_command),
             title: args.title.clone(),
             size: [xsize, ysize],
         };
 
-        let _ = TurtleTask::<IcedGui>::run(Settings {
-            antialiasing: true,
-            flags,
-            window: window::Settings {
-                size: Size::new(xsize, ysize),
-                ..Default::default()
-            },
-            ..Settings::default()
-        });
+        // #[cfg(an option to specify the "iced" crate for the gui)]
+        IcedGui::start(flags);
     }
 
     pub(crate) fn init(
         issue_command: Sender<Request>,
         command_complete: Receiver<Response>,
-        turtle_id: u64,
+        turtle_id: TurtleID,
     ) -> Self {
         Self {
             issue_command,
@@ -314,11 +294,11 @@ pub(crate) struct TurtleInternalData {
     iced_commands: Vec<IcedDrawCmd>,
     current_shape: CurrentTurtleState,
 
-    current_turtle_id: u64, // which thread to notify on completion
+    current_turtle_id: TurtleID, // which thread to notify on completion
     percent: f32,
     progression: Progression,
     insert_fill: Option<usize>,
-    responder: HashMap<u64, Sender<Response>>,
+    responder: HashMap<TurtleID, Sender<Response>>,
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
     drawing_done: bool,
     turtle_invisible: bool,
@@ -332,20 +312,18 @@ pub(crate) struct TurtleInternalData {
 
 use crate::gui::TurtleGui;
 #[derive(Default)]
-pub(crate) struct TurtleData<G: TurtleGui> {
+pub(crate) struct TurtleData {
     data: TurtleInternalData,
-    gui: G,
 }
 
-impl<G: TurtleGui> TurtleData<G> {
-    fn new(gui: G) -> Self {
+impl TurtleData {
+    fn new() -> Self {
         Self {
             data: TurtleInternalData {
                 percent: 2.,
                 tracer: true,
                 ..TurtleInternalData::default()
             },
-            gui,
         }
     }
 
@@ -397,7 +375,7 @@ impl<G: TurtleGui> TurtleData<G> {
         }
     }
 
-    fn time_passes(&mut self, delta_t: f32) {
+    fn time_passes<G: TurtleGui>(&mut self, gui: &mut G, delta_t: f32) {
         let s = self.data.speed.get();
 
         self.data.drawing_done = s == 0
@@ -425,7 +403,7 @@ impl<G: TurtleGui> TurtleData<G> {
             }
         }
         self.do_next_command();
-        self.convert_to_iced();
+        self.convert_to_iced(gui);
     }
 
     fn do_next_command(&mut self) {
@@ -488,7 +466,7 @@ impl<G: TurtleGui> TurtleData<G> {
         }
     }
 
-    fn send_response(&mut self, turtle_id: u64, is_stamp: bool) {
+    fn send_response(&mut self, turtle_id: TurtleID, is_stamp: bool) {
         let _ = self.data.responder[&turtle_id].send(if is_stamp {
             Response::StampID(self.data.elements.len() - 1)
         } else {
@@ -518,7 +496,7 @@ impl<G: TurtleGui> TurtleData<G> {
         }
     }
 
-    fn convert_to_iced(&mut self) {
+    fn convert_to_iced<G: TurtleGui>(&mut self, gui: &mut G) {
         let mut pencolor = Color::BLACK;
         let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
@@ -526,6 +504,11 @@ impl<G: TurtleGui> TurtleData<G> {
 
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
+
+        println!("tick");
+        if let Some(last) = self.data.elements.last() {
+            gui.append_command(self.data.current_turtle_id, last.clone());
+        }
 
         self.data.iced_commands.clear();
 
@@ -675,214 +658,60 @@ impl<G: TurtleGui> TurtleData<G> {
     }
 }
 
-struct TurtleTask<G: TurtleGui + ?Sized> {
-    cache: Cache,
-    flags: TurtleFlags<G>,
-    turtle_num: u64,
+#[derive(Default)]
+pub(crate) struct TurtleTask {
+    issue_command: Option<Sender<Request>>,
+    receive_command: Option<Receiver<Request>>,
+    turtle_num: TurtleID,
     bgcolor: TurtleColor,
-    data: Vec<TurtleData<G>>,
+    data: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
-    winsize: Size,
-    wcmds: Vec<IcedCommand<Message>>,
-    popups: HashMap<WindowID, PopupData>,
+    winsize: [isize; 2],
 }
 
 type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
 
-use crate::gui::iced_gui::Message;
-
 #[derive(Default)]
-pub(crate) struct TurtleFlags<G: TurtleGui> {
-    start_func: Option<Box<TurtleStartFunc>>,
-    gui: Option<G>,
-    issue_command: Option<Sender<Request>>,
-    receive_command: Option<Receiver<Request>>,
-    title: String,
-    size: [f32; 2],
+pub(crate) struct TurtleFlags {
+    pub(crate) start_func: Option<Box<TurtleStartFunc>>,
+    pub(crate) issue_command: Option<Sender<Request>>,
+    pub(crate) receive_command: Option<Receiver<Request>>,
+    pub(crate) title: String,
+    pub(crate) size: [f32; 2],
 }
 
-impl<G: TurtleGui> Application for TurtleTask<G> {
+/*
+impl Application for TurtleTask {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = iced::Theme;
-    type Flags = TurtleFlags<G>;
-
-    fn new(mut flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
-        let func = flags.start_func.take();
-        let winsize = flags.size.into();
-        let gui = flags.gui.take();
-
-        let title = flags.title.clone();
-        let mut tt = TurtleTask {
-            cache: Cache::default(),
-            flags,
-            turtle_num: 0,
-            bgcolor: TurtleColor::from("white"),
-            shapes: generate_default_shapes(),
-            winsize,
-            data: vec![TurtleData::new(gui.unwrap())],
-            wcmds: Vec::new(),
-            popups: HashMap::from([(WindowID::MAIN, PopupData::mainwin(&title))]),
-        };
-        tt.run_turtle(func.unwrap());
-        (tt, IcedCommand::none())
-    }
-
-    fn title(&self, win_id: WindowID) -> String {
-        self.popups.get(&win_id).expect("lookup popup data").title()
-    }
-
-    fn update(&mut self, message: Self::Message) -> IcedCommand<Self::Message> {
-        match message {
-            Message::Tick => self.tick(),
-            Message::AckError(id) => {
-                let popup = self.popups.get_mut(&id).expect("looking up popup data");
-                popup.clear_error();
-            }
-            Message::Event(event) => self.handle_event(event),
-            Message::TextInputChanged(id, msg) => {
-                let popup = self.popups.get_mut(&id).expect("looking up popup data");
-                popup.set_message(&msg);
-            }
-            Message::TextInputSubmit(id) => {
-                let popup = self.popups.get_mut(&id).expect("looking up popup data");
-                match popup.get_response() {
-                    Ok(response) => {
-                        let tid = popup.id();
-                        let index = popup.which();
-                        let _ = self.data[index].data.responder[&tid].send(response);
-                        self.wcmds.push(window::close(id));
-                    }
-                    Err(message) => {
-                        popup.set_error(message);
-                        /*
-                        let (id, wcmd) = window::spawn(WindowSettings {
-                            size: [250f32, 150f32].into(),
-                            resizable: false,
-                            exit_on_close_request: false,
-                            decorations: false,
-                            ..WindowSettings::default()
-                        });
-                        self.wcmds.push(wcmd);
-                        self.popups.insert(id, PopupData::error_message(&message));
-                        */
-                    }
-                }
-            }
-            Message::Cancel(id) => {
-                let popup = self.popups.get(&id).expect("looking up popup data");
-                let _ = self.data[popup.which()].data.responder[&popup.id()].send(Response::Cancel);
-                self.wcmds.push(window::close(id));
-            }
-        }
-        IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
-    }
+    type Flags = TurtleFlags;
 
     fn view(&self, win_id: WindowID) -> Element<Self::Message> {
-        if win_id == WindowID::MAIN {
-            Canvas::new(self)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
-        } else {
-            let popup = self.popups.get(&win_id).expect("looking up window data");
-            if let Some(error) = popup.get_error() {
-                container(
-                    column![
-                        vertical_space(),
-                        row![horizontal_space(), text(error), horizontal_space()],
-                        vertical_space(),
-                        row![
-                            horizontal_space(),
-                            button("OK").on_press(Message::AckError(win_id)),
-                            horizontal_space(),
-                        ],
-                        vertical_space(),
-                    ]
-                    .width(200),
-                )
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x()
-                .center_y()
-                .into()
-            } else {
-                let prompt = popup.prompt();
-                let text_field: TextInput<Self::Message> = text_input(prompt, popup.get_text())
-                    .width(200)
-                    .on_input(move |msg| Message::TextInputChanged(win_id, msg))
-                    .on_submit(Message::TextInputSubmit(win_id));
-                let data: Element<Self::Message> = container(row![
-                    horizontal_space(),
-                    column![text(prompt), text_field],
-                    horizontal_space(),
-                ])
-                .center_x()
-                .into();
-                let buttons: Element<Self::Message> = container(row![
-                    horizontal_space(),
-                    button("Cancel").on_press(Message::Cancel(win_id)),
-                    horizontal_space(),
-                    button("OK").on_press(Message::TextInputSubmit(win_id)),
-                    horizontal_space(),
-                ])
-                .padding(10)
-                .into();
-                container(column![data, buttons])
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center_x()
-                    .center_y()
-                    .into()
-            }
+    }
+
+}
+*/
+
+impl TurtleTask {
+    pub(crate) fn new(flags: &mut TurtleFlags) -> Self {
+        let issue_command = flags.issue_command.take();
+        let receive_command = flags.receive_command.take();
+        Self {
+            issue_command,
+            receive_command,
+            data: vec![TurtleData::new()],
+            shapes: generate_default_shapes(),
+            ..Self::default()
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch([
-            iced::time::every(std::time::Duration::from_millis(10)).map(|_| Message::Tick),
-            event::listen().map(Message::Event),
-        ])
-    }
-}
-
-impl<Message, G: TurtleGui> canvas::Program<Message> for TurtleTask<G> {
-    type State = ();
-
-    fn draw(
-        &self,
-        _state: &Self::State,
-        renderer: &Renderer,
-        _theme: &Theme,
-        bounds: Rectangle,
-        _cursor: mouse::Cursor,
-    ) -> Vec<<Renderer as canvas::Renderer>::Geometry> {
-        let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
-            let center = frame.center();
-            frame.fill_rectangle(
-                [0., 0.].into(),
-                bounds.size(),
-                Fill {
-                    style: stroke::Style::Solid((&self.bgcolor).into()),
-                    rule: Rule::NonZero,
-                },
-            );
-            frame.translate([center.x, center.y].into());
-            for turtle in &self.data {
-                turtle.draw(frame);
-            }
-        });
-        vec![geometry]
-    }
-}
-
-impl<G: TurtleGui> TurtleTask<G> {
-    fn handle_event(&mut self, event: Event) {
+    pub(crate) fn handle_event<G: TurtleGui>(&mut self, event: Event, gui: &mut G) {
         let mut work = Vec::new();
 
         match event {
             Event::Window(window::Id::MAIN, Resized { width, height }) => {
-                self.winsize = Size::new(width as f32, height as f32);
+                self.winsize = [width as isize, height as isize];
             }
             Event::Keyboard(KeyPressed { key, .. }) => {
                 if let Key::Character(s) = key.as_ref() {
@@ -898,20 +727,22 @@ impl<G: TurtleGui> TurtleTask<G> {
         }
 
         for (idx, func, key) in work {
-            let mut new_turtle = self.spawn_turtle(idx);
+            let mut new_turtle = self.spawn_turtle(idx, gui.new_turtle());
             let _ = std::thread::spawn(move || func(&mut new_turtle, key));
         }
     }
 
-    fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
-        let mut turtle = self.spawn_turtle(0);
+    pub(crate) fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(
+        &mut self,
+        func: F,
+        newid: TurtleID,
+    ) {
+        let mut turtle = self.spawn_turtle(0, newid);
         let _ = std::thread::spawn(move || func(&mut turtle));
     }
 
-    fn tick(&mut self) {
-        self.cache.clear();
-
-        while let Ok(req) = self.flags.receive_command.as_ref().unwrap().try_recv() {
+    pub(crate) fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
+        while let Ok(req) = self.receive_command.as_ref().unwrap().try_recv() {
             let tid = req.turtle_id;
             let mut found = None;
             for (index, tdata) in self.data.iter().enumerate() {
@@ -921,45 +752,42 @@ impl<G: TurtleGui> TurtleTask<G> {
                 }
             }
             if let Some(index) = found {
-                self.handle_command(index, req);
+                self.handle_command(index, req, gui);
             }
         }
 
         for turtle in self.data.iter_mut() {
-            turtle.time_passes(0.01); // TODO: use actual time delta
+            turtle.time_passes(gui, 0.01); // TODO: use actual time delta
         }
     }
 
-    pub(crate) fn hatch_turtle(&mut self, gui: G) -> Turtle {
+    pub(crate) fn hatch_turtle<G: TurtleGui>(&mut self, gui: &mut G) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
-        self.turtle_num += 1;
-        let newid = self.turtle_num;
+        let newid = gui.new_turtle();
 
-        let mut td = TurtleData::new(gui);
+        let mut td = TurtleData::new();
         td.data.responder.insert(newid, finished);
         self.data.push(td);
 
         Turtle::init(
-            self.flags.issue_command.as_ref().unwrap().clone(),
+            self.issue_command.as_ref().unwrap().clone(),
             command_complete,
             newid,
         )
     }
 
-    fn spawn_turtle(&mut self, which: usize) -> Turtle {
+    fn spawn_turtle(&mut self, which: usize, newid: TurtleID) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
-        self.turtle_num += 1;
-        let newid = self.turtle_num;
         self.data[which].data.responder.insert(newid, finished);
 
         Turtle::init(
-            self.flags.issue_command.as_ref().unwrap().clone(),
+            self.issue_command.as_ref().unwrap().clone(),
             command_complete,
             newid,
         )
     }
 
-    fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: u64) {
+    fn screen_cmd(&mut self, which: usize, cmd: ScreenCmd, turtle_id: TurtleID) {
         let resp = self.data[which]
             .data
             .responder
@@ -968,8 +796,10 @@ impl<G: TurtleGui> TurtleTask<G> {
             .clone();
         match cmd {
             ScreenCmd::SetSize(s) => {
+                /* TODO: move to gui
                 self.wcmds
                     .push(window::resize::<Message>(window::Id::MAIN, s));
+                */
                 self.winsize = s; // TODO: wait until resize is complete before saving
                 let _ = resp.send(Response::Done); // TODO: don't respond until resize event
             }
@@ -1065,7 +895,7 @@ impl<G: TurtleGui> TurtleTask<G> {
         }
     }
 
-    fn input_cmd(&mut self, which: usize, cmd: InputCmd, turtle_id: u64) {
+    fn input_cmd(&mut self, which: usize, cmd: InputCmd, turtle_id: TurtleID) {
         let resp = self.data[which]
             .data
             .responder
@@ -1080,7 +910,7 @@ impl<G: TurtleGui> TurtleTask<G> {
         }
     }
 
-    fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: u64) {
+    fn data_cmd(&mut self, which: usize, cmd: DataCmd, turtle_id: TurtleID) {
         let resp = self.data[which]
             .data
             .responder
@@ -1128,6 +958,7 @@ impl<G: TurtleGui> TurtleTask<G> {
                 Ok(())
             }
             DataCmd::NumInput(title, prompt) | DataCmd::TextInput(title, prompt) => {
+                /* TODO: move to gui
                 let (id, wcmd) = window::spawn(WindowSettings {
                     size: [250f32, 150f32].into(),
                     resizable: false,
@@ -1141,12 +972,13 @@ impl<G: TurtleGui> TurtleTask<G> {
                     PopupData::text_input(title, prompt, turtle_id, which)
                 };
                 self.popups.insert(id, popup);
+                */
                 Ok(())
             }
         };
     }
 
-    fn draw_cmd(&mut self, which: usize, cmd: DrawRequest, turtle_id: u64) {
+    fn draw_cmd(&mut self, which: usize, cmd: DrawRequest, turtle_id: TurtleID) {
         let is_stamp = cmd.is_stamp();
         self.data[which]
             .data
@@ -1160,15 +992,13 @@ impl<G: TurtleGui> TurtleTask<G> {
         }
     }
 
-    fn handle_command(&mut self, which: usize, req: Request) {
+    fn handle_command<G: TurtleGui>(&mut self, which: usize, req: Request, gui: &mut G) {
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(which, cmd, req.turtle_id),
             Command::Draw(cmd) => self.draw_cmd(which, cmd, req.turtle_id),
             Command::Input(cmd) => self.input_cmd(which, cmd, req.turtle_id),
             Command::Data(cmd) => self.data_cmd(which, cmd, req.turtle_id),
             Command::Hatch => {
-                // TODO: Fix hack
-                let gui = G::new_connection();
                 let new_turtle = self.hatch_turtle(gui);
                 let resp = &self.data[which].data.responder[&req.turtle_id];
                 let _ = resp.send(Response::Turtle(new_turtle));
