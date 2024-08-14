@@ -327,41 +327,49 @@ impl TurtleData {
         }
     }
 
-    fn convert_command(&mut self, cmd: &DrawRequest) {
+    fn convert_command<G: TurtleGui>(&mut self, cmd: &DrawRequest, gui: &mut G) {
         if let Some(command) = self.data.current_shape.apply(cmd) {
             if matches!(command, DrawCommand::Filler) {
                 self.data.insert_fill = Some(self.data.elements.len())
             }
+
+            let tid = self.data.current_turtle_id;
+
             match &command {
                 DrawCommand::Line(lineinfo) => {
                     // TODO: when "teleporting" instead of goto/setpos, we're only supposed
                     // to continue the current polygon if fill_gap=True (see python docs)
                     self.data.fill_poly.update(lineinfo.end);
                     self.data.shape_poly.update(lineinfo.end);
-                    self.data.elements.push(command);
+                    gui.append_command(tid, command);
+                    // self.data.elements.push(command);
                 }
                 DrawCommand::Circle(circle) => {
                     for c in circle {
                         self.data.fill_poly.update([c.x, c.y].into());
                         self.data.shape_poly.update([c.x, c.y].into());
                     }
-                    self.data.elements.push(command);
+                    gui.append_command(tid, command);
+                    // self.data.elements.push(command);
                 }
                 DrawCommand::DrawPolygon(_) => {
                     if let Some(index) = self.data.insert_fill.take() {
-                        self.data.elements[index] = command;
-                        self.data.elements.push(DrawCommand::EndFill(index));
+                        // TODO: self.data.elements[index] = command;
+                        gui.append_command(tid, DrawCommand::EndFill(index));
                     }
                 }
                 DrawCommand::StampTurtle => {
-                    self.data.elements.push(DrawCommand::DrawPolyAt(
-                        self.data.turtle_shape.shape.clone(),
-                        self.data.current_shape.pos(),
-                        self.data.current_shape.angle,
-                    ));
+                    gui.append_command(
+                        tid,
+                        DrawCommand::DrawPolyAt(
+                            self.data.turtle_shape.shape.clone(),
+                            self.data.current_shape.pos(),
+                            self.data.current_shape.angle,
+                        ),
+                    );
                 }
                 _ => {
-                    self.data.elements.push(command);
+                    gui.append_command(tid, command);
                 }
             }
         }
@@ -399,14 +407,13 @@ impl TurtleData {
         if !self.data.tracer && !self.data.queue.is_empty() {
             while !self.data.tracer && !self.data.queue.is_empty() {
                 self.data.drawing_done = true;
-                self.do_next_command();
+                self.do_next_command(gui);
             }
         }
-        self.do_next_command();
-        self.convert_to_iced(gui);
+        self.do_next_command(gui);
     }
 
-    fn do_next_command(&mut self) {
+    fn do_next_command<G: TurtleGui>(&mut self, gui: &mut G) {
         if self.data.drawing_done && self.data.current_command.is_some() {
             self.data.drawing_done = false;
 
@@ -448,7 +455,7 @@ impl TurtleData {
             let TurtleCommand { cmd, turtle_id } = self.data.queue.pop_front().unwrap();
             self.data.current_turtle_id = turtle_id;
 
-            self.convert_command(&cmd);
+            self.convert_command(&cmd, gui);
 
             if let DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t)) = &cmd {
                 self.data.tracer = *t;
@@ -504,11 +511,6 @@ impl TurtleData {
 
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
-
-        println!("tick");
-        if let Some(last) = self.data.elements.last() {
-            gui.append_command(self.data.current_turtle_id, last.clone());
-        }
 
         self.data.iced_commands.clear();
 

@@ -38,8 +38,8 @@ const SHAPES: [(&str, &[[f32; 2]]); 5] = [
 
 #[derive(Debug, Clone)]
 pub struct TurtleShape {
-    pub(crate) name: String,
-    pub(crate) shape: TurtlePolygon,
+    pub(crate) name: String,         // TODO: make accessor
+    pub(crate) shape: TurtlePolygon, // TODO: make a get_path()
 }
 
 impl Default for TurtleShape {

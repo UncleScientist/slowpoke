@@ -5,17 +5,20 @@ use iced::{
     multi_window::Application,
     widget::{
         button,
-        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, Path},
+        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, Path, Stroke},
         column, container, horizontal_space, row, text, text_input, vertical_space, Canvas,
         TextInput,
     },
     window::{self, Id as WindowID},
-    Color, Element, Event, Length, Rectangle, Renderer, Settings, Size, Subscription, Theme,
+    Color, Element, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
+
+use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use crate::{
     color_names::TurtleColor,
     gui::popup::PopupData,
+    polygon::TurtleShape,
     turtle::{TurtleID, TurtleTask},
 };
 use crate::{generate::DrawCommand, gui::TurtleGui, turtle::TurtleFlags};
@@ -41,10 +44,179 @@ struct IndividualTurtle {
     curcmd: Option<DrawCommand>,
     cmds: Vec<DrawCommand>,
     drawing: Vec<IcedDrawCmd>,
+    has_new_cmd: bool,
+    turtle_shape: TurtleShape,
+    hide_turtle: bool,
 }
 
 impl IndividualTurtle {
-    fn draw(&self, _frame: &mut Frame) {}
+    fn draw(&self, frame: &mut Frame) {
+        for draw_iced_cmd in &self.drawing {
+            match draw_iced_cmd {
+                IcedDrawCmd::Stroke(path, pencolor, penwidth) => frame.stroke(
+                    path,
+                    Stroke {
+                        style: stroke::Style::Solid(*pencolor),
+                        width: *penwidth,
+                        ..Stroke::default()
+                    },
+                ),
+                IcedDrawCmd::Fill(path, fillcolor) => frame.fill(
+                    path,
+                    Fill {
+                        style: stroke::Style::Solid(*fillcolor),
+                        rule: Rule::EvenOdd,
+                    },
+                ),
+            }
+        }
+    }
+
+    fn convert(&mut self) {
+        let mut pencolor = Color::BLACK;
+        let mut penwidth = 1.0;
+        let mut fillcolor = Color::BLACK;
+        let pct = 1.;
+
+        let mut tpos = [0f32, 0f32];
+        let mut trot = 0f32;
+
+        self.drawing.clear();
+
+        let mut iter = self.cmds.iter().peekable();
+        let mut cur_path: Vec<Point> = Vec::new();
+
+        while let Some(element) = iter.next() {
+            let last_element = iter.peek().is_none() && pct < 1.;
+            if !matches!(element, DrawCommand::Line(..))
+                && !matches!(element, DrawCommand::SetHeading(..))
+                && !cur_path.is_empty()
+            {
+                let path = Path::new(|b| {
+                    b.move_to(cur_path[0]);
+                    for pos in &cur_path[1..] {
+                        b.line_to(*pos);
+                    }
+                });
+                cur_path = Vec::new();
+                self.drawing
+                    .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+            }
+
+            match element {
+                DrawCommand::Line(l) => {
+                    let start: Point = [l.begin.x as f32, l.begin.y as f32].into();
+                    let end: Point = if last_element {
+                        let endx = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
+                        let endy = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
+                        tpos = [endx, endy];
+                        [endx, endy]
+                    } else {
+                        tpos = [l.end.x as f32, l.end.y as f32];
+                        [l.end.x as f32, l.end.y as f32]
+                    }
+                    .into();
+                    if l.pen_down {
+                        if cur_path.is_empty() {
+                            cur_path.push(start);
+                        }
+                        cur_path.push(end);
+                    }
+                }
+                DrawCommand::SetPenColor(pc) => {
+                    pencolor = pc.into();
+                }
+                DrawCommand::SetPenWidth(pw) => penwidth = *pw,
+                DrawCommand::SetFillColor(fc) => {
+                    fillcolor = fc.into();
+                }
+                DrawCommand::DrawPolygon(p) => {
+                    self.drawing
+                        .push(IcedDrawCmd::Fill(p.get_path().clone(), fillcolor));
+                }
+                DrawCommand::SetHeading(start, end) => {
+                    let rotation = if last_element {
+                        *start + (*end - *start) * pct
+                    } else {
+                        *end
+                    };
+                    trot = rotation;
+                }
+                DrawCommand::DrawDot(center, radius, color) => {
+                    let center: Point = Point::new(center.x, center.y);
+                    let circle = Path::circle(center, *radius);
+                    self.drawing.push(IcedDrawCmd::Fill(circle, color.into()));
+                }
+                DrawCommand::EndFill(_) => {}
+                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
+                    let path = polygon.get_path();
+                    let angle = Angle::degrees(*angle);
+                    let xform = Transform2D::rotation(angle).then_translate([pos.x, pos.y].into());
+                    let path = path.transform(&xform);
+                    self.drawing
+                        .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+                    self.drawing
+                        .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                }
+                DrawCommand::Circle(points) => {
+                    if points[0].pen_down {
+                        let (total, subpercent) = if last_element {
+                            let partial = (points.len() - 1) as f32 * pct;
+                            (partial.floor() as usize, (partial - partial.floor()))
+                        } else {
+                            (points.len() - 1, 1_f32)
+                        };
+                        let path = Path::new(|b| {
+                            let (_, start) = points[0].get_data();
+
+                            b.move_to(start.into());
+
+                            let mut iter = points.windows(2).take(total + 1).peekable();
+                            while let Some(p) = iter.next() {
+                                let (end_angle, end) = p[1].get_data();
+                                let last_segment = iter.peek().is_none();
+                                tpos = end;
+                                if last_element && last_segment {
+                                    let (_, begin) = p[0].get_data();
+                                    let endx = begin[0] + (end[0] - begin[0]) * subpercent;
+                                    let endy = begin[1] + (end[1] - begin[1]) * subpercent;
+                                    tpos = [endx, endy];
+                                }
+                                b.line_to(tpos.into());
+                                trot = end_angle;
+                            }
+                        });
+
+                        self.drawing
+                            .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                    }
+                }
+                _ => todo!(),
+            }
+        }
+
+        if !cur_path.is_empty() {
+            let path = Path::new(|b| {
+                b.move_to(cur_path[0]);
+                for pos in &cur_path[1..] {
+                    b.line_to(*pos);
+                }
+            });
+            self.drawing
+                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+        }
+
+        if !self.hide_turtle {
+            let path = self.turtle_shape.shape.get_path();
+            let angle = Angle::degrees(trot);
+            let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+            let path = path.transform(&transform);
+            self.drawing
+                .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+            self.drawing
+                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+        }
+    }
 }
 
 type IcedCommand<T> = iced::Command<T>;
@@ -65,9 +237,15 @@ impl TurtleGui for IcedGui {
         let id = self.last_id;
         self.last_id += 1;
 
-        println!("created turtle, id = {id}");
         self.turtle.insert(id, IndividualTurtle::default());
         id
+    }
+
+    fn set_shape(&mut self, turtle_id: usize, shape: TurtleShape) {
+        self.turtle
+            .get_mut(&turtle_id)
+            .expect("missing turtle")
+            .turtle_shape = shape;
     }
 
     fn current_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
@@ -78,12 +256,9 @@ impl TurtleGui for IcedGui {
     }
 
     fn append_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
-        println!("turtle {turtle_id}, cmd {cmd:?}");
-        self.turtle
-            .get_mut(&turtle_id)
-            .expect("missing turtle")
-            .cmds
-            .push(cmd);
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        turtle.cmds.push(cmd);
+        turtle.has_new_cmd = true;
     }
 
     fn get_position(&self, turtle_id: usize) -> usize {
@@ -138,6 +313,7 @@ impl Application for IcedGui {
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
         match message {
             Message::Tick => {
+                self.cache.clear();
                 let mut tt = self.tt.take();
                 tt.tick(self);
                 self.tt.replace(tt);
@@ -176,6 +352,7 @@ impl Application for IcedGui {
                 self.wcmds.push(window::close(id));
             }
         }
+        self.convert_to_iced();
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
@@ -294,5 +471,13 @@ impl IcedGui {
             ..Settings::default()
         })
         .expect("failed to start turtle");
+    }
+
+    fn convert_to_iced(&mut self) {
+        for (_, turtle) in self.turtle.iter_mut() {
+            if turtle.has_new_cmd {
+                turtle.convert();
+            }
+        }
     }
 }
