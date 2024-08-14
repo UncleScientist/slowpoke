@@ -1,4 +1,4 @@
-mod popup;
+pub(crate) mod popup;
 
 use crate::{generate::DrawCommand, polygon::TurtleShape};
 
@@ -28,7 +28,9 @@ pub(crate) trait TurtleGui: Default + Sized {
     // undo last command
     fn undo(&mut self, turtle_id: usize);
 
-    // needs functions for:
-    //  - numinput
-    //  - textinput
+    // read a numeric value from the user
+    fn numinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str);
+
+    // read a text string from the user
+    fn textinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str);
 }

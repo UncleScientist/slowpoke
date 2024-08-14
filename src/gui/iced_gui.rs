@@ -41,7 +41,7 @@ pub(crate) enum IcedDrawCmd {
 
 #[derive(Default)]
 struct IndividualTurtle {
-    curcmd: Option<DrawCommand>,
+    _curcmd: Option<DrawCommand>,
     cmds: Vec<DrawCommand>,
     drawing: Vec<IcedDrawCmd>,
     has_new_cmd: bool,
@@ -252,7 +252,7 @@ impl TurtleGui for IcedGui {
         self.turtle
             .get_mut(&turtle_id)
             .expect("missing turtle")
-            .curcmd = Some(cmd);
+            ._curcmd = Some(cmd);
     }
 
     fn append_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
@@ -279,13 +279,21 @@ impl TurtleGui for IcedGui {
             .cmds
             .pop();
     }
+
+    fn numinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str) {
+        self.generate_popup(PopupData::num_input(title, prompt, turtle_id, which));
+    }
+
+    fn textinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str) {
+        self.generate_popup(PopupData::text_input(title, prompt, turtle_id, which));
+    }
 }
 
 impl Application for IcedGui {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme;
-    type Flags = TurtleFlags; // unused for now
+    type Flags = TurtleFlags;
 
     fn new(mut flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         let func = flags.start_func.take();
@@ -333,22 +341,23 @@ impl Application for IcedGui {
                 popup.set_message(&msg);
             }
             Message::TextInputSubmit(id) => {
-                let popup = self.popups.get_mut(&id).expect("looking up popup data");
+                let mut popup = self.popups.remove(&id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
-                        let tid = popup.id();
+                        let tid = popup.id() as usize;
                         let index = popup.which();
-                        // TODO: let _ = self.data[index].data.responder[&tid].send(response);
+                        self.tt.get_mut().popup_result(tid, index, response);
                         self.wcmds.push(window::close(id));
                     }
                     Err(message) => {
                         popup.set_error(message);
+                        self.popups.insert(id, popup);
                     }
                 }
             }
             Message::Cancel(id) => {
-                let popup = self.popups.get(&id).expect("looking up popup data");
-                // TODO: let _ = self.data[popup.which()].data.responder[&popup.id()].send(Response::Cancel);
+                let popup = self.popups.remove(&id).expect("looking up popup data");
+                self.tt.get_mut().popup_cancelled(popup.id(), popup.which());
                 self.wcmds.push(window::close(id));
             }
         }
@@ -479,5 +488,16 @@ impl IcedGui {
                 turtle.convert();
             }
         }
+    }
+
+    fn generate_popup(&mut self, popupdata: PopupData) {
+        let (id, wcmd) = window::spawn(window::Settings {
+            size: [250f32, 150f32].into(),
+            resizable: false,
+            exit_on_close_request: false,
+            ..window::Settings::default()
+        });
+        self.wcmds.push(wcmd);
+        self.popups.insert(id, popupdata);
     }
 }

@@ -1,15 +1,15 @@
-use crate::Response;
+use crate::{turtle::TurtleID, Response};
 
 #[derive(Default)]
 enum PopupType {
     TextInput {
-        turtle_id: u64,
+        turtle_id: TurtleID,
         which: usize,
         prompt: String,
         text_input_field: String,
     },
     NumericalInput {
-        turtle_id: u64,
+        turtle_id: TurtleID,
         which: usize,
         prompt: String,
         text_input_field: String,
@@ -20,7 +20,7 @@ enum PopupType {
 }
 
 impl PopupType {
-    fn id(&self) -> u64 {
+    fn id(&self) -> TurtleID {
         match self {
             PopupType::TextInput { turtle_id, .. }
             | PopupType::NumericalInput { turtle_id, .. } => *turtle_id,
@@ -58,7 +58,7 @@ impl PopupType {
 }
 
 #[derive(Default)]
-pub(super) struct PopupData {
+pub(crate) struct PopupData {
     title: String,
     err: Option<String>,
     popup: PopupType,
@@ -72,7 +72,7 @@ impl PopupData {
         }
     }
 
-    pub fn text_input(title: &str, prompt: &str, turtle_id: u64, which: usize) -> Self {
+    pub fn text_input(title: &str, prompt: &str, turtle_id: TurtleID, which: usize) -> Self {
         Self {
             title: title.to_string(),
             err: None,
@@ -85,7 +85,7 @@ impl PopupData {
         }
     }
 
-    pub fn num_input(title: &str, prompt: &str, turtle_id: u64, which: usize) -> Self {
+    pub fn num_input(title: &str, prompt: &str, turtle_id: TurtleID, which: usize) -> Self {
         Self {
             title: title.to_string(),
             err: None,
@@ -114,7 +114,7 @@ impl PopupData {
         }
     }
 
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> TurtleID {
         self.popup.id()
     }
 
