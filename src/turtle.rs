@@ -291,7 +291,7 @@ pub(crate) struct TurtleInternalData {
     tracer: bool,
     respond_immediately: bool,
     speed: TurtleSpeed,
-    turtle_shape: TurtleShape,
+    // turtle_shape: TurtleShape,
     fill_poly: PolygonBuilder,
     shape_poly: PolygonBuilder,
 }
@@ -343,13 +343,10 @@ impl TurtleData {
                     }
                 }
                 DrawCommand::StampTurtle => {
-                    gui.append_command(
+                    gui.stamp(
                         tid,
-                        DrawCommand::DrawPolyAt(
-                            self.data.turtle_shape.shape.clone(),
-                            self.data.current_shape.pos(),
-                            self.data.current_shape.angle,
-                        ),
+                        self.data.current_shape.pos(),
+                        self.data.current_shape.angle,
                     );
                 }
                 _ => {
@@ -750,11 +747,9 @@ impl TurtleTask {
             )),
             DataCmd::TurtleShape(shape) => {
                 if let TurtleShapeName::Shape(name) = shape {
-                    self.data[which].data.turtle_shape = self.shapes[name].clone();
+                    gui.set_shape(which, self.shapes[name].clone());
                 }
-                resp.send(Response::Name(
-                    self.data[which].data.turtle_shape.name.clone(),
-                ))
+                resp.send(Response::Name(gui.get_turtle_shape_name(which)))
             }
             DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(which))),
             DataCmd::Towards(xpos, ypos) => {

@@ -20,6 +20,7 @@ use crate::{
     gui::popup::PopupData,
     polygon::TurtleShape,
     turtle::{TurtleID, TurtleTask},
+    ScreenPosition,
 };
 use crate::{generate::DrawCommand, gui::TurtleGui, turtle::TurtleFlags};
 
@@ -255,11 +256,18 @@ impl TurtleGui for IcedGui {
             .turtle_shape = shape;
     }
 
-    fn current_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
-        self.turtle
-            .get_mut(&turtle_id)
-            .expect("missing turtle")
-            ._curcmd = Some(cmd);
+    fn stamp(&mut self, turtle_id: usize, pos: ScreenPosition<f32>, angle: f32) {
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        turtle.cmds.push(DrawCommand::DrawPolyAt(
+            turtle.turtle_shape.shape.clone(),
+            pos,
+            angle,
+        ));
+    }
+
+    fn get_turtle_shape_name(&mut self, turtle_id: usize) -> String {
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        turtle.turtle_shape.name.clone()
     }
 
     fn append_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
@@ -357,7 +365,7 @@ impl Application for IcedGui {
                 let mut popup = self.popups.remove(&id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
-                        let tid = popup.id() as usize;
+                        let tid = popup.id();
                         let index = popup.which();
                         self.tt.get_mut().popup_result(tid, index, response);
                         self.wcmds.push(window::close(id));
