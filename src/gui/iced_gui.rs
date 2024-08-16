@@ -147,7 +147,6 @@ impl IndividualTurtle {
                     let circle = Path::circle(center, *radius);
                     self.drawing.push(IcedDrawCmd::Fill(circle, color.into()));
                 }
-                DrawCommand::EndFill(_) => {}
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let path = polygon.get_path();
                     let angle = Angle::degrees(*angle);
@@ -191,7 +190,8 @@ impl IndividualTurtle {
                             .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                     }
                 }
-                _ => todo!(),
+                DrawCommand::Filler => {}
+                _ => panic!("{element:?} not yet implemeted"),
             }
         }
 

@@ -44,7 +44,6 @@ pub(crate) enum DrawCommand {
     DrawPolygon(TurtlePolygon),
     SetHeading(f32, f32),
     DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
-    EndFill(usize),
     DrawPolyAt(TurtlePolygon, ScreenPosition<f32>, f32), // poly, pos, angle
     Circle(Vec<CirclePos>),
 }

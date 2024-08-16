@@ -322,11 +322,11 @@ impl TurtleData {
 
     fn convert_command<G: TurtleGui>(&mut self, cmd: &DrawRequest, gui: &mut G) {
         if let Some(command) = self.data.current_shape.apply(cmd) {
-            if matches!(command, DrawCommand::Filler) {
-                self.data.insert_fill = Some(self.data.elements.len())
-            }
-
             let tid = self.data.current_turtle_id;
+
+            if matches!(command, DrawCommand::Filler) {
+                self.data.insert_fill = Some(gui.get_position(tid))
+            }
 
             match &command {
                 DrawCommand::Line(lineinfo) => {
@@ -347,8 +347,7 @@ impl TurtleData {
                 }
                 DrawCommand::DrawPolygon(_) => {
                     if let Some(index) = self.data.insert_fill.take() {
-                        // TODO: self.data.elements[index] = command;
-                        gui.append_command(tid, DrawCommand::EndFill(index));
+                        gui.fill_polygon(tid, command, index);
                     }
                 }
                 DrawCommand::StampTurtle => {
@@ -413,9 +412,6 @@ impl TurtleData {
             if matches!(self.data.progression, Progression::Reverse) {
                 if let Some(element) = self.data.elements.pop() {
                     match element {
-                        DrawCommand::EndFill(pos) => {
-                            self.data.elements[pos] = DrawCommand::Filler;
-                        }
                         DrawCommand::Line(line) => {
                             let x = line.begin.x as f32;
                             let y = line.begin.y as f32;
