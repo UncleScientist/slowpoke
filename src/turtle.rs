@@ -5,7 +5,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
-use crate::gui::iced_gui::IcedGui;
+use crate::gui::{iced_gui::IcedGui, Progression};
 
 use iced::keyboard::{Event::KeyPressed, Key};
 use iced::window::Event::Resized;
@@ -242,13 +242,6 @@ impl Turtle {
             std::thread::park();
         }
     }
-}
-
-#[derive(Default)]
-enum Progression {
-    #[default]
-    Forward,
-    Reverse,
 }
 
 #[derive(Default)]
@@ -518,8 +511,8 @@ impl TurtleTask {
         }
     }
 
-    pub(crate) fn percent(&self, tid: TurtleID) -> f32 {
-        self.data[tid].data.percent
+    pub(crate) fn progress(&self, tid: TurtleID) -> (f32, Progression) {
+        (self.data[tid].data.percent, self.data[tid].data.progression)
     }
 
     pub(crate) fn popup_result(&mut self, tid: usize, index: usize, response: Response) {

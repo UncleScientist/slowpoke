@@ -37,3 +37,10 @@ pub(crate) trait TurtleGui: Default + Sized {
     // read a text string from the user
     fn textinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str);
 }
+
+#[derive(Default, Clone, Copy)]
+pub(crate) enum Progression {
+    #[default]
+    Forward,
+    Reverse,
+}

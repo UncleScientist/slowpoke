@@ -23,6 +23,8 @@ use crate::{
 };
 use crate::{generate::DrawCommand, gui::TurtleGui, turtle::TurtleFlags};
 
+use super::Progression;
+
 #[derive(Debug, Clone)]
 pub(crate) enum Message {
     Tick,
@@ -286,11 +288,9 @@ impl TurtleGui for IcedGui {
     }
 
     fn undo(&mut self, turtle_id: TurtleID) {
-        self.turtle
-            .get_mut(&turtle_id)
-            .expect("missing turtle")
-            .cmds
-            .pop();
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        turtle.cmds.pop();
+        turtle.has_new_cmd = true;
     }
 
     fn numinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str) {
@@ -497,8 +497,14 @@ impl IcedGui {
 
     fn convert_to_iced(&mut self) {
         for (tid, turtle) in self.turtle.iter_mut() {
+            let (pct, prog) = self.tt.get_mut().progress(*tid);
             if turtle.has_new_cmd {
-                turtle.convert(self.tt.get_mut().percent(*tid));
+                turtle.convert(pct);
+                match prog {
+                    Progression::Forward if pct >= 1. => turtle.has_new_cmd = false,
+                    Progression::Reverse if pct <= 0. => turtle.has_new_cmd = false,
+                    _ => {}
+                }
             }
         }
     }
