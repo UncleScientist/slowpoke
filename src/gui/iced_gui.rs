@@ -74,6 +74,20 @@ impl IndividualTurtle {
     }
 
     fn convert(&mut self) {
+        fn make_path(path: &mut Vec<(bool, Point)>) -> Path {
+            Path::new(|b| {
+                b.move_to(path[0].1);
+                for (pen, pos) in path.drain(1..) {
+                    if pen {
+                        b.line_to(pos);
+                    } else {
+                        b.move_to(pos);
+                    }
+                }
+                path.clear(); // remove first element
+            })
+        }
+
         let mut pencolor = Color::BLACK;
         let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
@@ -85,7 +99,7 @@ impl IndividualTurtle {
         self.drawing.clear();
 
         let mut iter = self.cmds.iter().peekable();
-        let mut cur_path: Vec<Point> = Vec::new();
+        let mut cur_path: Vec<(bool, Point)> = Vec::new();
 
         while let Some(element) = iter.next() {
             let last_element = iter.peek().is_none() && pct < 1.;
@@ -93,15 +107,11 @@ impl IndividualTurtle {
                 && !matches!(element, DrawCommand::SetHeading(..))
                 && !cur_path.is_empty()
             {
-                let path = Path::new(|b| {
-                    b.move_to(cur_path[0]);
-                    for pos in &cur_path[1..] {
-                        b.line_to(*pos);
-                    }
-                });
-                cur_path = Vec::new();
-                self.drawing
-                    .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                self.drawing.push(IcedDrawCmd::Stroke(
+                    make_path(&mut cur_path),
+                    pencolor,
+                    penwidth,
+                ));
             }
 
             match element {
@@ -117,12 +127,10 @@ impl IndividualTurtle {
                         [l.end.x as f32, l.end.y as f32]
                     }
                     .into();
-                    if l.pen_down {
-                        if cur_path.is_empty() {
-                            cur_path.push(start);
-                        }
-                        cur_path.push(end);
+                    if cur_path.is_empty() {
+                        cur_path.push((l.pen_down, start));
                     }
+                    cur_path.push((l.pen_down, end));
                 }
                 DrawCommand::SetPenColor(pc) => {
                     pencolor = pc.into();
@@ -197,14 +205,11 @@ impl IndividualTurtle {
         }
 
         if !cur_path.is_empty() {
-            let path = Path::new(|b| {
-                b.move_to(cur_path[0]);
-                for pos in &cur_path[1..] {
-                    b.line_to(*pos);
-                }
-            });
-            self.drawing
-                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+            self.drawing.push(IcedDrawCmd::Stroke(
+                make_path(&mut cur_path),
+                pencolor,
+                penwidth,
+            ));
         }
 
         if !self.hide_turtle {

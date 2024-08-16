@@ -343,7 +343,6 @@ impl TurtleData {
                         self.data.shape_poly.update([c.x, c.y].into());
                     }
                     gui.append_command(tid, command);
-                    // self.data.elements.push(command);
                 }
                 DrawCommand::DrawPolygon(_) => {
                     if let Some(index) = self.data.insert_fill.take() {
