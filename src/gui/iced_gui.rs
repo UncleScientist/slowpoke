@@ -17,12 +17,12 @@ use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use crate::{
     color_names::TurtleColor,
-    gui::popup::PopupData,
+    generate::DrawCommand,
+    gui::{popup::PopupData, TurtleGui},
     polygon::TurtleShape,
-    turtle::{TurtleID, TurtleTask},
-    ScreenPosition,
+    turtle::{TurtleFlags, TurtleTask},
+    ScreenPosition, TurtleID,
 };
-use crate::{generate::DrawCommand, gui::TurtleGui, turtle::TurtleFlags};
 
 use super::Progression;
 
@@ -44,7 +44,6 @@ pub(crate) enum IcedDrawCmd {
 
 #[derive(Default)]
 struct IndividualTurtle {
-    _curcmd: Option<DrawCommand>,
     cmds: Vec<DrawCommand>,
     drawing: Vec<IcedDrawCmd>,
     has_new_cmd: bool,
@@ -249,14 +248,14 @@ impl TurtleGui for IcedGui {
         id
     }
 
-    fn set_shape(&mut self, turtle_id: usize, shape: TurtleShape) {
+    fn set_shape(&mut self, turtle_id: TurtleID, shape: TurtleShape) {
         self.turtle
             .get_mut(&turtle_id)
             .expect("missing turtle")
             .turtle_shape = shape;
     }
 
-    fn stamp(&mut self, turtle_id: usize, pos: ScreenPosition<f32>, angle: f32) {
+    fn stamp(&mut self, turtle_id: TurtleID, pos: ScreenPosition<f32>, angle: f32) {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
         turtle.cmds.push(DrawCommand::DrawPolyAt(
             turtle.turtle_shape.shape.clone(),
@@ -265,22 +264,22 @@ impl TurtleGui for IcedGui {
         ));
     }
 
-    fn get_turtle_shape_name(&mut self, turtle_id: usize) -> String {
+    fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
         turtle.turtle_shape.name.clone()
     }
 
-    fn append_command(&mut self, turtle_id: usize, cmd: DrawCommand) {
+    fn append_command(&mut self, turtle_id: TurtleID, cmd: DrawCommand) {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
         turtle.cmds.push(cmd);
         turtle.has_new_cmd = true;
     }
 
-    fn get_position(&self, turtle_id: usize) -> usize {
+    fn get_position(&self, turtle_id: TurtleID) -> usize {
         self.turtle[&turtle_id].cmds.len()
     }
 
-    fn fill_polygon(&mut self, turtle_id: usize, cmd: DrawCommand, index: usize) {
+    fn fill_polygon(&mut self, turtle_id: TurtleID, cmd: DrawCommand, index: usize) {
         self.turtle
             .get_mut(&turtle_id)
             .expect("missing turtle")
@@ -301,11 +300,11 @@ impl TurtleGui for IcedGui {
         turtle.has_new_cmd = true;
     }
 
-    fn numinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str) {
+    fn numinput(&mut self, turtle_id: TurtleID, which: usize, title: &str, prompt: &str) {
         self.generate_popup(PopupData::num_input(title, prompt, turtle_id, which));
     }
 
-    fn textinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str) {
+    fn textinput(&mut self, turtle_id: TurtleID, which: usize, title: &str, prompt: &str) {
         self.generate_popup(PopupData::text_input(title, prompt, turtle_id, which));
     }
 }

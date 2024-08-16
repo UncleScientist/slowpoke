@@ -1,7 +1,7 @@
 use command::Command;
+pub use gui::TurtleID;
 use lyon_tessellation::geom::euclid::{Point2D, UnknownUnit};
 pub use polygon::TurtleShapeName;
-use turtle::TurtleID;
 pub use turtle::{Turtle, TurtleArgs};
 
 pub mod color_names;

@@ -5,14 +5,17 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
-use crate::gui::{iced_gui::IcedGui, Progression};
+use crate::{
+    gui::{iced_gui::IcedGui, Progression},
+    TurtleID,
+};
 
 use iced::keyboard::{Event::KeyPressed, Key};
 use iced::window::Event::Resized;
 use iced::{window, Event};
-use lyon_tessellation::geom::euclid::default::Transform2D;
 
 use either::Either;
+use lyon_tessellation::geom::euclid::default::Transform2D;
 
 use crate::{
     color_names::TurtleColor,
@@ -24,47 +27,6 @@ use crate::{
     speed::TurtleSpeed,
     Request, Response, ScreenPosition, TurtleShapeName,
 };
-
-//
-// whenver we get a new command from the turtle, we're going to add to
-// the Turtle::iced_draw_commands vec. We need to convert the command into
-// drawing coordinates first (see the CurrentTurtleState::apply function),
-// and then from those coordinates into Iced Stroke/Fill for paths.
-//
-// Once the conversion is done, we should be able just draw in a fast loop.
-//
-// Complications:
-// 1/ When we draw lines, or move the turtle, we want to see it happen via
-//    animation. This means that the most recent command happens over a period
-//    of time.
-//
-// 2/ When we get a new command, we want to see if we can "attach" it to a
-//    previous command. For example, two lines in a row, separated by a
-//    rotation, should be able to be a single path with a single stroke.
-//
-// 3/ If the user modifies the pencolor/penwidth values, then we need to start
-//    a new path/stroke.
-//
-// Maintain a list of "completed" drawing commands
-// Keep one "current" drawing command
-//
-// Sequence of events:
-//  1/ Turtle sends a DrawRequest to the main thread
-//  2/ Main thread puts it on a queue
-//  3/ When the command is popped from the queue, call apply(DrawRequest).
-//     This returns a DrawCommand, which is put into the 'elements' vec
-//  4/ convert_to_iced() loops over the entire elements array and generates
-//     the IcedDrawCmd objects.
-//  5/ iced->draw will loop over the IcedDrawCmd objects and draw them in order
-//     on the display
-//
-//  1..3 -> Same
-//  4 -> need a "currently in progress" IcedDrawCmd, plus all the previously
-//       converted DrawCommand objects in an array
-//       - iced->draw will draw all the converted ones, and then draw the
-//         the final "in progress" one
-
-pub(crate) type TurtleID = usize;
 
 #[derive(Debug)]
 struct TurtleCommand {
@@ -747,11 +709,11 @@ impl TurtleTask {
             )),
             DataCmd::TurtleShape(shape) => {
                 if let TurtleShapeName::Shape(name) = shape {
-                    gui.set_shape(which, self.shapes[name].clone());
+                    gui.set_shape(turtle_id, self.shapes[name].clone());
                 }
-                resp.send(Response::Name(gui.get_turtle_shape_name(which)))
+                resp.send(Response::Name(gui.get_turtle_shape_name(turtle_id)))
             }
-            DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(which))),
+            DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(turtle_id))),
             DataCmd::Towards(xpos, ypos) => {
                 let curpos: ScreenPosition<f32> = self.data[which].data.current_shape.pos();
                 let x = xpos - curpos.x;
