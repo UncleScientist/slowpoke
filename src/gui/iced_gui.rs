@@ -73,7 +73,7 @@ impl IndividualTurtle {
         }
     }
 
-    fn convert(&mut self) {
+    fn convert(&mut self, pct: f32) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Path {
             Path::new(|b| {
                 b.move_to(path[0].1);
@@ -91,7 +91,6 @@ impl IndividualTurtle {
         let mut pencolor = Color::BLACK;
         let mut penwidth = 1.0;
         let mut fillcolor = Color::BLACK;
-        let pct = 1.;
 
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
@@ -489,9 +488,9 @@ impl IcedGui {
     }
 
     fn convert_to_iced(&mut self) {
-        for (_, turtle) in self.turtle.iter_mut() {
+        for (tid, turtle) in self.turtle.iter_mut() {
             if turtle.has_new_cmd {
-                turtle.convert();
+                turtle.convert(self.tt.get_mut().percent(*tid));
             }
         }
     }

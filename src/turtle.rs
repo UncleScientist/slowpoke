@@ -517,6 +517,10 @@ impl TurtleTask {
         }
     }
 
+    pub(crate) fn percent(&self, tid: TurtleID) -> f32 {
+        self.data[tid].data.percent
+    }
+
     pub(crate) fn popup_result(&mut self, tid: usize, index: usize, response: Response) {
         let _ = self.data[index].data.responder[&tid].send(response);
     }
