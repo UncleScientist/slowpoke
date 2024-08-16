@@ -1,4 +1,5 @@
 use slowpoke::*;
+use std::io::Write;
 
 fn main() {
     TurtleArgs::default()
@@ -15,7 +16,10 @@ fn main() {
             println!("There are {entries} steps to undo");
             for i in 0..entries {
                 turtle.speed(i % 10 + 1);
+                print!(".. {}", i + 1);
+                let _ = std::io::stdout().flush();
                 turtle.undo();
             }
+            println!();
         });
 }

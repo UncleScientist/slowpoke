@@ -28,6 +28,9 @@ pub(crate) trait TurtleGui: Default + Sized {
     // undo last command
     fn undo(&mut self, turtle_id: usize);
 
+    // how many commands can be undone
+    fn undo_count(&self, turtle_id: usize) -> usize;
+
     // read a numeric value from the user
     fn numinput(&mut self, turtle_id: usize, which: usize, title: &str, prompt: &str);
 

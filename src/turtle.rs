@@ -409,6 +409,7 @@ impl TurtleData {
             self.data.drawing_done = false;
 
             if matches!(self.data.progression, Progression::Reverse) {
+                gui.undo(self.data.current_turtle_id);
                 if let Some(element) = self.data.elements.pop() {
                     match element {
                         DrawCommand::Line(line) => {
@@ -762,9 +763,7 @@ impl TurtleTask {
                     self.data[which].data.turtle_shape.name.clone(),
                 ))
             }
-            DataCmd::UndoBufferEntries => {
-                resp.send(Response::Count(self.data[which].data.elements.len()))
-            }
+            DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(which))),
             DataCmd::Towards(xpos, ypos) => {
                 let curpos: ScreenPosition<f32> = self.data[which].data.current_shape.pos();
                 let x = xpos - curpos.x;

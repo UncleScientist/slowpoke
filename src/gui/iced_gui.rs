@@ -277,7 +277,15 @@ impl TurtleGui for IcedGui {
             .cmds[index] = cmd;
     }
 
-    fn undo(&mut self, turtle_id: usize) {
+    fn undo_count(&self, turtle_id: TurtleID) -> usize {
+        self.turtle
+            .get(&turtle_id)
+            .expect("missing turtle")
+            .cmds
+            .len()
+    }
+
+    fn undo(&mut self, turtle_id: TurtleID) {
         self.turtle
             .get_mut(&turtle_id)
             .expect("missing turtle")
