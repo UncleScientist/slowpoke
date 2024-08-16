@@ -5,7 +5,7 @@ use iced::{
     multi_window::Application,
     widget::{
         button,
-        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, Path, Stroke},
+        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, LineJoin, Path, Stroke},
         column, container, horizontal_space, row, text, text_input, vertical_space, Canvas,
         TextInput,
     },
@@ -58,6 +58,7 @@ impl IndividualTurtle {
                     Stroke {
                         style: stroke::Style::Solid(*pencolor),
                         width: *penwidth,
+                        line_join: LineJoin::Round,
                         ..Stroke::default()
                     },
                 ),
