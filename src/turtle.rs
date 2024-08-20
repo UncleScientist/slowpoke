@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    gui::{iced_gui::IcedGui, Progression},
+    gui::{iced_gui::IcedGuiFramework, Progression},
     TurtleID,
 };
 
@@ -97,7 +97,11 @@ impl Turtle {
         };
 
         // #[cfg(an option to specify the "iced" crate for the gui)]
-        IcedGui::start(flags);
+        IcedGuiFramework::start(flags);
+
+        // EguiGui::start(flags);
+        // SlintGui::start(flags);
+        // OtherGui::start(flags);
     }
 
     pub(crate) fn init(
