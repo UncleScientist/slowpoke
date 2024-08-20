@@ -47,3 +47,13 @@ pub(crate) enum Progression {
 }
 
 pub type TurtleID = usize;
+
+impl Progression {
+    pub(crate) fn is_done(&self, pct: f32) -> bool {
+        match self {
+            Progression::Forward if pct >= 1. => true,
+            Progression::Reverse if pct <= 0. => true,
+            _ => false,
+        }
+    }
+}

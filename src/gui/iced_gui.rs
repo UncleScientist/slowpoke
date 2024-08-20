@@ -24,8 +24,6 @@ use crate::{
     ScreenPosition, TurtleID,
 };
 
-use super::Progression;
-
 #[derive(Debug, Clone)]
 pub(crate) enum Message {
     Tick,
@@ -341,10 +339,10 @@ impl Application for IcedGui {
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
         match message {
             Message::Tick => {
-                self.cache.clear();
                 let mut tt = self.tt.take();
                 tt.tick(self);
                 self.tt.replace(tt);
+                self.convert_to_iced();
             }
             Message::AckError(id) => {
                 let popup = self.popups.get_mut(&id).expect("looking up popup data");
@@ -381,7 +379,6 @@ impl Application for IcedGui {
                 self.wcmds.push(window::close(id));
             }
         }
-        self.convert_to_iced();
         IcedCommand::batch(self.wcmds.drain(..).collect::<Vec<_>>())
     }
 
@@ -503,16 +500,22 @@ impl IcedGui {
     }
 
     fn convert_to_iced(&mut self) {
+        let mut done = true;
+
         for (tid, turtle) in self.turtle.iter_mut() {
             let (pct, prog) = self.tt.get_mut().progress(*tid);
             if turtle.has_new_cmd {
                 turtle.convert(pct);
-                match prog {
-                    Progression::Forward if pct >= 1. => turtle.has_new_cmd = false,
-                    Progression::Reverse if pct <= 0. => turtle.has_new_cmd = false,
-                    _ => {}
+                if prog.is_done(pct) {
+                    turtle.has_new_cmd = false;
+                } else {
+                    done = false;
                 }
             }
+        }
+
+        if !done {
+            self.cache.clear();
         }
     }
 
