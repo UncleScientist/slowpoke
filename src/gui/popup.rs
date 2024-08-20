@@ -1,16 +1,17 @@
-use crate::{Response, TurtleID};
+use crate::turtle::types::{TurtleID, TurtleThread};
+use crate::Response;
 
 #[derive(Default)]
 enum PopupType {
     TextInput {
-        turtle_id: TurtleID,
-        which: usize,
+        thread: TurtleThread,
+        turtle: TurtleID,
         prompt: String,
         text_input_field: String,
     },
     NumericalInput {
-        turtle_id: TurtleID,
-        which: usize,
+        thread: TurtleThread,
+        turtle: TurtleID,
         prompt: String,
         text_input_field: String,
     },
@@ -20,17 +21,20 @@ enum PopupType {
 }
 
 impl PopupType {
-    fn id(&self) -> TurtleID {
+    fn thread(&self) -> TurtleThread {
         match self {
-            PopupType::TextInput { turtle_id, .. }
-            | PopupType::NumericalInput { turtle_id, .. } => *turtle_id,
+            PopupType::TextInput { thread, .. } | PopupType::NumericalInput { thread, .. } => {
+                *thread
+            }
             _ => panic!("invalid popup for turtle id"),
         }
     }
 
-    fn which(&self) -> usize {
+    fn turtle(&self) -> TurtleID {
         match self {
-            PopupType::TextInput { which, .. } | PopupType::NumericalInput { which, .. } => *which,
+            PopupType::TextInput { turtle, .. } | PopupType::NumericalInput { turtle, .. } => {
+                *turtle
+            }
             _ => panic!("invalid popup for turtle id"),
         }
     }
@@ -72,27 +76,27 @@ impl PopupData {
         }
     }
 
-    pub fn text_input(title: &str, prompt: &str, turtle_id: TurtleID, which: usize) -> Self {
+    pub fn text_input(title: &str, prompt: &str, turtle: TurtleID, thread: TurtleThread) -> Self {
         Self {
             title: title.to_string(),
             err: None,
             popup: PopupType::TextInput {
                 prompt: prompt.to_string(),
-                turtle_id,
-                which,
+                turtle,
+                thread,
                 text_input_field: "".to_string(),
             },
         }
     }
 
-    pub fn num_input(title: &str, prompt: &str, turtle_id: TurtleID, which: usize) -> Self {
+    pub fn num_input(title: &str, prompt: &str, turtle: TurtleID, thread: TurtleThread) -> Self {
         Self {
             title: title.to_string(),
             err: None,
             popup: PopupType::NumericalInput {
                 prompt: prompt.to_string(),
-                turtle_id,
-                which,
+                thread,
+                turtle,
                 text_input_field: "".to_string(),
             },
         }
@@ -114,12 +118,12 @@ impl PopupData {
         }
     }
 
-    pub fn id(&self) -> TurtleID {
-        self.popup.id()
+    pub fn thread(&self) -> TurtleThread {
+        self.popup.thread()
     }
 
-    pub fn which(&self) -> usize {
-        self.popup.which()
+    pub fn turtle(&self) -> TurtleID {
+        self.popup.turtle()
     }
 
     pub(crate) fn prompt(&self) -> &str {

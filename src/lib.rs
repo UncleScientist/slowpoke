@@ -1,7 +1,7 @@
 use command::Command;
-pub use gui::TurtleID;
 use lyon_tessellation::geom::euclid::{Point2D, UnknownUnit};
 pub use polygon::TurtleShapeName;
+use turtle::types::{TurtleID, TurtleThread};
 pub use turtle::{Turtle, TurtleArgs};
 
 pub mod color_names;
@@ -52,6 +52,7 @@ pub enum Response {
 
 #[derive(Debug)]
 pub struct Request {
-    turtle_id: TurtleID,
+    turtle: TurtleID,
+    thread: TurtleThread,
     cmd: Command,
 }

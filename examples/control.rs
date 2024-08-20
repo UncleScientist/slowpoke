@@ -4,8 +4,12 @@ fn main() {
     let ta = TurtleArgs::default();
 
     Turtle::run(&ta, |turtle| {
+        let mut t1 = turtle.hatch();
+
+        turtle.fillcolor("red");
+        t1.fillcolor("blue");
+
         turtle.onkey(left, 'h');
-        let t1 = turtle.hatch();
         t1.onkey(right, 'j');
 
         turtle.onkey(forward20, 'w');

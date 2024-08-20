@@ -13,15 +13,22 @@ use iced::{
     Color, Element, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
 
+use iced::keyboard::{Event::KeyPressed, Key};
+use iced::window::Event::Resized;
+
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
+use super::events::TurtleEvent;
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
     gui::{popup::PopupData, TurtleGui},
     polygon::TurtleShape,
-    turtle::{TurtleFlags, TurtleTask},
-    ScreenPosition, TurtleID,
+    turtle::{
+        types::{TurtleID, TurtleThread},
+        TurtleFlags, TurtleTask,
+    },
+    ScreenPosition,
 };
 
 #[derive(Debug, Clone)]
@@ -237,16 +244,16 @@ pub(crate) struct IcedGuiFramework {
 #[derive(Default)]
 struct IcedGuiInternal {
     last_id: TurtleID,
-    turtle: HashMap<usize, IndividualTurtle>,
+    turtle: HashMap<TurtleID, IndividualTurtle>,
     popups: HashMap<WindowID, PopupData>,
     wcmds: Vec<IcedCommand<Message>>,
 }
 
 impl TurtleGui for IcedGuiInternal {
-    fn new_turtle(&mut self) -> usize {
-        let id = self.last_id;
-        self.last_id += 1;
+    fn new_turtle(&mut self) -> TurtleID {
+        let id = self.last_id.get();
 
+        println!("creating turtle ID {id:?}");
         self.turtle.insert(id, IndividualTurtle::default());
         id
     }
@@ -303,12 +310,12 @@ impl TurtleGui for IcedGuiInternal {
         turtle.has_new_cmd = true;
     }
 
-    fn numinput(&mut self, turtle_id: TurtleID, which: usize, title: &str, prompt: &str) {
-        self.generate_popup(PopupData::num_input(title, prompt, turtle_id, which));
+    fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
+        self.generate_popup(PopupData::num_input(title, prompt, turtle, thread));
     }
 
-    fn textinput(&mut self, turtle_id: TurtleID, which: usize, title: &str, prompt: &str) {
-        self.generate_popup(PopupData::text_input(title, prompt, turtle_id, which));
+    fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
+        self.generate_popup(PopupData::text_input(title, prompt, turtle, thread));
     }
 }
 
@@ -323,7 +330,7 @@ impl Application for IcedGuiFramework {
 
         let title = flags.title.clone();
         let mut tt = TurtleTask::new(&mut flags);
-        tt.run_turtle(func.unwrap(), 0);
+        tt.run_turtle(func.unwrap());
 
         let mut framework = Self {
             cache: Cache::default(),
@@ -332,7 +339,7 @@ impl Application for IcedGuiFramework {
             gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
         };
         let turtle_id = framework.gui.new_turtle();
-        assert_eq!(turtle_id, 0);
+        assert_eq!(*turtle_id, 0);
         (framework, IcedCommand::none())
     }
 
@@ -355,8 +362,10 @@ impl Application for IcedGuiFramework {
                 popup.clear_error();
             }
             Message::Event(event) => {
-                // TODO: Translate `event` into a TurtleEvent. Also, invent the TurtleEvent type
-                self.tt.handle_event(event, &mut self.gui);
+                let turtle_event: TurtleEvent = event.into();
+                if !matches!(turtle_event, TurtleEvent::Unhandled) {
+                    self.tt.handle_event(turtle_event);
+                }
             }
             Message::TextInputChanged(id, msg) => {
                 let popup = self.gui.popups.get_mut(&id).expect("looking up popup data");
@@ -366,9 +375,9 @@ impl Application for IcedGuiFramework {
                 let mut popup = self.gui.popups.remove(&id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
-                        let tid = popup.id();
-                        let index = popup.which();
-                        self.tt.popup_result(tid, index, response);
+                        let turtle = popup.turtle();
+                        let thread = popup.thread();
+                        self.tt.popup_result(turtle, thread, response);
                         self.gui.wcmds.push(window::close(id));
                     }
                     Err(message) => {
@@ -379,7 +388,7 @@ impl Application for IcedGuiFramework {
             }
             Message::Cancel(id) => {
                 let popup = self.gui.popups.remove(&id).expect("looking up popup data");
-                self.tt.popup_cancelled(popup.id(), popup.which());
+                self.tt.popup_cancelled(popup.turtle(), popup.thread());
                 self.gui.wcmds.push(window::close(id));
             }
         }
@@ -545,5 +554,26 @@ impl IcedGuiInternal {
         });
         self.wcmds.push(wcmd);
         self.popups.insert(id, popupdata);
+    }
+}
+
+impl From<Event> for TurtleEvent {
+    fn from(value: Event) -> Self {
+        match value {
+            Event::Keyboard(KeyPressed { key, .. }) => {
+                if let Key::Character(s) = key.as_ref() {
+                    let ch = s.chars().next().unwrap();
+                    TurtleEvent::KeyPress(ch)
+                } else {
+                    TurtleEvent::Unhandled
+                }
+            }
+            Event::Window(window::Id::MAIN, Resized { width, height }) => {
+                TurtleEvent::WindowResize(width, height)
+            }
+            Event::Mouse(_) => TurtleEvent::Unhandled,
+            Event::Touch(_) => TurtleEvent::Unhandled,
+            _ => TurtleEvent::Unhandled,
+        }
     }
 }
