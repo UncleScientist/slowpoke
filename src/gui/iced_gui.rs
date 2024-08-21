@@ -239,6 +239,7 @@ pub(crate) struct IcedGuiFramework {
     bgcolor: TurtleColor,
     tt: TurtleTask,
     gui: IcedGuiInternal,
+    clear_cache: bool,
 }
 
 #[derive(Default)]
@@ -339,6 +340,7 @@ impl Application for IcedGuiFramework {
             cache: Cache::default(),
             bgcolor: TurtleColor::from("white"),
             tt,
+            clear_cache: true,
             gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
         };
 
@@ -356,8 +358,14 @@ impl Application for IcedGuiFramework {
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
         match message {
             Message::Tick => {
+                if self.clear_cache {
+                    self.cache.clear();
+                    self.clear_cache = false;
+                }
                 self.tt.tick(&mut self.gui);
-                self.convert_to_iced();
+                if self.update_turtles() {
+                    self.clear_cache = true;
+                }
             }
             Message::AckError(id) => {
                 let popup = self.gui.popups.get_mut(&id).expect("looking up popup data");
@@ -518,7 +526,8 @@ impl IcedGuiFramework {
         .expect("failed to start turtle");
     }
 
-    fn convert_to_iced(&mut self) {
+    // returns true if the cache should be cleared
+    fn update_turtles(&mut self) -> bool {
         if let Some(color) = self.gui.newbgcolor.take() {
             self.bgcolor = color;
         }
@@ -537,9 +546,7 @@ impl IcedGuiFramework {
             }
         }
 
-        if !done {
-            self.cache.clear();
-        }
+        !done
     }
 }
 
