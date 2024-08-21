@@ -310,9 +310,7 @@ impl TurtleData {
                     gui.append_command(tid, command);
                 }
                 DrawCommand::DrawPolygon(_) => {
-                    if let Some(index) = self.data.insert_fill.take() {
-                        gui.fill_polygon(tid, command, index);
-                    }
+                    panic!("oops");
                 }
                 DrawCommand::StampTurtle => {
                     gui.stamp(
@@ -320,6 +318,28 @@ impl TurtleData {
                         self.data.current_shape.pos(),
                         self.data.current_shape.angle,
                     );
+                }
+                DrawCommand::BeginPoly => {
+                    let pos_copy = self.data.current_shape.pos();
+                    self.data.shape_poly.start(pos_copy);
+                }
+                DrawCommand::EndPoly => {
+                    self.data.shape_poly.close();
+                }
+                DrawCommand::BeginFill => {
+                    let pos_copy = self.data.current_shape.pos();
+                    self.data.fill_poly.start(pos_copy);
+                    self.data.insert_fill = Some(gui.get_position(tid));
+                    gui.append_command(tid, DrawCommand::Filler);
+                }
+                DrawCommand::EndFill => {
+                    if !self.data.fill_poly.verticies.is_empty() {
+                        let polygon = TurtlePolygon::new(&self.data.fill_poly.verticies);
+                        self.data.fill_poly.last_point = None;
+                        if let Some(index) = self.data.insert_fill.take() {
+                            gui.fill_polygon(tid, DrawCommand::DrawPolygon(polygon), index);
+                        }
+                    }
                 }
                 _ => {
                     gui.append_command(tid, command);
@@ -459,19 +479,6 @@ pub(crate) struct TurtleFlags {
     pub(crate) size: [f32; 2],
 }
 
-/*
-impl Application for TurtleTask {
-    type Executor = executor::Default;
-    type Message = Message;
-    type Theme = iced::Theme;
-    type Flags = TurtleFlags;
-
-    fn view(&self, win_id: WindowID) -> Element<Self::Message> {
-    }
-
-}
-*/
-
 impl TurtleTask {
     pub(crate) fn new(flags: &mut TurtleFlags) -> Self {
         let issue_command = flags.issue_command.take();
@@ -602,35 +609,6 @@ impl TurtleTask {
             ScreenCmd::Speed(s) => {
                 self.data[turtle].data.speed = s;
                 let _ = resp.send(Response::Done);
-            }
-            ScreenCmd::BeginPoly => {
-                let pos_copy = self.data[turtle].data.current_shape.pos();
-                self.data[turtle].data.shape_poly.start(pos_copy);
-                let _ = resp.send(Response::Done);
-            }
-            ScreenCmd::EndPoly => {
-                self.data[turtle].data.shape_poly.close();
-                let _ = resp.send(Response::Done);
-            }
-            ScreenCmd::BeginFill => {
-                let pos_copy = self.data[turtle].data.current_shape.pos();
-                self.data[turtle].data.fill_poly.start(pos_copy);
-                self.data[turtle].data.queue.push_back(TurtleCommand {
-                    cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
-                    turtle,
-                    thread,
-                });
-            }
-            ScreenCmd::EndFill => {
-                if !self.data[turtle].data.fill_poly.verticies.is_empty() {
-                    let polygon = TurtlePolygon::new(&self.data[turtle].data.fill_poly.verticies);
-                    self.data[turtle].data.fill_poly.last_point = None;
-                    self.data[turtle].data.queue.push_back(TurtleCommand {
-                        cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon)),
-                        turtle,
-                        thread,
-                    })
-                }
             }
             ScreenCmd::Background(TurtleColor::CurrentColor) => {
                 let _ = resp.send(Response::Done);

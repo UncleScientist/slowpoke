@@ -32,14 +32,6 @@ impl Turtle {
         self.do_screen(ScreenCmd::Speed(speed.into()));
     }
 
-    pub fn begin_poly(&mut self) {
-        self.do_screen(ScreenCmd::BeginPoly);
-    }
-
-    pub fn end_poly(&mut self) {
-        self.do_screen(ScreenCmd::EndPoly);
-    }
-
     pub fn showturtle(&mut self) {
         self.do_screen(ScreenCmd::ShowTurtle(true));
     }
@@ -72,6 +64,30 @@ impl Turtle {
     pub fn pencolor<C: Into<TurtleColor>>(&mut self, color: C) {
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::PenColor(color.into()),
+        ));
+    }
+
+    pub fn begin_poly(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::BeginPoly,
+        ));
+    }
+
+    pub fn end_poly(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::EndPoly,
+        ));
+    }
+
+    pub fn begin_fill(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::BeginFill,
+        ));
+    }
+
+    pub fn end_fill(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::EndFill,
         ));
     }
 
@@ -199,14 +215,6 @@ impl Turtle {
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
             MotionCmd::SetY(-y),
         )));
-    }
-
-    pub fn begin_fill(&mut self) {
-        self.do_screen(ScreenCmd::BeginFill);
-    }
-
-    pub fn end_fill(&mut self) {
-        self.do_screen(ScreenCmd::EndFill);
     }
 
     pub fn home(&mut self) {

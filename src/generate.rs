@@ -36,6 +36,10 @@ impl CirclePos {
 #[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
     Filler,
+    BeginFill,
+    EndFill,
+    BeginPoly,
+    EndPoly,
     StampTurtle,
     Line(LineInfo),
     SetPenColor(TurtleColor),
@@ -247,6 +251,10 @@ impl CurrentTurtleState {
                     // TODO: move instead of clone? cmd: &DrawRequest -> cmd: DrawRequest ?
                     return Some(DrawCommand::DrawPolygon(polygon.clone()));
                 }
+                InstantaneousDrawCmd::BeginFill => return Some(DrawCommand::BeginFill),
+                InstantaneousDrawCmd::EndFill => return Some(DrawCommand::EndFill),
+                InstantaneousDrawCmd::BeginPoly => return Some(DrawCommand::BeginPoly),
+                InstantaneousDrawCmd::EndPoly => return Some(DrawCommand::EndPoly),
             },
         }
         None

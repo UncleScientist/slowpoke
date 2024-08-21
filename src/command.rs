@@ -52,6 +52,10 @@ pub enum InstantaneousDrawCmd {
     Stamp,
     Fill(TurtlePolygon),
     Tracer(bool),
+    BeginFill,
+    EndFill,
+    BeginPoly,
+    EndPoly,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -60,10 +64,6 @@ pub enum ScreenCmd {
     Background(TurtleColor),
     ClearStamp(usize),
     ClearStamps(isize),
-    BeginFill,
-    EndFill,
-    BeginPoly,
-    EndPoly,
     Speed(TurtleSpeed),
     ShowTurtle(bool),
     SetSize([isize; 2]),
