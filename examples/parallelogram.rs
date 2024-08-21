@@ -38,6 +38,8 @@ fn main() {
 
             turtle.end_fill();
 
+            turtle.backward(150);
+
             println!("Polygon is {:?}", turtle.get_poly());
         });
 }

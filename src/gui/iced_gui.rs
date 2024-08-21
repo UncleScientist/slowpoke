@@ -289,10 +289,9 @@ impl TurtleGui for IcedGuiInternal {
     }
 
     fn fill_polygon(&mut self, turtle_id: TurtleID, cmd: DrawCommand, index: usize) {
-        self.turtle
-            .get_mut(&turtle_id)
-            .expect("missing turtle")
-            .cmds[index] = cmd;
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        turtle.has_new_cmd = true;
+        turtle.cmds[index] = cmd;
     }
 
     fn undo_count(&self, turtle_id: TurtleID) -> usize {
