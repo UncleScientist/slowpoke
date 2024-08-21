@@ -213,7 +213,6 @@ impl CurrentTurtleState {
             },
             DrawRequest::InstantaneousDraw(id) => match id {
                 InstantaneousDrawCmd::Tracer(_) => {}
-                InstantaneousDrawCmd::BackfillPolygon => return Some(DrawCommand::Filler),
                 InstantaneousDrawCmd::PenDown => {
                     self.pen_down = true;
                 }
@@ -246,10 +245,6 @@ impl CurrentTurtleState {
                 }
                 InstantaneousDrawCmd::Stamp => {
                     return Some(DrawCommand::StampTurtle);
-                }
-                InstantaneousDrawCmd::Fill(polygon) => {
-                    // TODO: move instead of clone? cmd: &DrawRequest -> cmd: DrawRequest ?
-                    return Some(DrawCommand::DrawPolygon(polygon.clone()));
                 }
                 InstantaneousDrawCmd::BeginFill => return Some(DrawCommand::BeginFill),
                 InstantaneousDrawCmd::EndFill => return Some(DrawCommand::EndFill),
