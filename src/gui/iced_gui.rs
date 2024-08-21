@@ -253,7 +253,6 @@ impl TurtleGui for IcedGuiInternal {
     fn new_turtle(&mut self) -> TurtleID {
         let id = self.last_id.get();
 
-        println!("creating turtle ID {id:?}");
         self.turtle.insert(id, IndividualTurtle::default());
         id
     }
@@ -332,14 +331,13 @@ impl Application for IcedGuiFramework {
         let mut tt = TurtleTask::new(&mut flags);
         tt.run_turtle(func.unwrap());
 
-        let mut framework = Self {
+        let framework = Self {
             cache: Cache::default(),
             bgcolor: TurtleColor::from("white"),
             tt,
             gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
         };
-        let turtle_id = framework.gui.new_turtle();
-        assert_eq!(*turtle_id, 0);
+
         (framework, IcedCommand::none())
     }
 
@@ -539,10 +537,12 @@ impl IcedGuiFramework {
 
 impl IcedGuiInternal {
     fn new(window_id: WindowID, popup_data: PopupData) -> Self {
-        Self {
+        let mut this = Self {
             popups: HashMap::from([(window_id, popup_data)]),
             ..Self::default()
-        }
+        };
+        let _turtle = this.new_turtle();
+        this
     }
 
     fn generate_popup(&mut self, popupdata: PopupData) {

@@ -1,4 +1,6 @@
-use std::ops::Deref;
+use std::ops::{Index, IndexMut};
+
+use super::TurtleData;
 
 #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
 pub(crate) struct TurtleID {
@@ -15,14 +17,6 @@ impl TurtleID {
     }
 }
 
-impl Deref for TurtleID {
-    type Target = usize;
-
-    fn deref(&self) -> &Self::Target {
-        &self.id
-    }
-}
-
 #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
 pub(crate) struct TurtleThread {
     thread: usize,
@@ -33,10 +27,16 @@ impl TurtleThread {
     }
 }
 
-impl Deref for TurtleThread {
-    type Target = usize;
+impl Index<TurtleID> for Vec<TurtleData> {
+    type Output = TurtleData;
 
-    fn deref(&self) -> &Self::Target {
-        &self.thread
+    fn index(&self, index: TurtleID) -> &Self::Output {
+        &self[index.id]
+    }
+}
+
+impl IndexMut<TurtleID> for Vec<TurtleData> {
+    fn index_mut(&mut self, index: TurtleID) -> &mut Self::Output {
+        &mut self[index.id]
     }
 }

@@ -67,8 +67,8 @@ impl TurtleArgs {
 pub struct Turtle {
     issue_command: Sender<Request>,
     command_complete: Receiver<Response>,
-    turtle_id: TurtleID,
-    turtle_thread: TurtleThread,
+    turtle: TurtleID,
+    thread: TurtleThread,
     tracer: RefCell<bool>,
 }
 
@@ -108,14 +108,14 @@ impl Turtle {
     pub(crate) fn init(
         issue_command: Sender<Request>,
         command_complete: Receiver<Response>,
-        turtle_id: TurtleID,
-        turtle_thread: TurtleThread,
+        turtle: TurtleID,
+        thread: TurtleThread,
     ) -> Self {
         Self {
             issue_command,
             command_complete,
-            turtle_id,
-            turtle_thread,
+            turtle,
+            thread,
             tracer: true.into(),
         }
     }
@@ -147,8 +147,8 @@ impl Turtle {
 
     fn req(&self, cmd: Command) -> Request {
         Request {
-            turtle: self.turtle_id,
-            thread: self.turtle_thread,
+            turtle: self.turtle,
+            thread: self.thread,
             cmd,
         }
     }
@@ -486,10 +486,7 @@ impl TurtleTask {
     }
 
     pub(crate) fn progress(&self, tid: TurtleID) -> (f32, Progression) {
-        (
-            self.data[*tid].data.percent,
-            self.data[*tid].data.progression,
-        )
+        (self.data[tid].data.percent, self.data[tid].data.progression)
     }
 
     pub(crate) fn popup_result(
@@ -498,11 +495,11 @@ impl TurtleTask {
         thread: TurtleThread,
         response: Response,
     ) {
-        let _ = self.data[*turtle].data.responder[&thread].send(response);
+        let _ = self.data[turtle].data.responder[&thread].send(response);
     }
 
     pub(crate) fn popup_cancelled(&mut self, turtle: TurtleID, thread: TurtleThread) {
-        let _ = self.data[*turtle].data.responder[&thread].send(Response::Cancel);
+        let _ = self.data[turtle].data.responder[&thread].send(Response::Cancel);
     }
 
     pub(crate) fn handle_event(&mut self, event: TurtleEvent) {
@@ -513,7 +510,6 @@ impl TurtleTask {
                 self.winsize = [width as isize, height as isize];
             }
             TurtleEvent::KeyPress(ch) => {
-                println!("key {ch}");
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onkeypress.get(&ch).copied() {
                         work.push((TurtleID::new(idx), func, ch));
@@ -527,7 +523,7 @@ impl TurtleTask {
         }
 
         for (idx, func, key) in work {
-            let tid = TurtleThread::new(self.data[*idx].data.responder.len());
+            let tid = TurtleThread::new(self.data[idx].data.responder.len());
             let mut new_turtle = self.spawn_turtle(idx, tid);
             let _ = std::thread::spawn(move || func(&mut new_turtle, key));
         }
@@ -540,16 +536,7 @@ impl TurtleTask {
 
     pub(crate) fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
         while let Ok(req) = self.receive_command.as_ref().unwrap().try_recv() {
-            let mut found = None;
-            for (index, tdata) in self.data.iter().enumerate() {
-                if tdata.data.responder.contains_key(&req.thread) {
-                    found = Some(index);
-                    break;
-                }
-            }
-            if let Some(index) = found {
-                self.handle_command(index, req, gui);
-            }
+            self.handle_command(req, gui);
         }
 
         for turtle in self.data.iter_mut() {
@@ -559,35 +546,38 @@ impl TurtleTask {
 
     pub(crate) fn hatch_turtle<G: TurtleGui>(&mut self, gui: &mut G) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
-        let newid = gui.new_turtle();
+        let turtle = gui.new_turtle();
+        let thread = TurtleThread::new(0);
 
         let mut td = TurtleData::new();
-        td.data.responder.insert(newid, finished);
+        td.data.responder.insert(thread, finished);
         self.data.push(td);
 
         Turtle::init(
             self.issue_command.as_ref().unwrap().clone(),
             command_complete,
-            newid,
+            turtle,
+            thread,
         )
     }
 
     fn spawn_turtle(&mut self, turtle: TurtleID, thread: TurtleThread) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
-        self.data[*turtle].data.responder.insert(thread, finished);
+        self.data[turtle].data.responder.insert(thread, finished);
 
         Turtle::init(
             self.issue_command.as_ref().unwrap().clone(),
             command_complete,
+            turtle,
             thread,
         )
     }
 
-    fn screen_cmd(&mut self, which: TurtleID, cmd: ScreenCmd, turtle_thread: usize) {
-        let resp = self.data[which]
+    fn screen_cmd(&mut self, turtle: TurtleID, cmd: ScreenCmd, thread: TurtleThread) {
+        let resp = self.data[turtle]
             .data
             .responder
-            .get(&turtle_thread)
+            .get(&thread)
             .unwrap()
             .clone();
         match cmd {
@@ -600,39 +590,39 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done); // TODO: don't respond until resize event
             }
             ScreenCmd::ShowTurtle(t) => {
-                self.data[which].data.turtle_invisible = !t;
+                self.data[turtle].data.turtle_invisible = !t;
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::Speed(s) => {
-                self.data[which].data.speed = s;
+                self.data[turtle].data.speed = s;
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginPoly => {
-                let pos_copy = self.data[which].data.current_shape.pos();
-                self.data[which].data.shape_poly.start(pos_copy);
+                let pos_copy = self.data[turtle].data.current_shape.pos();
+                self.data[turtle].data.shape_poly.start(pos_copy);
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::EndPoly => {
-                self.data[which].data.shape_poly.close();
+                self.data[turtle].data.shape_poly.close();
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::BeginFill => {
-                let pos_copy = self.data[which].data.current_shape.pos();
-                self.data[which].data.fill_poly.start(pos_copy);
-                self.data[which].data.queue.push_back(TurtleCommand {
+                let pos_copy = self.data[turtle].data.current_shape.pos();
+                self.data[turtle].data.fill_poly.start(pos_copy);
+                self.data[turtle].data.queue.push_back(TurtleCommand {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::BackfillPolygon),
-                    turtle: which,
-                    thread: turtle_thread,
+                    turtle,
+                    thread,
                 });
             }
             ScreenCmd::EndFill => {
-                if !self.data[which].data.fill_poly.verticies.is_empty() {
-                    let polygon = TurtlePolygon::new(&self.data[which].data.fill_poly.verticies);
-                    self.data[which].data.fill_poly.last_point = None;
-                    self.data[which].data.queue.push_back(TurtleCommand {
+                if !self.data[turtle].data.fill_poly.verticies.is_empty() {
+                    let polygon = TurtlePolygon::new(&self.data[turtle].data.fill_poly.verticies);
+                    self.data[turtle].data.fill_poly.last_point = None;
+                    self.data[turtle].data.queue.push_back(TurtleCommand {
                         cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Fill(polygon)),
-                        turtle: which,
-                        thread: turtle_thread,
+                        turtle,
+                        thread,
                     })
                 }
             }
@@ -644,40 +634,40 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
-                self.data[which].data.elements.clear();
+                self.data[turtle].data.elements.clear();
                 self.bgcolor = TurtleColor::from("black");
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {
-                if id < self.data[which].data.elements.len()
+                if id < self.data[turtle].data.elements.len()
                     && matches!(
-                        self.data[which].data.elements[id],
+                        self.data[turtle].data.elements[id],
                         DrawCommand::DrawPolyAt(..)
                     )
                 {
-                    self.data[which].data.elements[id] = DrawCommand::Filler;
+                    self.data[turtle].data.elements[id] = DrawCommand::Filler;
                 }
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamps(count) => {
                 #[allow(clippy::comparison_chain)]
                 if count < 0 {
-                    self.clear_stamps(which, -count, ClearDirection::Reverse);
+                    self.clear_stamps(turtle, -count, ClearDirection::Reverse);
                 } else if count == 0 {
-                    self.clear_stamps(which, isize::MAX, ClearDirection::Forward);
+                    self.clear_stamps(turtle, isize::MAX, ClearDirection::Forward);
                 } else {
-                    self.clear_stamps(which, count, ClearDirection::Forward);
+                    self.clear_stamps(turtle, count, ClearDirection::Forward);
                 }
                 let _ = resp.send(Response::Done);
             }
         }
     }
 
-    fn clear_stamps(&mut self, which: usize, mut count: isize, dir: ClearDirection) {
+    fn clear_stamps(&mut self, turtle: TurtleID, mut count: isize, dir: ClearDirection) {
         let mut iter = match dir {
-            ClearDirection::Forward => Either::Right(self.data[which].data.elements.iter_mut()),
+            ClearDirection::Forward => Either::Right(self.data[turtle].data.elements.iter_mut()),
             ClearDirection::Reverse => {
-                Either::Left(self.data[which].data.elements.iter_mut().rev())
+                Either::Left(self.data[turtle].data.elements.iter_mut().rev())
             }
         };
 
@@ -693,16 +683,16 @@ impl TurtleTask {
         }
     }
 
-    fn input_cmd(&mut self, which: usize, cmd: InputCmd, turtle_id: TurtleID) {
-        let resp = self.data[which]
+    fn input_cmd(&mut self, turtle: TurtleID, cmd: InputCmd, thread: TurtleThread) {
+        let resp = self.data[turtle]
             .data
             .responder
-            .get(&turtle_id)
+            .get(&thread)
             .unwrap()
             .clone();
         match cmd {
             InputCmd::OnKeyPress(f, k) => {
-                self.data[which].data.onkeypress.insert(k, f);
+                self.data[turtle].data.onkeypress.insert(k, f);
                 let _ = resp.send(Response::Done);
             }
         }
@@ -710,34 +700,34 @@ impl TurtleTask {
 
     fn data_cmd<G: TurtleGui>(
         &mut self,
-        which: TurtleID,
+        turtle: TurtleID,
         cmd: DataCmd,
-        turtle_thread: usize,
+        thread: TurtleThread,
         gui: &mut G,
     ) {
-        let resp = self.data[which]
+        let resp = self.data[turtle]
             .data
             .responder
-            .get(&turtle_thread)
+            .get(&thread)
             .unwrap()
             .clone();
         let _ = match &cmd {
             DataCmd::GetScreenSize => resp.send(Response::ScreenSize(self.winsize)),
             DataCmd::Visibility => resp.send(Response::Visibility(
-                !self.data[which].data.turtle_invisible,
+                !self.data[turtle].data.turtle_invisible,
             )),
             DataCmd::GetPoly => resp.send(Response::Polygon(
-                self.data[which].data.shape_poly.verticies.clone(),
+                self.data[turtle].data.shape_poly.verticies.clone(),
             )),
             DataCmd::TurtleShape(shape) => {
                 if let TurtleShapeName::Shape(name) = shape {
-                    gui.set_shape(which, self.shapes[name].clone());
+                    gui.set_shape(turtle, self.shapes[name].clone());
                 }
-                resp.send(Response::Name(gui.get_turtle_shape_name(which)))
+                resp.send(Response::Name(gui.get_turtle_shape_name(turtle)))
             }
-            DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(which))),
+            DataCmd::UndoBufferEntries => resp.send(Response::Count(gui.undo_count(turtle))),
             DataCmd::Towards(xpos, ypos) => {
-                let curpos: ScreenPosition<f32> = self.data[which].data.current_shape.pos();
+                let curpos: ScreenPosition<f32> = self.data[turtle].data.current_shape.pos();
                 let x = xpos - curpos.x;
                 let y = ypos + curpos.y;
                 let heading = y.atan2(x) * 360. / (2.0 * PI);
@@ -745,54 +735,57 @@ impl TurtleTask {
                 resp.send(Response::Heading(heading))
             }
             DataCmd::Position => resp.send(Response::Position(
-                self.data[which].data.current_shape.pos(),
+                self.data[turtle].data.current_shape.pos(),
             )),
             DataCmd::Heading => resp.send(Response::Heading(
-                self.data[which].data.current_shape.angle(),
+                self.data[turtle].data.current_shape.angle(),
             )),
             DataCmd::Stamp => {
-                self.data[which].data.queue.push_back(TurtleCommand {
+                self.data[turtle].data.queue.push_back(TurtleCommand {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp),
-                    turtle: which,
-                    thread: turtle_thread,
+                    turtle,
+                    thread,
                 });
                 Ok(())
             }
             DataCmd::NumInput(title, prompt) => {
-                gui.numinput(which, turtle_thread, title, prompt);
+                gui.numinput(turtle, thread, title, prompt);
                 Ok(())
             }
             DataCmd::TextInput(title, prompt) => {
-                gui.textinput(which, turtle_thread, title, prompt);
+                gui.textinput(turtle, thread, title, prompt);
                 Ok(())
             }
         };
     }
 
-    fn draw_cmd(&mut self, which: TurtleID, cmd: DrawRequest, turtle_id: usize) {
+    fn draw_cmd(&mut self, turtle: TurtleID, cmd: DrawRequest, thread: TurtleThread) {
         let is_stamp = cmd.is_stamp();
-        self.data[which].data.queue.push_back(TurtleCommand {
+        self.data[turtle].data.queue.push_back(TurtleCommand {
             cmd,
-            turtle: which,
-            thread: turtle_id,
+            turtle,
+            thread,
         });
 
         // FIXME: data commands (Command::Data(_)) require all queued entries to be
         // processed before sending a response, even if `respond_immediately` is set
-        if self.data[which].data.respond_immediately {
-            self.data[which].send_response(turtle_id, is_stamp);
+        if self.data[turtle].data.respond_immediately {
+            self.data[turtle].send_response(thread, is_stamp);
         }
     }
 
-    fn handle_command<G: TurtleGui>(&mut self, which: usize, req: Request, gui: &mut G) {
+    fn handle_command<G: TurtleGui>(&mut self, req: Request, gui: &mut G) {
+        let turtle = req.turtle;
+        let thread = req.thread;
+
         match req.cmd {
-            Command::Screen(cmd) => self.screen_cmd(which, cmd, req.turtle_id),
-            Command::Draw(cmd) => self.draw_cmd(which, cmd, req.turtle_id),
-            Command::Input(cmd) => self.input_cmd(which, cmd, req.turtle_id),
-            Command::Data(cmd) => self.data_cmd(which, cmd, req.turtle_id, gui),
+            Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread),
+            Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
+            Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),
+            Command::Data(cmd) => self.data_cmd(turtle, cmd, thread, gui),
             Command::Hatch => {
                 let new_turtle = self.hatch_turtle(gui);
-                let resp = &self.data[which].data.responder[&req.turtle_id];
+                let resp = &self.data[turtle].data.responder[&thread];
                 let _ = resp.send(Response::Turtle(new_turtle));
             }
         }
