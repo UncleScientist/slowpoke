@@ -247,6 +247,7 @@ struct IcedGuiInternal {
     turtle: HashMap<TurtleID, IndividualTurtle>,
     popups: HashMap<WindowID, PopupData>,
     wcmds: Vec<IcedCommand<Message>>,
+    newbgcolor: Option<TurtleColor>,
 }
 
 impl TurtleGui for IcedGuiInternal {
@@ -314,6 +315,10 @@ impl TurtleGui for IcedGuiInternal {
 
     fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
         self.generate_popup(PopupData::text_input(title, prompt, turtle, thread));
+    }
+
+    fn bgcolor(&mut self, color: TurtleColor) {
+        self.newbgcolor = Some(color);
     }
 }
 
@@ -514,6 +519,10 @@ impl IcedGuiFramework {
     }
 
     fn convert_to_iced(&mut self) {
+        if let Some(color) = self.gui.newbgcolor.take() {
+            self.bgcolor = color;
+        }
+
         let mut done = true;
 
         for (tid, turtle) in self.gui.turtle.iter_mut() {

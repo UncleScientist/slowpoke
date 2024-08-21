@@ -573,7 +573,13 @@ impl TurtleTask {
         )
     }
 
-    fn screen_cmd(&mut self, turtle: TurtleID, cmd: ScreenCmd, thread: TurtleThread) {
+    fn screen_cmd<G: TurtleGui>(
+        &mut self,
+        turtle: TurtleID,
+        cmd: ScreenCmd,
+        thread: TurtleThread,
+        gui: &mut G,
+    ) {
         let resp = self.data[turtle]
             .data
             .responder
@@ -630,7 +636,7 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::Background(TurtleColor::Color(r, g, b)) => {
-                self.bgcolor = [r, g, b, 1.].into();
+                gui.bgcolor([r, g, b, 1.].into());
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
@@ -779,7 +785,7 @@ impl TurtleTask {
         let thread = req.thread;
 
         match req.cmd {
-            Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread),
+            Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
             Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
             Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),
             Command::Data(cmd) => self.data_cmd(turtle, cmd, thread, gui),

@@ -1,6 +1,7 @@
 pub(crate) mod events;
 pub(crate) mod popup;
 
+use crate::color_names::TurtleColor;
 use crate::{generate::DrawCommand, polygon::TurtleShape, ScreenPosition};
 
 pub(crate) mod iced_gui;
@@ -17,6 +18,7 @@ pub(crate) trait TurtleGui: Default + Sized {
     // stamp the turtle's shape onto the canvas
     fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32);
 
+    // get the name of the current turtle's shape
     fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String;
 
     // Call this to add a drawing command to the screen. These will be drawn
@@ -40,6 +42,9 @@ pub(crate) trait TurtleGui: Default + Sized {
 
     // read a text string from the user
     fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str);
+
+    // set the background color
+    fn bgcolor(&mut self, color: TurtleColor);
 }
 
 #[derive(Default, Clone, Copy)]
