@@ -240,6 +240,9 @@ pub(crate) struct IcedGuiFramework {
     tt: TurtleTask,
     gui: IcedGuiInternal,
     clear_cache: bool,
+    winsize: (f32, f32),   // width, height
+    mouse_pos: (f32, f32), // x, y
+    mouse_down: bool,
 }
 
 #[derive(Default)]
@@ -350,6 +353,9 @@ impl Application for IcedGuiFramework {
             tt,
             clear_cache: true,
             gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
+            winsize: (0., 0.),
+            mouse_pos: (0., 0.),
+            mouse_down: false,
         };
 
         (framework, IcedCommand::none())
@@ -382,7 +388,8 @@ impl Application for IcedGuiFramework {
             Message::Event(event) => {
                 let turtle_event: TurtleEvent = event.into();
                 match &turtle_event {
-                    TurtleEvent::WindowResize(_, _) => {
+                    TurtleEvent::WindowResize(x, y) => {
+                        self.winsize = (*x as f32, *y as f32);
                         if self.gui.resize_request.is_none() {
                             self.tt.handle_event(None, None, turtle_event);
                         } else {
@@ -391,6 +398,33 @@ impl Application for IcedGuiFramework {
                             self.tt
                                 .handle_event(Some(turtle), Some(thread), turtle_event);
                         }
+                    }
+                    TurtleEvent::MousePosition(x, y) => {
+                        self.mouse_pos = self.to_turtle_pos(x, y);
+                        if self.mouse_down {
+                            self.tt.handle_event(
+                                None,
+                                None,
+                                TurtleEvent::MouseDrag(self.mouse_pos.0, self.mouse_pos.1),
+                            );
+                        }
+                    }
+                    TurtleEvent::MouseDrag(_, _) => unimplemented!(),
+                    TurtleEvent::MousePress(_x, _y) => {
+                        self.mouse_down = true;
+                        self.tt.handle_event(
+                            None,
+                            None,
+                            TurtleEvent::MousePress(self.mouse_pos.0, self.mouse_pos.1),
+                        );
+                    }
+                    TurtleEvent::MouseRelease(_x, _y) => {
+                        self.mouse_down = false;
+                        self.tt.handle_event(
+                            None,
+                            None,
+                            TurtleEvent::MouseRelease(self.mouse_pos.0, self.mouse_pos.1),
+                        );
                     }
                     TurtleEvent::Unhandled => {}
                     _ => {
@@ -569,6 +603,15 @@ impl IcedGuiFramework {
 
         !done
     }
+
+    fn to_turtle_pos(&self, x: &f32, y: &f32) -> (f32, f32) {
+        let x = *x;
+        let y = *y;
+        (
+            (x - self.winsize.0 / 2.) as f32,
+            -((y - self.winsize.1 / 2.) as f32),
+        )
+    }
 }
 
 impl IcedGuiInternal {
@@ -594,8 +637,19 @@ impl IcedGuiInternal {
 }
 
 impl From<Event> for TurtleEvent {
-    fn from(value: Event) -> Self {
-        match value {
+    fn from(event: Event) -> Self {
+        fn convert_mouse_event(event: mouse::Event) -> TurtleEvent {
+            match event {
+                mouse::Event::CursorMoved { position } => {
+                    TurtleEvent::MousePosition(position.x, position.y)
+                }
+                mouse::Event::ButtonPressed(_) => TurtleEvent::MousePress(0., 0.),
+                mouse::Event::ButtonReleased(_) => TurtleEvent::MouseRelease(0., 0.),
+                _ => TurtleEvent::Unhandled,
+            }
+        }
+
+        match event {
             Event::Keyboard(KeyPressed { key, .. }) => {
                 if let Key::Character(s) = key.as_ref() {
                     let ch = s.chars().next().unwrap();
@@ -607,7 +661,7 @@ impl From<Event> for TurtleEvent {
             Event::Window(window::Id::MAIN, Resized { width, height }) => {
                 TurtleEvent::WindowResize(width, height)
             }
-            Event::Mouse(_) => TurtleEvent::Unhandled,
+            Event::Mouse(mouse_event) => convert_mouse_event(mouse_event),
             Event::Touch(_) => TurtleEvent::Unhandled,
             _ => TurtleEvent::Unhandled,
         }

@@ -257,6 +257,9 @@ pub(crate) struct TurtleInternalData {
     insert_fill: Option<usize>,
     responder: HashMap<TurtleThread, Sender<Response>>,
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
+    onmousepress: Option<fn(&mut Turtle, x: f32, y: f32)>,
+    onmouserelease: Option<fn(&mut Turtle, x: f32, y: f32)>,
+    onmousedrag: Option<fn(&mut Turtle, x: f32, y: f32)>,
     drawing_done: bool,
     turtle_invisible: bool,
     tracer: bool,
@@ -514,10 +517,13 @@ impl TurtleTask {
         thread: Option<TurtleThread>,
         event: TurtleEvent,
     ) {
-        let mut work = Vec::new();
+        use TurtleEvent::*;
+
+        let mut keywork = Vec::new();
+        let mut mousework = Vec::new();
 
         match event {
-            TurtleEvent::WindowResize(width, height) => {
+            WindowResize(width, height) => {
                 self.winsize = [width as isize, height as isize];
                 if turtle.is_none() {
                     assert!(thread.is_none());
@@ -527,20 +533,49 @@ impl TurtleTask {
                     let _ = self.data[turtle].data.responder[&thread].send(Response::Done);
                 }
             }
-            TurtleEvent::KeyPress(ch) => {
+            KeyPress(ch) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onkeypress.get(&ch).copied() {
-                        work.push((TurtleID::new(idx), func, ch));
+                        keywork.push((TurtleID::new(idx), func, ch));
                     }
                 }
             }
-            TurtleEvent::KeyRelease(_) => todo!(),
-            TurtleEvent::MousePress(_, _, _) => todo!(),
-            TurtleEvent::Timer => todo!(),
-            TurtleEvent::Unhandled => {}
+            KeyRelease(_) => todo!(),
+            MousePress(x, y) => {
+                println!("mouse pressed @ {x},{y}");
+                for (idx, turtle) in self.data.iter().enumerate() {
+                    if let Some(func) = turtle.data.onmousepress {
+                        mousework.push((TurtleID::new(idx), func, x, y));
+                    }
+                }
+            }
+            MouseRelease(x, y) => {
+                println!("mouse release @ {x},{y}");
+                for (idx, turtle) in self.data.iter().enumerate() {
+                    if let Some(func) = turtle.data.onmouserelease {
+                        mousework.push((TurtleID::new(idx), func, x, y));
+                    }
+                }
+            }
+            MousePosition(_, _) => todo!(),
+            MouseDrag(x, y) => {
+                for (idx, turtle) in self.data.iter().enumerate() {
+                    if let Some(func) = turtle.data.onmousedrag {
+                        mousework.push((TurtleID::new(idx), func, x, y));
+                    }
+                }
+            }
+            Timer => todo!(),
+            Unhandled => {}
         }
 
-        for (idx, func, key) in work {
+        for (idx, func, x, y) in mousework {
+            let tid = TurtleThread::new(self.data[idx].data.responder.len());
+            let mut new_turtle = self.spawn_turtle(idx, tid);
+            let _ = std::thread::spawn(move || func(&mut new_turtle, x, y));
+        }
+
+        for (idx, func, key) in keywork {
             let tid = TurtleThread::new(self.data[idx].data.responder.len());
             let mut new_turtle = self.spawn_turtle(idx, tid);
             let _ = std::thread::spawn(move || func(&mut new_turtle, key));
@@ -684,6 +719,18 @@ impl TurtleTask {
         match cmd {
             InputCmd::OnKeyPress(f, k) => {
                 self.data[turtle].data.onkeypress.insert(k, f);
+                let _ = resp.send(Response::Done);
+            }
+            InputCmd::OnMouseDrag(f) => {
+                self.data[turtle].data.onmousedrag = Some(f);
+                let _ = resp.send(Response::Done);
+            }
+            InputCmd::OnMousePress(f) => {
+                self.data[turtle].data.onmousepress = Some(f);
+                let _ = resp.send(Response::Done);
+            }
+            InputCmd::OnMouseRelease(f) => {
+                self.data[turtle].data.onmouserelease = Some(f);
                 let _ = resp.send(Response::Done);
             }
         }
