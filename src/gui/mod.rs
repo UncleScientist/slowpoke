@@ -45,6 +45,9 @@ pub(crate) trait TurtleGui: Default + Sized {
 
     // set the background color
     fn bgcolor(&mut self, color: TurtleColor);
+
+    // resize the window
+    fn resize(&mut self, turtle: TurtleID, thread: TurtleThread, width: isize, height: isize);
 }
 
 #[derive(Default, Clone, Copy)]

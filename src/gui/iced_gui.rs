@@ -249,6 +249,7 @@ struct IcedGuiInternal {
     popups: HashMap<WindowID, PopupData>,
     wcmds: Vec<IcedCommand<Message>>,
     newbgcolor: Option<TurtleColor>,
+    resize_request: Option<(TurtleID, TurtleThread)>,
 }
 
 impl TurtleGui for IcedGuiInternal {
@@ -321,6 +322,13 @@ impl TurtleGui for IcedGuiInternal {
     fn bgcolor(&mut self, color: TurtleColor) {
         self.newbgcolor = Some(color);
     }
+
+    fn resize(&mut self, turtle: TurtleID, thread: TurtleThread, width: isize, height: isize) {
+        let new_size = Size::new(width as f32, height as f32);
+        self.wcmds
+            .push(window::resize::<Message>(window::Id::MAIN, new_size));
+        self.resize_request = Some((turtle, thread));
+    }
 }
 
 impl Application for IcedGuiFramework {
@@ -373,8 +381,21 @@ impl Application for IcedGuiFramework {
             }
             Message::Event(event) => {
                 let turtle_event: TurtleEvent = event.into();
-                if !matches!(turtle_event, TurtleEvent::Unhandled) {
-                    self.tt.handle_event(turtle_event);
+                match &turtle_event {
+                    TurtleEvent::WindowResize(_, _) => {
+                        if self.gui.resize_request.is_none() {
+                            self.tt.handle_event(None, None, turtle_event);
+                        } else {
+                            let (turtle, thread) =
+                                self.gui.resize_request.expect("missing resize data");
+                            self.tt
+                                .handle_event(Some(turtle), Some(thread), turtle_event);
+                        }
+                    }
+                    TurtleEvent::Unhandled => {}
+                    _ => {
+                        self.tt.handle_event(None, None, turtle_event);
+                    }
                 }
             }
             Message::TextInputChanged(id, msg) => {

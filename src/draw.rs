@@ -319,10 +319,11 @@ impl Turtle {
     }
 
     pub fn getscreensize(&self) -> [isize; 2] {
-        if let Response::ScreenSize(size) = self.do_data(DataCmd::GetScreenSize) {
+        let response = self.do_data(DataCmd::GetScreenSize);
+        if let Response::ScreenSize(size) = response {
             size
         } else {
-            panic!("invalid response from turtle");
+            panic!("{}", format!("invalid response from turtle: {response:?}"));
         }
     }
 

@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub(crate) enum TurtleEvent {
     WindowResize(u32, u32), // width, height
     KeyPress(char),

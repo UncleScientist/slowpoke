@@ -155,7 +155,7 @@ impl Turtle {
 
     fn do_command(&self, cmd: Command) -> Response {
         let is_data_cmd = matches!(cmd, Command::Data(_));
-        let tracer_was_off = *self.tracer.borrow();
+        let tracer_was_off = !*self.tracer.borrow();
         if let Command::Draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(t))) = &cmd
         {
             *self.tracer.borrow_mut() = *t;
@@ -185,7 +185,6 @@ impl Turtle {
                         if matches!(result, Response::Done) {
                             continue;
                         } else {
-                            println!("Got response: {result:?}");
                             return result;
                         }
                     }
@@ -509,12 +508,24 @@ impl TurtleTask {
         let _ = self.data[turtle].data.responder[&thread].send(Response::Cancel);
     }
 
-    pub(crate) fn handle_event(&mut self, event: TurtleEvent) {
+    pub(crate) fn handle_event(
+        &mut self,
+        turtle: Option<TurtleID>,
+        thread: Option<TurtleThread>,
+        event: TurtleEvent,
+    ) {
         let mut work = Vec::new();
 
         match event {
             TurtleEvent::WindowResize(width, height) => {
                 self.winsize = [width as isize, height as isize];
+                if turtle.is_none() {
+                    assert!(thread.is_none());
+                } else {
+                    let turtle = turtle.expect("missing turtle from window resize");
+                    let thread = thread.expect("missing thread from window resize");
+                    let _ = self.data[turtle].data.responder[&thread].send(Response::Done);
+                }
             }
             TurtleEvent::KeyPress(ch) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
@@ -595,12 +606,8 @@ impl TurtleTask {
             .clone();
         match cmd {
             ScreenCmd::SetSize(s) => {
-                /* TODO: move to gui
-                self.wcmds
-                    .push(window::resize::<Message>(window::Id::MAIN, s));
-                */
-                self.winsize = s; // TODO: wait until resize is complete before saving
-                let _ = resp.send(Response::Done); // TODO: don't respond until resize event
+                gui.resize(turtle, thread, s[0], s[1]);
+                // Note: don't send "done" here -- wait for the resize event from the GUI
             }
             ScreenCmd::ShowTurtle(t) => {
                 self.data[turtle].data.turtle_invisible = !t;
@@ -695,6 +702,7 @@ impl TurtleTask {
             .get(&thread)
             .unwrap()
             .clone();
+
         let _ = match &cmd {
             DataCmd::GetScreenSize => resp.send(Response::ScreenSize(self.winsize)),
             DataCmd::Visibility => resp.send(Response::Visibility(
