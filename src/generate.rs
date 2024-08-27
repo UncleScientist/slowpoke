@@ -53,12 +53,6 @@ pub(crate) enum DrawCommand {
     Circle(Vec<CirclePos>),
 }
 
-impl DrawCommand {
-    pub(crate) fn is_stamp(&self) -> bool {
-        matches!(self, Self::DrawPolyAt(..))
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct CurrentTurtleState {
     pub transform: Transform2D<f32>,

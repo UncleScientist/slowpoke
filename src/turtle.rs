@@ -12,7 +12,6 @@ use crate::{
     turtle::types::TurtleID,
 };
 
-use either::Either;
 use lyon_tessellation::geom::euclid::default::Transform2D;
 use types::TurtleThread;
 
@@ -244,9 +243,8 @@ impl PolygonBuilder {
 
 #[derive(Default)]
 pub(crate) struct TurtleInternalData {
-    queue: VecDeque<TurtleCommand>,       // new elements to draw
+    queue: VecDeque<TurtleCommand>,       // new commands to draw
     current_command: Option<DrawRequest>, // what we're drawing now
-    elements: Vec<DrawCommand>,
     current_shape: CurrentTurtleState,
 
     current_turtle: TurtleID,
@@ -414,7 +412,7 @@ impl TurtleData {
             }
 
             if !self.data.respond_immediately {
-                self.send_response(self.data.current_thread, cmd.is_stamp());
+                self.send_response(self.data.current_thread, cmd.is_stamp(), gui);
             }
 
             if cmd.tracer_false() {
@@ -450,9 +448,9 @@ impl TurtleData {
         }
     }
 
-    fn send_response(&mut self, thread: TurtleThread, is_stamp: bool) {
+    fn send_response<G: TurtleGui>(&mut self, thread: TurtleThread, is_stamp: bool, gui: &mut G) {
         let _ = self.data.responder[&thread].send(if is_stamp {
-            Response::StampID(self.data.elements.len() - 1)
+            Response::StampID(gui.undo_count(self.data.current_turtle) - 1)
         } else {
             Response::Done
         });
@@ -539,7 +537,7 @@ impl TurtleTask {
                     }
                 }
             }
-            KeyRelease(_) => todo!(),
+            _KeyRelease(_) => todo!(),
             MousePress(x, y) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmousepress {
@@ -562,7 +560,7 @@ impl TurtleTask {
                     }
                 }
             }
-            Timer => todo!(),
+            _Timer => todo!(),
             Unhandled => {}
         }
 
@@ -657,19 +655,10 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
-                self.data[turtle].data.elements.clear();
                 self.bgcolor = TurtleColor::from("black");
                 let _ = resp.send(Response::Done);
             }
-            ScreenCmd::ClearStamp(id) => {
-                if id < self.data[turtle].data.elements.len()
-                    && matches!(
-                        self.data[turtle].data.elements[id],
-                        DrawCommand::DrawPolyAt(..)
-                    )
-                {
-                    self.data[turtle].data.elements[id] = DrawCommand::Filler;
-                }
+            ScreenCmd::ClearStamp(_id) => {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamps(count) => {
@@ -686,7 +675,9 @@ impl TurtleTask {
         }
     }
 
-    fn clear_stamps(&mut self, turtle: TurtleID, mut count: isize, dir: ClearDirection) {
+    fn clear_stamps(&mut self, _turtle: TurtleID, mut _count: isize, _dir: ClearDirection) {
+        /*
+        use either::Either;
         let mut iter = match dir {
             ClearDirection::Forward => Either::Right(self.data[turtle].data.elements.iter_mut()),
             ClearDirection::Reverse => {
@@ -704,6 +695,7 @@ impl TurtleTask {
                 break;
             }
         }
+        */
     }
 
     fn input_cmd(&mut self, turtle: TurtleID, cmd: InputCmd, thread: TurtleThread) {
@@ -795,7 +787,13 @@ impl TurtleTask {
         };
     }
 
-    fn draw_cmd(&mut self, turtle: TurtleID, cmd: DrawRequest, thread: TurtleThread) {
+    fn draw_cmd<G: TurtleGui>(
+        &mut self,
+        turtle: TurtleID,
+        cmd: DrawRequest,
+        thread: TurtleThread,
+        gui: &mut G,
+    ) {
         let is_stamp = cmd.is_stamp();
         self.data[turtle].data.queue.push_back(TurtleCommand {
             cmd,
@@ -806,7 +804,7 @@ impl TurtleTask {
         // FIXME: data commands (Command::Data(_)) require all queued entries to be
         // processed before sending a response, even if `respond_immediately` is set
         if self.data[turtle].data.respond_immediately {
-            self.data[turtle].send_response(thread, is_stamp);
+            self.data[turtle].send_response(thread, is_stamp, gui);
         }
     }
 
@@ -816,7 +814,7 @@ impl TurtleTask {
 
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
-            Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
+            Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread, gui),
             Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),
             Command::Data(cmd) => self.data_cmd(turtle, cmd, thread, gui),
             Command::Hatch => {
