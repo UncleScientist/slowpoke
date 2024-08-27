@@ -205,8 +205,12 @@ impl IndividualTurtle {
                             .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                     }
                 }
-                DrawCommand::Filler => {}
-                _ => panic!("{element:?} not yet implemeted"),
+                DrawCommand::Filler | DrawCommand::Filled(_) => {}
+                DrawCommand::StampTurtle
+                | DrawCommand::BeginFill
+                | DrawCommand::EndFill
+                | DrawCommand::BeginPoly
+                | DrawCommand::EndPoly => panic!("invalid draw command in gui"),
             }
         }
 
@@ -297,6 +301,7 @@ impl TurtleGui for IcedGuiInternal {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
         turtle.has_new_cmd = true;
         turtle.cmds[index] = cmd;
+        turtle.cmds.push(DrawCommand::Filled(index));
     }
 
     fn undo_count(&self, turtle_id: TurtleID) -> usize {
@@ -314,8 +319,13 @@ impl TurtleGui for IcedGuiInternal {
 
     fn pop(&mut self, turtle_id: TurtleID) -> Option<DrawCommand> {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+        let cmd = turtle.cmds.pop();
 
-        turtle.cmds.pop()
+        if let Some(DrawCommand::Filled(index)) = &cmd {
+            turtle.cmds[*index] = DrawCommand::Filler;
+        }
+
+        cmd
     }
 
     fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {

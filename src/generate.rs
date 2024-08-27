@@ -36,6 +36,7 @@ impl CirclePos {
 #[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
     Filler,
+    Filled(usize),
     BeginFill,
     EndFill,
     BeginPoly,
