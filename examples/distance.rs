@@ -10,7 +10,7 @@ fn main() {
             let mut other_turtle = turtle.hatch();
             other_turtle.goto(50, 50);
             println!(
-                "distance to other turtle: {}",
+                "distance from (0, 0) to other turtle @ (50, 50): {}",
                 turtle.distance(&other_turtle)
             );
         });
