@@ -57,6 +57,11 @@ fn main() {
 
             turtle.dot().with_size(10);
 
+            println!(
+                "Final turtle shape: {}",
+                turtle.shape(TurtleShapeName::GetCurrent)
+            );
+
             println!("press return to finish");
             let mut s = String::new();
             let _ = std::io::stdin().read_line(&mut s);
