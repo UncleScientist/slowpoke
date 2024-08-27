@@ -302,7 +302,6 @@ impl TurtleData {
                     self.data.fill_poly.update(lineinfo.end);
                     self.data.shape_poly.update(lineinfo.end);
                     gui.append_command(tid, command);
-                    // self.data.elements.push(command);
                 }
                 DrawCommand::Circle(circle) => {
                     for c in circle {
@@ -393,9 +392,8 @@ impl TurtleData {
             self.data.drawing_done = false;
 
             if matches!(self.data.progression, Progression::Reverse) {
-                gui.undo(self.data.current_turtle);
-                if let Some(element) = self.data.elements.pop() {
-                    match element {
+                if let Some(cmd) = gui.pop(self.data.current_turtle) {
+                    match cmd {
                         DrawCommand::Line(line) => {
                             let x = line.begin.x as f32;
                             let y = line.begin.y as f32;
@@ -442,6 +440,7 @@ impl TurtleData {
             if matches!(cmd, DrawRequest::TimedDraw(TimedDrawCmd::Undo)) {
                 self.data.progression = Progression::Reverse;
                 self.data.percent = 1.;
+                gui.undo(turtle);
             } else {
                 self.data.progression = Progression::Forward;
                 self.data.percent = 0.;
@@ -542,7 +541,6 @@ impl TurtleTask {
             }
             KeyRelease(_) => todo!(),
             MousePress(x, y) => {
-                println!("mouse pressed @ {x},{y}");
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmousepress {
                         mousework.push((TurtleID::new(idx), func, x, y));
@@ -550,7 +548,6 @@ impl TurtleTask {
                 }
             }
             MouseRelease(x, y) => {
-                println!("mouse release @ {x},{y}");
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmouserelease {
                         mousework.push((TurtleID::new(idx), func, x, y));

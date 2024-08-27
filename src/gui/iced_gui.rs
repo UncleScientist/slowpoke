@@ -309,8 +309,13 @@ impl TurtleGui for IcedGuiInternal {
 
     fn undo(&mut self, turtle_id: TurtleID) {
         let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
-        turtle.cmds.pop();
         turtle.has_new_cmd = true;
+    }
+
+    fn pop(&mut self, turtle_id: TurtleID) -> Option<DrawCommand> {
+        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+
+        turtle.cmds.pop()
     }
 
     fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
