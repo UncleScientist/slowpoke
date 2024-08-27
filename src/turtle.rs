@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression},
+    gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression, StampCount},
     turtle::types::TurtleID,
 };
 
@@ -69,11 +69,6 @@ pub struct Turtle {
     turtle: TurtleID,
     thread: TurtleThread,
     tracer: RefCell<bool>,
-}
-
-enum ClearDirection {
-    Forward,
-    Reverse,
 }
 
 impl Turtle {
@@ -243,9 +238,11 @@ impl PolygonBuilder {
 
 #[derive(Default)]
 pub(crate) struct TurtleInternalData {
-    queue: VecDeque<TurtleCommand>,       // new commands to draw
+    queue: VecDeque<TurtleCommand>, // new commands to draw
+
     current_command: Option<DrawRequest>, // what we're drawing now
     current_shape: CurrentTurtleState,
+    current_stamp: usize,
 
     current_turtle: TurtleID,
     current_thread: TurtleThread,
@@ -263,7 +260,7 @@ pub(crate) struct TurtleInternalData {
     tracer: bool,
     respond_immediately: bool,
     speed: TurtleSpeed,
-    // turtle_shape: TurtleShape,
+
     fill_poly: PolygonBuilder,
     shape_poly: PolygonBuilder,
 }
@@ -312,7 +309,7 @@ impl TurtleData {
                     panic!("oops");
                 }
                 DrawCommand::StampTurtle => {
-                    gui.stamp(
+                    self.data.current_stamp = gui.stamp(
                         tid,
                         self.data.current_shape.pos(),
                         self.data.current_shape.angle,
@@ -412,7 +409,7 @@ impl TurtleData {
             }
 
             if !self.data.respond_immediately {
-                self.send_response(self.data.current_thread, cmd.is_stamp(), gui);
+                self.send_response(self.data.current_thread, cmd.is_stamp());
             }
 
             if cmd.tracer_false() {
@@ -448,9 +445,9 @@ impl TurtleData {
         }
     }
 
-    fn send_response<G: TurtleGui>(&mut self, thread: TurtleThread, is_stamp: bool, gui: &mut G) {
+    fn send_response(&mut self, thread: TurtleThread, is_stamp: bool) {
         let _ = self.data.responder[&thread].send(if is_stamp {
-            Response::StampID(gui.undo_count(self.data.current_turtle) - 1)
+            Response::StampID(self.data.current_stamp)
         } else {
             Response::Done
         });
@@ -658,44 +655,22 @@ impl TurtleTask {
                 self.bgcolor = TurtleColor::from("black");
                 let _ = resp.send(Response::Done);
             }
-            ScreenCmd::ClearStamp(_id) => {
+            ScreenCmd::ClearStamp(id) => {
+                gui.clear_stamp(turtle, id);
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamps(count) => {
                 #[allow(clippy::comparison_chain)]
                 if count < 0 {
-                    self.clear_stamps(turtle, -count, ClearDirection::Reverse);
+                    gui.clear_stamps(turtle, StampCount::Reverse((-count) as usize));
                 } else if count == 0 {
-                    self.clear_stamps(turtle, isize::MAX, ClearDirection::Forward);
+                    gui.clear_stamps(turtle, StampCount::All);
                 } else {
-                    self.clear_stamps(turtle, count, ClearDirection::Forward);
+                    gui.clear_stamps(turtle, StampCount::Forward(count as usize));
                 }
                 let _ = resp.send(Response::Done);
             }
         }
-    }
-
-    fn clear_stamps(&mut self, _turtle: TurtleID, mut _count: isize, _dir: ClearDirection) {
-        /*
-        use either::Either;
-        let mut iter = match dir {
-            ClearDirection::Forward => Either::Right(self.data[turtle].data.elements.iter_mut()),
-            ClearDirection::Reverse => {
-                Either::Left(self.data[turtle].data.elements.iter_mut().rev())
-            }
-        };
-
-        while count > 0 {
-            if let Some(cmd) = iter.next() {
-                if cmd.is_stamp() {
-                    count -= 1;
-                    *cmd = DrawCommand::Filler
-                }
-            } else {
-                break;
-            }
-        }
-        */
     }
 
     fn input_cmd(&mut self, turtle: TurtleID, cmd: InputCmd, thread: TurtleThread) {
@@ -787,13 +762,7 @@ impl TurtleTask {
         };
     }
 
-    fn draw_cmd<G: TurtleGui>(
-        &mut self,
-        turtle: TurtleID,
-        cmd: DrawRequest,
-        thread: TurtleThread,
-        gui: &mut G,
-    ) {
+    fn draw_cmd(&mut self, turtle: TurtleID, cmd: DrawRequest, thread: TurtleThread) {
         let is_stamp = cmd.is_stamp();
         self.data[turtle].data.queue.push_back(TurtleCommand {
             cmd,
@@ -804,7 +773,7 @@ impl TurtleTask {
         // FIXME: data commands (Command::Data(_)) require all queued entries to be
         // processed before sending a response, even if `respond_immediately` is set
         if self.data[turtle].data.respond_immediately {
-            self.data[turtle].send_response(thread, is_stamp, gui);
+            self.data[turtle].send_response(thread, is_stamp);
         }
     }
 
@@ -814,7 +783,7 @@ impl TurtleTask {
 
         match req.cmd {
             Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
-            Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread, gui),
+            Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
             Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),
             Command::Data(cmd) => self.data_cmd(turtle, cmd, thread, gui),
             Command::Hatch => {

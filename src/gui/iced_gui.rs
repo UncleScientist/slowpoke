@@ -16,9 +16,10 @@ use iced::{
 use iced::keyboard::{Event::KeyPressed, Key};
 use iced::window::Event::Resized;
 
+use either::Either;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
-use super::events::TurtleEvent;
+use super::{events::TurtleEvent, StampCount};
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
@@ -266,20 +267,54 @@ impl TurtleGui for IcedGuiInternal {
         id
     }
 
-    fn set_shape(&mut self, turtle_id: TurtleID, shape: TurtleShape) {
+    fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape) {
         self.turtle
-            .get_mut(&turtle_id)
+            .get_mut(&turtle)
             .expect("missing turtle")
             .turtle_shape = shape;
     }
 
-    fn stamp(&mut self, turtle_id: TurtleID, pos: ScreenPosition<f32>, angle: f32) {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32) -> usize {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.push(DrawCommand::DrawPolyAt(
             turtle.turtle_shape.shape.clone(),
             pos,
             angle,
         ));
+        turtle.cmds.len() - 1
+    }
+
+    fn clear_stamp(&mut self, turtle: TurtleID, stamp: usize) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        assert!(matches!(
+            turtle.cmds[stamp],
+            DrawCommand::DrawPolyAt(_, _, _)
+        ));
+        turtle.cmds[stamp] = DrawCommand::Filler;
+        turtle.has_new_cmd = true;
+    }
+
+    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        let all = turtle.cmds.len();
+        let (mut iter, mut count) = match count {
+            StampCount::Forward(count) => (Either::Right(turtle.cmds.iter_mut()), count),
+            StampCount::Reverse(count) => (Either::Left(turtle.cmds.iter_mut().rev()), count),
+            StampCount::All => (Either::Right(turtle.cmds.iter_mut()), all),
+        };
+
+        while count > 0 {
+            if let Some(cmd) = iter.next() {
+                if matches!(cmd, DrawCommand::DrawPolyAt(_, _, _)) {
+                    count -= 1;
+                    *cmd = DrawCommand::Filler
+                }
+            } else {
+                break;
+            }
+        }
+
+        turtle.has_new_cmd = true;
     }
 
     fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String {
@@ -601,11 +636,10 @@ impl IcedGuiFramework {
         for (tid, turtle) in self.gui.turtle.iter_mut() {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
+                done = false;
                 turtle.convert(pct);
                 if prog.is_done(pct) {
                     turtle.has_new_cmd = false;
-                } else {
-                    done = false;
                 }
             }
         }

@@ -16,7 +16,13 @@ pub(crate) trait TurtleGui: Default + Sized {
     fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape);
 
     // stamp the turtle's shape onto the canvas
-    fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32);
+    fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32) -> usize;
+
+    // clear a given stamp id
+    fn clear_stamp(&mut self, turtle: TurtleID, stamp: usize);
+
+    // clear the first/last quantity of stamps
+    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount);
 
     // get the name of the current turtle's shape
     fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String;
@@ -68,4 +74,10 @@ impl Progression {
             _ => false,
         }
     }
+}
+
+pub(crate) enum StampCount {
+    Forward(usize), // delete from the beginning of the stamp list
+    Reverse(usize), // delete from the end of the stamp list
+    All,
 }

@@ -6,9 +6,12 @@ fn main() {
         .with_title("clearing stamps")
         .run(|turtle| {
             for _ in 0..8 {
-                turtle.stamp();
+                println!("stamp id {}", turtle.stamp());
                 turtle.forward(30);
             }
+            turtle.teleport(-100, 100);
+            turtle.right(45);
+
             std::thread::sleep(std::time::Duration::from_millis(500));
 
             println!("clearing first two");
