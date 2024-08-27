@@ -607,10 +607,7 @@ impl IcedGuiFramework {
     fn to_turtle_pos(&self, x: &f32, y: &f32) -> (f32, f32) {
         let x = *x;
         let y = *y;
-        (
-            (x - self.winsize.0 / 2.) as f32,
-            -((y - self.winsize.1 / 2.) as f32),
-        )
+        (x - self.winsize.0 / 2., -(y - self.winsize.1 / 2.))
     }
 }
 

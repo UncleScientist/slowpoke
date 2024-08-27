@@ -717,19 +717,19 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
-            InputCmd::OnKeyPress(f, k) => {
+            InputCmd::KeyPress(f, k) => {
                 self.data[turtle].data.onkeypress.insert(k, f);
                 let _ = resp.send(Response::Done);
             }
-            InputCmd::OnMouseDrag(f) => {
+            InputCmd::MouseDrag(f) => {
                 self.data[turtle].data.onmousedrag = Some(f);
                 let _ = resp.send(Response::Done);
             }
-            InputCmd::OnMousePress(f) => {
+            InputCmd::MousePress(f) => {
                 self.data[turtle].data.onmousepress = Some(f);
                 let _ = resp.send(Response::Done);
             }
-            InputCmd::OnMouseRelease(f) => {
+            InputCmd::MouseRelease(f) => {
                 self.data[turtle].data.onmouserelease = Some(f);
                 let _ = resp.send(Response::Done);
             }
