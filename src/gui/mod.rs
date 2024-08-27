@@ -57,6 +57,12 @@ pub(crate) trait TurtleGui: Default + Sized {
 
     // resize the window
     fn resize(&mut self, turtle: TurtleID, thread: TurtleThread, width: isize, height: isize);
+
+    // show or hide the turtle
+    fn set_visible(&mut self, turtle: TurtleID, visible: bool);
+
+    // get the current visibility status
+    fn is_visible(&self, turtle: TurtleID) -> bool;
 }
 
 #[derive(Default, Debug, Clone, Copy)]

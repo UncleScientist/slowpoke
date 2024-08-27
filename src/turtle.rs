@@ -256,7 +256,6 @@ pub(crate) struct TurtleInternalData {
     onmouserelease: Option<fn(&mut Turtle, x: f32, y: f32)>,
     onmousedrag: Option<fn(&mut Turtle, x: f32, y: f32)>,
     drawing_done: bool,
-    turtle_invisible: bool,
     tracer: bool,
     respond_immediately: bool,
     speed: TurtleSpeed,
@@ -637,7 +636,7 @@ impl TurtleTask {
                 // Note: don't send "done" here -- wait for the resize event from the GUI
             }
             ScreenCmd::ShowTurtle(t) => {
-                self.data[turtle].data.turtle_invisible = !t;
+                gui.set_visible(turtle, t);
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::Speed(s) => {
@@ -716,9 +715,7 @@ impl TurtleTask {
 
         let _ = match &cmd {
             DataCmd::GetScreenSize => resp.send(Response::ScreenSize(self.winsize)),
-            DataCmd::Visibility => resp.send(Response::Visibility(
-                !self.data[turtle].data.turtle_invisible,
-            )),
+            DataCmd::Visibility => resp.send(Response::Visibility(gui.is_visible(turtle))),
             DataCmd::GetPoly => resp.send(Response::Polygon(
                 self.data[turtle].data.shape_poly.verticies.clone(),
             )),

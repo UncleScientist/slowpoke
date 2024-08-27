@@ -317,43 +317,39 @@ impl TurtleGui for IcedGuiInternal {
         turtle.has_new_cmd = true;
     }
 
-    fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn get_turtle_shape_name(&mut self, turtle: TurtleID) -> String {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.turtle_shape.name.clone()
     }
 
-    fn append_command(&mut self, turtle_id: TurtleID, cmd: DrawCommand) {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.push(cmd);
         turtle.has_new_cmd = true;
     }
 
-    fn get_position(&self, turtle_id: TurtleID) -> usize {
-        self.turtle[&turtle_id].cmds.len()
+    fn get_position(&self, turtle: TurtleID) -> usize {
+        self.turtle[&turtle].cmds.len()
     }
 
-    fn fill_polygon(&mut self, turtle_id: TurtleID, cmd: DrawCommand, index: usize) {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn fill_polygon(&mut self, turtle: TurtleID, cmd: DrawCommand, index: usize) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.has_new_cmd = true;
         turtle.cmds[index] = cmd;
         turtle.cmds.push(DrawCommand::Filled(index));
     }
 
-    fn undo_count(&self, turtle_id: TurtleID) -> usize {
-        self.turtle
-            .get(&turtle_id)
-            .expect("missing turtle")
-            .cmds
-            .len()
+    fn undo_count(&self, turtle: TurtleID) -> usize {
+        self.turtle.get(&turtle).expect("missing turtle").cmds.len()
     }
 
-    fn undo(&mut self, turtle_id: TurtleID) {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn undo(&mut self, turtle: TurtleID) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.has_new_cmd = true;
     }
 
-    fn pop(&mut self, turtle_id: TurtleID) -> Option<DrawCommand> {
-        let turtle = self.turtle.get_mut(&turtle_id).expect("missing turtle");
+    fn pop(&mut self, turtle: TurtleID) -> Option<DrawCommand> {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         let cmd = turtle.cmds.pop();
 
         if let Some(DrawCommand::Filled(index)) = &cmd {
@@ -380,6 +376,17 @@ impl TurtleGui for IcedGuiInternal {
         self.wcmds
             .push(window::resize::<Message>(window::Id::MAIN, new_size));
         self.resize_request = Some((turtle, thread));
+    }
+
+    fn set_visible(&mut self, turtle: TurtleID, visible: bool) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.hide_turtle = !visible;
+        turtle.has_new_cmd = true;
+    }
+
+    fn is_visible(&self, turtle: TurtleID) -> bool {
+        let turtle = self.turtle.get(&turtle).expect("missing turtle");
+        !turtle.hide_turtle
     }
 }
 
