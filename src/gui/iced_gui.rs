@@ -236,7 +236,6 @@ type IcedCommand<T> = iced::Command<T>;
 #[derive(Default)]
 pub(crate) struct IcedGuiFramework {
     cache: Cache,
-    bgcolor: TurtleColor,
     tt: TurtleTask,
     gui: IcedGuiInternal,
     clear_cache: bool,
@@ -251,7 +250,7 @@ struct IcedGuiInternal {
     turtle: HashMap<TurtleID, IndividualTurtle>,
     popups: HashMap<WindowID, PopupData>,
     wcmds: Vec<IcedCommand<Message>>,
-    newbgcolor: Option<TurtleColor>,
+    bgcolor: TurtleColor,
     resize_request: Option<(TurtleID, TurtleThread)>,
 }
 
@@ -323,7 +322,7 @@ impl TurtleGui for IcedGuiInternal {
     }
 
     fn bgcolor(&mut self, color: TurtleColor) {
-        self.newbgcolor = Some(color);
+        self.bgcolor = color;
     }
 
     fn resize(&mut self, turtle: TurtleID, thread: TurtleThread, width: isize, height: isize) {
@@ -349,7 +348,6 @@ impl Application for IcedGuiFramework {
 
         let framework = Self {
             cache: Cache::default(),
-            bgcolor: TurtleColor::from("white"),
             tt,
             clear_cache: true,
             gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
@@ -552,7 +550,7 @@ impl<Message> canvas::Program<Message> for IcedGuiFramework {
                 [0., 0.].into(),
                 bounds.size(),
                 Fill {
-                    style: stroke::Style::Solid((&self.bgcolor).into()),
+                    style: stroke::Style::Solid((&self.gui.bgcolor).into()),
                     rule: Rule::NonZero,
                 },
             );
@@ -583,10 +581,6 @@ impl IcedGuiFramework {
 
     // returns true if the cache should be cleared
     fn update_turtles(&mut self) -> bool {
-        if let Some(color) = self.gui.newbgcolor.take() {
-            self.bgcolor = color;
-        }
-
         let mut done = true;
 
         for (tid, turtle) in self.gui.turtle.iter_mut() {
@@ -615,6 +609,7 @@ impl IcedGuiInternal {
     fn new(window_id: WindowID, popup_data: PopupData) -> Self {
         let mut this = Self {
             popups: HashMap::from([(window_id, popup_data)]),
+            bgcolor: TurtleColor::from("white"),
             ..Self::default()
         };
         let _turtle = this.new_turtle();
