@@ -88,12 +88,13 @@ pub enum DataCmd {
 }
 
 #[derive(Clone, Debug)]
-pub enum Command {
+pub(crate) enum Command {
     Draw(DrawRequest),
     Screen(ScreenCmd),
     Input(InputCmd),
     Data(DataCmd),
     Hatch,
+    ShutDown,
 }
 
 impl DrawRequest {

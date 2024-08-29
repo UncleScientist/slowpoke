@@ -6,10 +6,11 @@ use crate::{
     command::{
         DataCmd, DrawRequest, InstantaneousDrawCmd, MotionCmd, RotateCmd, ScreenCmd, TimedDrawCmd,
     },
+    comms::Response,
     polygon::TurtleShapeName,
     speed::TurtleSpeed,
     turtle::Turtle,
-    Response, ScreenPosition, StampID,
+    ScreenPosition, StampID,
 };
 
 impl Turtle {

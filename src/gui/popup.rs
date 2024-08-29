@@ -1,5 +1,5 @@
+use crate::comms::Response;
 use crate::turtle::types::{TurtleID, TurtleThread};
-use crate::Response;
 
 #[derive(Default)]
 enum PopupType {

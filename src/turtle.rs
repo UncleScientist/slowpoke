@@ -20,10 +20,11 @@ use crate::{
     command::{
         Command, DataCmd, DrawRequest, InputCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd,
     },
+    comms::{Request, Response},
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
-    Request, Response, ScreenPosition, TurtleShapeName,
+    ScreenPosition, TurtleShapeName,
 };
 
 #[derive(Debug)]
@@ -260,6 +261,7 @@ pub(crate) struct TurtleInternalData {
     tracer: bool,
     respond_immediately: bool,
     speed: TurtleSpeed,
+    next_thread: TurtleThread,
 
     fill_poly: PolygonBuilder,
     shape_poly: PolygonBuilder,
@@ -568,15 +570,23 @@ impl TurtleTask {
         }
 
         for (idx, func, x, y) in mousework {
-            let tid = TurtleThread::new(self.data[idx].data.responder.len());
+            let tid = self.data[idx].data.next_thread.get();
+            println!("generated tid {tid:?} for turtle {idx:?}");
             let mut new_turtle = self.spawn_turtle(idx, tid);
-            let _ = std::thread::spawn(move || func(&mut new_turtle, x, y));
+            let _ = std::thread::spawn(move || {
+                func(&mut new_turtle, x, y);
+                let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
+            });
         }
 
         for (idx, func, key) in keywork {
-            let tid = TurtleThread::new(self.data[idx].data.responder.len());
+            let tid = self.data[idx].data.next_thread.get();
+            println!("generated tid {tid:?} for turtle {idx:?}");
             let mut new_turtle = self.spawn_turtle(idx, tid);
-            let _ = std::thread::spawn(move || func(&mut new_turtle, key));
+            let _ = std::thread::spawn(move || {
+                func(&mut new_turtle, key);
+                let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
+            });
         }
     }
 
@@ -790,6 +800,14 @@ impl TurtleTask {
         let thread = req.thread;
 
         match req.cmd {
+            Command::ShutDown => {
+                let tid = self.data[turtle].data.responder.remove(&thread);
+                println!(
+                    "number of responders: {}",
+                    self.data[turtle].data.responder.len()
+                );
+                assert!(tid.is_some());
+            }
             Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
             Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
             Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),

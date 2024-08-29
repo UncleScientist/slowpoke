@@ -21,9 +21,17 @@ impl TurtleID {
 pub(crate) struct TurtleThread {
     thread: usize,
 }
+
 impl TurtleThread {
     pub(crate) fn new(thread: usize) -> Self {
         Self { thread }
+    }
+
+    pub(crate) fn get(&mut self) -> Self {
+        self.thread += 1;
+        Self {
+            thread: self.thread - 1,
+        }
     }
 }
 
