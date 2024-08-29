@@ -1,7 +1,4 @@
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
 
 use iced::{
     event, executor, mouse,
@@ -59,8 +56,6 @@ struct IndividualTurtle {
     turtle_shape: TurtleShape,
     hide_turtle: bool,
 }
-
-const MIN_KEYPRESS_DURATION_MS: Duration = Duration::from_millis(100); // 0.1 seconds
 
 impl IndividualTurtle {
     fn draw(&self, frame: &mut Frame) {
@@ -252,7 +247,6 @@ pub(crate) struct IcedGuiFramework {
     winsize: (f32, f32),   // width, height
     mouse_pos: (f32, f32), // x, y
     mouse_down: bool,
-    key_pressed_at: HashMap<char, Instant>,
 }
 
 #[derive(Default)]
@@ -417,7 +411,6 @@ impl Application for IcedGuiFramework {
             winsize: (0., 0.),
             mouse_pos: (0., 0.),
             mouse_down: false,
-            key_pressed_at: HashMap::new(),
         };
 
         (framework, IcedCommand::none())
@@ -489,21 +482,7 @@ impl Application for IcedGuiFramework {
                         );
                     }
                     TurtleEvent::Unhandled => {}
-                    TurtleEvent::KeyPress(key) => match self.key_pressed_at.entry(*key) {
-                        Entry::Occupied(mut o) => {
-                            let instant = o.get_mut();
-                            let duration = instant.elapsed();
-                            if duration > MIN_KEYPRESS_DURATION_MS {
-                                self.tt.handle_event(None, None, turtle_event);
-                                *instant = Instant::now();
-                            }
-                        }
-                        Entry::Vacant(v) => {
-                            v.insert(Instant::now());
-                            self.tt.handle_event(None, None, turtle_event);
-                        }
-                    },
-                    TurtleEvent::KeyRelease(_) => {
+                    TurtleEvent::KeyPress(_) | TurtleEvent::KeyRelease(_) => {
                         self.tt.handle_event(None, None, turtle_event);
                     }
                     TurtleEvent::_Timer => todo!(),

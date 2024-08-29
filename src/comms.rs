@@ -29,7 +29,6 @@ pub(crate) struct Request {
 
 impl Request {
     pub(crate) fn shut_down(turtle: TurtleID, thread: TurtleThread) -> Request {
-        println!("generating shutdown for {turtle:?},{thread:?}");
         Self {
             turtle,
             thread,

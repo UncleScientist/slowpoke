@@ -265,6 +265,19 @@ pub(crate) struct TurtleInternalData {
 
     fill_poly: PolygonBuilder,
     shape_poly: PolygonBuilder,
+
+    pending_keys: bool,
+}
+
+impl TurtleInternalData {
+    fn pending_key_event(&mut self) -> bool {
+        if self.pending_keys {
+            true
+        } else {
+            self.pending_keys = true;
+            false
+        }
+    }
 }
 
 use crate::gui::TurtleGui;
@@ -530,16 +543,20 @@ impl TurtleTask {
                 }
             }
             KeyPress(ch) => {
-                for (idx, turtle) in self.data.iter().enumerate() {
+                for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeypress.get(&ch).copied() {
-                        keywork.push((TurtleID::new(idx), func, ch));
+                        if !turtle.data.pending_key_event() {
+                            keywork.push((TurtleID::new(idx), func, ch));
+                        }
                     }
                 }
             }
             KeyRelease(ch) => {
-                for (idx, turtle) in self.data.iter().enumerate() {
+                for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeyrelease.get(&ch).copied() {
-                        keywork.push((TurtleID::new(idx), func, ch));
+                        if !turtle.data.pending_key_event() {
+                            keywork.push((TurtleID::new(idx), func, ch));
+                        }
                     }
                 }
             }
@@ -571,8 +588,8 @@ impl TurtleTask {
 
         for (idx, func, x, y) in mousework {
             let tid = self.data[idx].data.next_thread.get();
-            println!("generated tid {tid:?} for turtle {idx:?}");
             let mut new_turtle = self.spawn_turtle(idx, tid);
+
             let _ = std::thread::spawn(move || {
                 func(&mut new_turtle, x, y);
                 let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
@@ -581,8 +598,8 @@ impl TurtleTask {
 
         for (idx, func, key) in keywork {
             let tid = self.data[idx].data.next_thread.get();
-            println!("generated tid {tid:?} for turtle {idx:?}");
             let mut new_turtle = self.spawn_turtle(idx, tid);
+
             let _ = std::thread::spawn(move || {
                 func(&mut new_turtle, key);
                 let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
@@ -802,10 +819,7 @@ impl TurtleTask {
         match req.cmd {
             Command::ShutDown => {
                 let tid = self.data[turtle].data.responder.remove(&thread);
-                println!(
-                    "number of responders: {}",
-                    self.data[turtle].data.responder.len()
-                );
+                self.data[turtle].data.pending_keys = false;
                 assert!(tid.is_some());
             }
             Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
