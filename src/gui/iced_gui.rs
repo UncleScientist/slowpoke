@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    time::{Duration, Instant},
+};
 
 use iced::{
     event, executor, mouse,
@@ -13,7 +16,7 @@ use iced::{
     Color, Element, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
 
-use iced::keyboard::{Event::KeyPressed, Key};
+use iced::keyboard::{Event::KeyPressed, Event::KeyReleased, Key};
 use iced::window::Event::Resized;
 
 use either::Either;
@@ -56,6 +59,8 @@ struct IndividualTurtle {
     turtle_shape: TurtleShape,
     hide_turtle: bool,
 }
+
+const MIN_KEYPRESS_DURATION_MS: Duration = Duration::from_millis(100); // 0.1 seconds
 
 impl IndividualTurtle {
     fn draw(&self, frame: &mut Frame) {
@@ -247,6 +252,7 @@ pub(crate) struct IcedGuiFramework {
     winsize: (f32, f32),   // width, height
     mouse_pos: (f32, f32), // x, y
     mouse_down: bool,
+    key_pressed_at: HashMap<char, Instant>,
 }
 
 #[derive(Default)]
@@ -411,6 +417,7 @@ impl Application for IcedGuiFramework {
             winsize: (0., 0.),
             mouse_pos: (0., 0.),
             mouse_down: false,
+            key_pressed_at: HashMap::new(),
         };
 
         (framework, IcedCommand::none())
@@ -482,9 +489,24 @@ impl Application for IcedGuiFramework {
                         );
                     }
                     TurtleEvent::Unhandled => {}
-                    _ => {
+                    TurtleEvent::KeyPress(key) => match self.key_pressed_at.entry(*key) {
+                        Entry::Occupied(mut o) => {
+                            let instant = o.get_mut();
+                            let duration = instant.elapsed();
+                            if duration > MIN_KEYPRESS_DURATION_MS {
+                                self.tt.handle_event(None, None, turtle_event);
+                                *instant = Instant::now();
+                            }
+                        }
+                        Entry::Vacant(v) => {
+                            v.insert(Instant::now());
+                            self.tt.handle_event(None, None, turtle_event);
+                        }
+                    },
+                    TurtleEvent::KeyRelease(_) => {
                         self.tt.handle_event(None, None, turtle_event);
                     }
+                    TurtleEvent::_Timer => todo!(),
                 }
             }
             Message::TextInputChanged(id, msg) => {
@@ -698,6 +720,14 @@ impl From<Event> for TurtleEvent {
         }
 
         match event {
+            Event::Keyboard(KeyReleased { key, .. }) => {
+                if let Key::Character(s) = key.as_ref() {
+                    let ch = s.chars().next().unwrap();
+                    TurtleEvent::KeyRelease(ch)
+                } else {
+                    TurtleEvent::Unhandled
+                }
+            }
             Event::Keyboard(KeyPressed { key, .. }) => {
                 if let Key::Character(s) = key.as_ref() {
                     let ch = s.chars().next().unwrap();

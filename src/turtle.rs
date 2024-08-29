@@ -252,6 +252,7 @@ pub(crate) struct TurtleInternalData {
     insert_fill: Option<usize>,
     responder: HashMap<TurtleThread, Sender<Response>>,
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
+    onkeyrelease: HashMap<char, fn(&mut Turtle, char)>,
     onmousepress: Option<fn(&mut Turtle, x: f32, y: f32)>,
     onmouserelease: Option<fn(&mut Turtle, x: f32, y: f32)>,
     onmousedrag: Option<fn(&mut Turtle, x: f32, y: f32)>,
@@ -533,7 +534,13 @@ impl TurtleTask {
                     }
                 }
             }
-            _KeyRelease(_) => todo!(),
+            KeyRelease(ch) => {
+                for (idx, turtle) in self.data.iter().enumerate() {
+                    if let Some(func) = turtle.data.onkeyrelease.get(&ch).copied() {
+                        keywork.push((TurtleID::new(idx), func, ch));
+                    }
+                }
+            }
             MousePress(x, y) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmousepress {
@@ -680,6 +687,10 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            InputCmd::KeyRelease(f, k) => {
+                self.data[turtle].data.onkeyrelease.insert(k, f);
+                let _ = resp.send(Response::Done);
+            }
             InputCmd::KeyPress(f, k) => {
                 self.data[turtle].data.onkeypress.insert(k, f);
                 let _ = resp.send(Response::Done);

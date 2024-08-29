@@ -65,6 +65,7 @@ pub enum ScreenCmd {
 #[derive(Copy, Clone, Debug)]
 pub enum InputCmd {
     KeyPress(fn(&mut Turtle, char), char),
+    KeyRelease(fn(&mut Turtle, char), char),
     MousePress(fn(&mut Turtle, x: f32, y: f32)),
     MouseRelease(fn(&mut Turtle, x: f32, y: f32)),
     MouseDrag(fn(&mut Turtle, x: f32, y: f32)),
