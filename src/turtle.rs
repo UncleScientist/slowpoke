@@ -12,6 +12,7 @@ use crate::{
     turtle::types::TurtleID,
 };
 
+use either::Either;
 use lyon_tessellation::geom::euclid::default::Transform2D;
 use types::TurtleThread;
 
@@ -528,8 +529,7 @@ impl TurtleTask {
     ) {
         use TurtleEvent::*;
 
-        let mut keywork = Vec::new();
-        let mut mousework = Vec::new();
+        let mut work = Vec::new();
 
         match event {
             WindowResize(width, height) => {
@@ -546,7 +546,7 @@ impl TurtleTask {
                 for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeypress.get(&ch).copied() {
                         if !turtle.data.pending_key_event() {
-                            keywork.push((TurtleID::new(idx), func, ch));
+                            work.push((TurtleID::new(idx), Either::Right((func, ch))));
                         }
                     }
                 }
@@ -555,7 +555,7 @@ impl TurtleTask {
                 for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeyrelease.get(&ch).copied() {
                         if !turtle.data.pending_key_event() {
-                            keywork.push((TurtleID::new(idx), func, ch));
+                            work.push((TurtleID::new(idx), Either::Right((func, ch))));
                         }
                     }
                 }
@@ -563,14 +563,14 @@ impl TurtleTask {
             MousePress(x, y) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmousepress {
-                        mousework.push((TurtleID::new(idx), func, x, y));
+                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
                     }
                 }
             }
             MouseRelease(x, y) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmouserelease {
-                        mousework.push((TurtleID::new(idx), func, x, y));
+                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
                     }
                 }
             }
@@ -578,7 +578,7 @@ impl TurtleTask {
             MouseDrag(x, y) => {
                 for (idx, turtle) in self.data.iter().enumerate() {
                     if let Some(func) = turtle.data.onmousedrag {
-                        mousework.push((TurtleID::new(idx), func, x, y));
+                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
                     }
                 }
             }
@@ -586,22 +586,15 @@ impl TurtleTask {
             Unhandled => {}
         }
 
-        for (idx, func, x, y) in mousework {
+        for (idx, job) in work {
             let tid = self.data[idx].data.next_thread.get();
             let mut new_turtle = self.spawn_turtle(idx, tid);
 
             let _ = std::thread::spawn(move || {
-                func(&mut new_turtle, x, y);
-                let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
-            });
-        }
-
-        for (idx, func, key) in keywork {
-            let tid = self.data[idx].data.next_thread.get();
-            let mut new_turtle = self.spawn_turtle(idx, tid);
-
-            let _ = std::thread::spawn(move || {
-                func(&mut new_turtle, key);
+                match job {
+                    Either::Left((func, x, y)) => func(&mut new_turtle, x, y),
+                    Either::Right((func, key)) => func(&mut new_turtle, key),
+                }
                 let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
             });
         }
