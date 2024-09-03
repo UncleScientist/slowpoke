@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{color_names::TurtleColor, polygon::TurtleShapeName, speed::TurtleSpeed, Turtle};
 
 //
@@ -69,6 +71,7 @@ pub enum InputCmd {
     MousePress(fn(&mut Turtle, x: f32, y: f32)),
     MouseRelease(fn(&mut Turtle, x: f32, y: f32)),
     MouseDrag(fn(&mut Turtle, x: f32, y: f32)),
+    Timer(fn(&mut Turtle, Duration), Duration),
 }
 
 // Commands which return data

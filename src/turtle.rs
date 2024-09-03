@@ -7,6 +7,7 @@ use std::{
     collections::{HashMap, VecDeque},
     f32::consts::PI,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -28,6 +29,21 @@ use crate::{
     speed::TurtleSpeed,
     ScreenPosition, TurtleShapeName,
 };
+
+macro_rules! spawn {
+    ($task: expr, $td:expr, $idx:expr, $func:expr, $($args:tt)*) => {{
+        let _turtle :TurtleID = $idx.into();
+        let _thread = $td.next_thread.get();
+
+        let mut _new_turtle = $td.spawn(_thread,
+            $task.issue_command.as_ref().unwrap().clone());
+
+        let _ = std::thread::spawn(move || {
+            $func(&mut _new_turtle, $($args)*);
+            let _ = _new_turtle.issue_command.send(Request::shut_down(_turtle, _thread));
+        });
+    }};
+}
 
 #[derive(Debug)]
 struct TurtleCommand {
@@ -254,6 +270,22 @@ struct DrawState {
     turtle: CurrentTurtleState,
 }
 
+struct TurtleTimer {
+    time: Duration,
+    prev: Instant,
+    func: fn(&mut Turtle, Duration),
+}
+
+impl TurtleTimer {
+    fn new(func: fn(&mut Turtle, Duration), time: Duration) -> Self {
+        Self {
+            time,
+            prev: Instant::now(),
+            func,
+        }
+    }
+}
+
 #[derive(Default)]
 struct EventHandlers {
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
@@ -261,6 +293,7 @@ struct EventHandlers {
     onmousepress: Option<fn(&mut Turtle, x: f32, y: f32)>,
     onmouserelease: Option<fn(&mut Turtle, x: f32, y: f32)>,
     onmousedrag: Option<fn(&mut Turtle, x: f32, y: f32)>,
+    ontimer: Option<TurtleTimer>,
     pending_keys: bool,
     requesting_thread: TurtleThread, // The thread that made the last drawing request
 }
@@ -534,21 +567,6 @@ impl TurtleTask {
     ) {
         use TurtleEvent::*;
 
-        macro_rules! spawn {
-            ($td:expr, $idx:expr, $func:expr, $($args:tt)*) => {{
-                let _turtle = TurtleID::new($idx);
-                let _thread = $td.next_thread.get();
-
-                let mut _new_turtle = $td.spawn(_thread,
-                    self.issue_command.as_ref().unwrap().clone());
-
-                let _ = std::thread::spawn(move || {
-                    $func(&mut _new_turtle, $($args)*);
-                    let _ = _new_turtle.issue_command.send(Request::shut_down(_turtle, _thread));
-                });
-            }};
-        }
-
         match event {
             WindowResize(width, height) => {
                 self.winsize = [width as isize, height as isize];
@@ -564,7 +582,7 @@ impl TurtleTask {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onkeypress.get(&ch).copied() {
                         if !turtle.pending_key_event() {
-                            spawn!(turtle, idx, func, ch);
+                            spawn!(self, turtle, idx, func, ch);
                         }
                     }
                 }
@@ -573,7 +591,7 @@ impl TurtleTask {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onkeyrelease.get(&ch).copied() {
                         if !turtle.pending_key_event() {
-                            spawn!(turtle, idx, func, ch);
+                            spawn!(self, turtle, idx, func, ch);
                         }
                     }
                 }
@@ -581,14 +599,14 @@ impl TurtleTask {
             MousePress(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousepress {
-                        spawn!(turtle, idx, func, x, y);
+                        spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
             MouseRelease(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmouserelease {
-                        spawn!(turtle, idx, func, x, y);
+                        spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
@@ -596,7 +614,7 @@ impl TurtleTask {
             MouseDrag(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousedrag {
-                        spawn!(turtle, idx, func, x, y);
+                        spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
@@ -619,6 +637,15 @@ impl TurtleTask {
         }
 
         for turtle in self.turtle_list.iter_mut() {
+            if let Some(mut timer) = turtle.event.ontimer.take() {
+                let d = timer.prev.elapsed();
+                if d > timer.time {
+                    timer.prev = Instant::now();
+                    spawn!(self, turtle, turtle.turtle_id, timer.func, d);
+                }
+                turtle.event.ontimer = Some(timer);
+            }
+
             turtle.time_passes(gui, 0.01); // TODO: use actual time delta
         }
     }
@@ -702,6 +729,13 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            InputCmd::Timer(f, d) => {
+                let _ = self.turtle_list[turtle]
+                    .event
+                    .ontimer
+                    .insert(TurtleTimer::new(f, d));
+                let _ = resp.send(Response::Done);
+            }
             InputCmd::KeyRelease(f, k) => {
                 self.turtle_list[turtle].event.onkeyrelease.insert(k, f);
                 let _ = resp.send(Response::Done);

@@ -6,6 +6,7 @@ use super::TurtleData;
 pub(crate) struct TurtleID {
     id: usize,
 }
+
 impl TurtleID {
     pub(crate) fn get(&mut self) -> Self {
         self.id += 1;
@@ -13,6 +14,12 @@ impl TurtleID {
     }
 
     pub(crate) fn new(id: usize) -> Self {
+        Self { id }
+    }
+}
+
+impl From<usize> for TurtleID {
+    fn from(id: usize) -> Self {
         Self { id }
     }
 }

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{command::InputCmd, turtle::Turtle};
 
 impl Turtle {
@@ -23,5 +25,9 @@ impl Turtle {
 
     pub fn ondrag(&self, func: fn(&mut Turtle, f32, f32)) {
         self.do_input(InputCmd::MouseDrag(func));
+    }
+
+    pub fn ontimer(&self, func: fn(&mut Turtle, Duration), duration: u64) {
+        self.do_input(InputCmd::Timer(func, Duration::from_millis(duration)));
     }
 }
