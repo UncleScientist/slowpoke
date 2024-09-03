@@ -12,7 +12,6 @@ use crate::{
     turtle::types::TurtleID,
 };
 
-use either::Either;
 use lyon_tessellation::geom::euclid::default::Transform2D;
 use types::TurtleThread;
 
@@ -298,6 +297,18 @@ impl TurtleData {
         }
     }
 
+    fn spawn(
+        &mut self,
+        turtle: TurtleID,
+        thread: TurtleThread,
+        issue_command: Sender<Request>,
+    ) -> Turtle {
+        let (finished, command_complete) = mpsc::channel();
+        self.data.responder.insert(thread, finished);
+
+        Turtle::init(issue_command, command_complete, turtle, thread)
+    }
+
     fn convert_command<G: TurtleGui>(&mut self, cmd: &DrawRequest, gui: &mut G) {
         if let Some(command) = self.data.current_shape.apply(cmd) {
             let tid = self.data.current_turtle;
@@ -529,7 +540,20 @@ impl TurtleTask {
     ) {
         use TurtleEvent::*;
 
-        let mut work = Vec::new();
+        macro_rules! spawn {
+            ($td:expr, $idx:expr, $func:expr, $($args:tt)*) => {{
+                let _turtle = TurtleID::new($idx);
+                let _thread = $td.data.next_thread.get();
+
+                let mut _new_turtle = $td.spawn(_turtle, _thread,
+                    self.issue_command.as_ref().unwrap().clone());
+
+                let _ = std::thread::spawn(move || {
+                    $func(&mut _new_turtle, $($args)*);
+                    let _ = _new_turtle.issue_command.send(Request::shut_down(_turtle, _thread));
+                });
+            }};
+        }
 
         match event {
             WindowResize(width, height) => {
@@ -546,7 +570,7 @@ impl TurtleTask {
                 for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeypress.get(&ch).copied() {
                         if !turtle.data.pending_key_event() {
-                            work.push((TurtleID::new(idx), Either::Right((func, ch))));
+                            spawn!(turtle, idx, func, ch);
                         }
                     }
                 }
@@ -555,54 +579,44 @@ impl TurtleTask {
                 for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onkeyrelease.get(&ch).copied() {
                         if !turtle.data.pending_key_event() {
-                            work.push((TurtleID::new(idx), Either::Right((func, ch))));
+                            spawn!(turtle, idx, func, ch);
                         }
                     }
                 }
             }
             MousePress(x, y) => {
-                for (idx, turtle) in self.data.iter().enumerate() {
+                for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onmousepress {
-                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
+                        spawn!(turtle, idx, func, x, y);
                     }
                 }
             }
             MouseRelease(x, y) => {
-                for (idx, turtle) in self.data.iter().enumerate() {
+                for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onmouserelease {
-                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
+                        spawn!(turtle, idx, func, x, y);
                     }
                 }
             }
             MousePosition(_, _) => todo!(),
             MouseDrag(x, y) => {
-                for (idx, turtle) in self.data.iter().enumerate() {
+                for (idx, turtle) in self.data.iter_mut().enumerate() {
                     if let Some(func) = turtle.data.onmousedrag {
-                        work.push((TurtleID::new(idx), Either::Left((func, x, y))));
+                        spawn!(turtle, idx, func, x, y);
                     }
                 }
             }
             _Timer => todo!(),
             Unhandled => {}
         }
-
-        for (idx, job) in work {
-            let tid = self.data[idx].data.next_thread.get();
-            let mut new_turtle = self.spawn_turtle(idx, tid);
-
-            let _ = std::thread::spawn(move || {
-                match job {
-                    Either::Left((func, x, y)) => func(&mut new_turtle, x, y),
-                    Either::Right((func, key)) => func(&mut new_turtle, key),
-                }
-                let _ = new_turtle.issue_command.send(Request::shut_down(idx, tid));
-            });
-        }
     }
 
     pub(crate) fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
-        let mut turtle = self.spawn_turtle(TurtleID::new(0), TurtleThread::new(0));
-        let _ = std::thread::spawn(move || func(&mut turtle));
+        let turtle = TurtleID::new(0);
+        let thread = TurtleThread::new(0);
+        let issue_command = self.issue_command.as_ref().unwrap().clone();
+        let mut primary = self.data[turtle].spawn(turtle, thread, issue_command);
+        let _ = std::thread::spawn(move || func(&mut primary));
     }
 
     pub(crate) fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
@@ -623,18 +637,6 @@ impl TurtleTask {
         let mut td = TurtleData::new();
         td.data.responder.insert(thread, finished);
         self.data.push(td);
-
-        Turtle::init(
-            self.issue_command.as_ref().unwrap().clone(),
-            command_complete,
-            turtle,
-            thread,
-        )
-    }
-
-    fn spawn_turtle(&mut self, turtle: TurtleID, thread: TurtleThread) -> Turtle {
-        let (finished, command_complete) = mpsc::channel();
-        self.data[turtle].data.responder.insert(thread, finished);
 
         Turtle::init(
             self.issue_command.as_ref().unwrap().clone(),
