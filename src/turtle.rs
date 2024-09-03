@@ -297,16 +297,11 @@ impl TurtleData {
         }
     }
 
-    fn spawn(
-        &mut self,
-        turtle: TurtleID,
-        thread: TurtleThread,
-        issue_command: Sender<Request>,
-    ) -> Turtle {
+    fn spawn(&mut self, thread: TurtleThread, issue_command: Sender<Request>) -> Turtle {
         let (finished, command_complete) = mpsc::channel();
         self.responder.insert(thread, finished);
 
-        Turtle::init(issue_command, command_complete, turtle, thread)
+        Turtle::init(issue_command, command_complete, self.turtle_id, thread)
     }
 
     fn convert_command<G: TurtleGui>(&mut self, cmd: &DrawRequest, gui: &mut G) {
@@ -544,7 +539,7 @@ impl TurtleTask {
                 let _turtle = TurtleID::new($idx);
                 let _thread = $td.next_thread.get();
 
-                let mut _new_turtle = $td.spawn(_turtle, _thread,
+                let mut _new_turtle = $td.spawn(_thread,
                     self.issue_command.as_ref().unwrap().clone());
 
                 let _ = std::thread::spawn(move || {
@@ -614,7 +609,7 @@ impl TurtleTask {
         let turtle = TurtleID::new(0);
         let thread = TurtleThread::new(0);
         let issue_command = self.issue_command.as_ref().unwrap().clone();
-        let mut primary = self.turtle_list[turtle].spawn(turtle, thread, issue_command);
+        let mut primary = self.turtle_list[turtle].spawn(thread, issue_command);
         let _ = std::thread::spawn(move || func(&mut primary));
     }
 
