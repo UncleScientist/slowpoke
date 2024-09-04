@@ -81,6 +81,7 @@ pub enum DataCmd {
     GetScreenSize,
     GetPoly,
     GetPenState,
+    GetFillingState,
     TurtleShape(TurtleShapeName),
     UndoBufferEntries,
     Towards(f32, f32),

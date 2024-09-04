@@ -772,7 +772,10 @@ impl TurtleTask {
             .clone();
 
         let _ = match &cmd {
-            DataCmd::GetPenState => resp.send(Response::PenState(
+            DataCmd::GetFillingState => resp.send(Response::IsFilling(
+                self.turtle_list[turtle].state.insert_fill.is_some(),
+            )),
+            DataCmd::GetPenState => resp.send(Response::IsPenDown(
                 self.turtle_list[turtle].state.turtle.get_pen_state(),
             )),
             DataCmd::GetScreenSize => resp.send(Response::ScreenSize(self.winsize)),

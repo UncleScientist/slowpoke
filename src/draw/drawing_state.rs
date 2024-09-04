@@ -45,7 +45,7 @@ impl Turtle {
     // let attributes = turtle.pen().shown(true).pensize(4).done();
 
     pub fn isdown(&mut self) -> bool {
-        if let Response::PenState(state) = self.do_data(DataCmd::GetPenState) {
+        if let Response::IsPenDown(state) = self.do_data(DataCmd::GetPenState) {
             state
         } else {
             panic!("invalid response from turtle");
