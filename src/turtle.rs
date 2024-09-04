@@ -1,6 +1,5 @@
 pub(crate) mod types;
-
-use crate::gui::TurtleGui;
+use types::TurtleThread;
 
 use std::{
     cell::RefCell,
@@ -10,22 +9,16 @@ use std::{
 };
 
 use crate::{
-    gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression, StampCount},
-    turtle::types::TurtleID,
-};
-
-use lyon_tessellation::geom::euclid::default::Transform2D;
-use types::TurtleThread;
-
-use crate::{
     color_names::TurtleColor,
     command::{
         Command, DataCmd, DrawRequest, InputCmd, InstantaneousDrawCmd, ScreenCmd, TimedDrawCmd,
     },
     comms::{Request, Response},
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
+    gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression, StampCount, TurtleGui},
     polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
+    turtle::types::TurtleID,
     ScreenPosition, TurtleShapeName,
 };
 
@@ -439,17 +432,7 @@ impl TurtleData {
 
             if matches!(self.state.progression, Progression::Reverse) {
                 if let Some(cmd) = gui.pop(self.turtle_id) {
-                    match cmd {
-                        DrawCommand::Line(line) => {
-                            let x = line.begin.x as f32;
-                            let y = line.begin.y as f32;
-                            self.state.turtle.transform = Transform2D::translation(x, y);
-                        }
-                        DrawCommand::SetHeading(start, _) => {
-                            self.state.turtle.angle = start;
-                        }
-                        _ => {}
-                    }
+                    self.state.turtle.undo(&cmd);
                 }
             }
 

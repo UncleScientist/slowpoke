@@ -260,6 +260,20 @@ impl CurrentTurtleState {
         None
     }
 
+    pub(crate) fn undo(&mut self, cmd: &DrawCommand) {
+        match cmd {
+            DrawCommand::Line(line) => {
+                let x = line.begin.x as f32;
+                let y = line.begin.y as f32;
+                self.transform = Transform2D::translation(x, y);
+            }
+            DrawCommand::SetHeading(start, _) => {
+                self.angle = *start;
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn radians_to_turtle(&self, radians: f32) -> f32 {
         radians * (self.circle_units / (2. * PI))
     }
