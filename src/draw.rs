@@ -1,4 +1,5 @@
 mod circle;
+mod color_control;
 mod dot;
 mod drawing_state;
 mod move_and_draw;
@@ -48,12 +49,6 @@ impl Turtle {
     /*
      * Drawing commands
      */
-    pub fn pencolor<C: Into<TurtleColor>>(&mut self, color: C) {
-        self.do_draw(DrawRequest::InstantaneousDraw(
-            InstantaneousDrawCmd::PenColor(color.into()),
-        ));
-    }
-
     pub fn begin_poly(&mut self) {
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::BeginPoly,
@@ -75,12 +70,6 @@ impl Turtle {
     pub fn end_fill(&mut self) {
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::EndFill,
-        ));
-    }
-
-    pub fn fillcolor<C: Into<TurtleColor>>(&mut self, color: C) {
-        self.do_draw(DrawRequest::InstantaneousDraw(
-            InstantaneousDrawCmd::FillColor(color.into()),
         ));
     }
 
