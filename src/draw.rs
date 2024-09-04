@@ -1,6 +1,7 @@
 mod circle;
 mod dot;
 mod move_and_draw;
+mod settings_for_measurement;
 mod state;
 
 use crate::{

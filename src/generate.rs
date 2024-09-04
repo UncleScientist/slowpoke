@@ -60,6 +60,7 @@ pub(crate) struct CurrentTurtleState {
     pen_down: bool,
     pen_width: f32,
     fill_color: TurtleColor,
+    circle_units: f32, // number of "degrees" in a circle
 }
 
 pub(crate) trait TurtlePosition<T> {
@@ -90,6 +91,7 @@ impl Default for CurrentTurtleState {
             angle: 0.,
             pen_width: 1.,
             fill_color: "black".into(),
+            circle_units: 360.,
         }
     }
 }
@@ -125,6 +127,7 @@ impl CurrentTurtleState {
                     let mut pointlist = vec![self.get_circlepos()];
                     let rsign = -radius.signum();
 
+                    let extent = extent * (360. / self.circle_units);
                     let theta_d = rsign * (extent / (*steps as f32));
                     let theta_r = rsign * (theta_d * (2. * PI / 360.));
                     let len = 2. * radius.abs() * (theta_r / 2.).sin();
@@ -186,16 +189,19 @@ impl CurrentTurtleState {
                     let start = self.angle;
                     match rotation {
                         RotateCmd::Right(angle) => {
-                            let radians = Angle::degrees(*angle);
+                            let angle = angle * (360. / self.circle_units);
+                            let radians = Angle::degrees(angle);
                             self.transform = self.transform.pre_rotate(radians);
                             self.angle += angle;
                         }
                         RotateCmd::Left(angle) => {
-                            let radians = Angle::degrees(-*angle);
+                            let angle = angle * (360. / self.circle_units);
+                            let radians = Angle::degrees(-angle);
                             self.transform = self.transform.pre_rotate(radians);
                             self.angle -= angle;
                         }
                         RotateCmd::SetHeading(h) => {
+                            let h = h * (360. / self.circle_units);
                             let h = 180. - h;
                             let radians = Angle::degrees(h - self.angle + 90.);
                             self.transform = self.transform.pre_rotate(radians);
@@ -207,6 +213,10 @@ impl CurrentTurtleState {
                 TimedDrawCmd::Undo => {}
             },
             DrawRequest::InstantaneousDraw(id) => match id {
+                InstantaneousDrawCmd::SetDegrees(deg) => {
+                    self.circle_units = *deg;
+                    println!("circle_units = {}", self.circle_units);
+                }
                 InstantaneousDrawCmd::Tracer(_) => {}
                 InstantaneousDrawCmd::PenDown => {
                     self.pen_down = true;
@@ -248,5 +258,13 @@ impl CurrentTurtleState {
             },
         }
         None
+    }
+
+    pub(crate) fn radians_to_turtle(&self, radians: f32) -> f32 {
+        radians * (self.circle_units / (2. * PI))
+    }
+
+    pub(crate) fn degrees_to_turtle(&self, degrees: f32) -> f32 {
+        degrees * (self.circle_units / 360.)
     }
 }

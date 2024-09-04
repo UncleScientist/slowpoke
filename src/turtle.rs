@@ -5,7 +5,6 @@ use crate::gui::TurtleGui;
 use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
-    f32::consts::PI,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
     time::{Duration, Instant},
 };
@@ -789,16 +788,25 @@ impl TurtleTask {
                 let curpos: ScreenPosition<f32> = self.turtle_list[turtle].state.turtle.pos();
                 let x = xpos - curpos.x;
                 let y = ypos + curpos.y;
-                let heading = y.atan2(x) * 360. / (2.0 * PI);
+
+                let heading = self.turtle_list[turtle]
+                    .state
+                    .turtle
+                    .radians_to_turtle(y.atan2(x));
 
                 resp.send(Response::Heading(heading))
             }
             DataCmd::Position => resp.send(Response::Position(
                 self.turtle_list[turtle].state.turtle.pos(),
             )),
-            DataCmd::Heading => resp.send(Response::Heading(
-                self.turtle_list[turtle].state.turtle.angle(),
-            )),
+            DataCmd::Heading => {
+                let angle = self.turtle_list[turtle].state.turtle.angle();
+                let angle = self.turtle_list[turtle]
+                    .state
+                    .turtle
+                    .degrees_to_turtle(angle);
+                resp.send(Response::Heading(angle))
+            }
             DataCmd::Stamp => {
                 self.turtle_list[turtle].queue.push_back(TurtleCommand {
                     cmd: DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Stamp),
