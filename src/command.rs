@@ -80,6 +80,7 @@ pub enum InputCmd {
 pub enum DataCmd {
     GetScreenSize,
     GetPoly,
+    GetPenState,
     TurtleShape(TurtleShapeName),
     UndoBufferEntries,
     Towards(f32, f32),

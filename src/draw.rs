@@ -1,5 +1,6 @@
 mod circle;
 mod dot;
+mod drawing_state;
 mod move_and_draw;
 mod settings_for_measurement;
 mod state;
@@ -87,16 +88,6 @@ impl Turtle {
         let width = width.into() as f32;
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::PenWidth(width),
-        ));
-    }
-
-    pub fn penup(&mut self) {
-        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::PenUp));
-    }
-
-    pub fn pendown(&mut self) {
-        self.do_draw(DrawRequest::InstantaneousDraw(
-            InstantaneousDrawCmd::PenDown,
         ));
     }
 

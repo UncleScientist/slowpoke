@@ -18,6 +18,7 @@ pub(crate) enum Response {
     ScreenSize([isize; 2]),
     TextInput(String),
     NumInput(f32),
+    PenState(bool),
 }
 
 #[derive(Debug)]

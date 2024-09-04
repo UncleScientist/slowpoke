@@ -267,4 +267,8 @@ impl CurrentTurtleState {
     pub(crate) fn degrees_to_turtle(&self, degrees: f32) -> f32 {
         degrees * (self.circle_units / 360.)
     }
+
+    pub(crate) fn get_pen_state(&self) -> bool {
+        self.pen_down
+    }
 }

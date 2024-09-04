@@ -25,13 +25,17 @@ fn main() {
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
             turtle.right(90);
+            println!("pen is down? {}\ncalling penup()", turtle.isdown());
             turtle.penup();
+            println!("pen is down? {}", turtle.isdown());
 
             turtle.fd(100);
             println!("pos: {:?}, heading: {:?}", turtle.pos(), turtle.heading());
 
             turtle.right(90);
+            println!("calling pendown()");
             turtle.pendown();
+            println!("pen is down? {}", turtle.isdown());
 
             turtle.pencolor((0.5, 0.8, 0.4));
             turtle.forward(100);

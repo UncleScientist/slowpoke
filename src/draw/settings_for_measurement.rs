@@ -6,9 +6,10 @@ use crate::{
 };
 
 impl Turtle {
-    pub fn degrees(&mut self, fullcircle: f32) {
+    pub fn degrees<D: Into<f64>>(&mut self, fullcircle: D) {
+        let degrees = fullcircle.into() as f32;
         self.do_draw(DrawRequest::InstantaneousDraw(
-            InstantaneousDrawCmd::SetDegrees(fullcircle),
+            InstantaneousDrawCmd::SetDegrees(degrees),
         ));
     }
 
