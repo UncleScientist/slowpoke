@@ -12,6 +12,9 @@ pub(crate) trait TurtleGui: Default + Sized {
     // Generate a new connection to the windowing system
     fn new_turtle(&mut self) -> TurtleID;
 
+    // Clear this turtle's drawing, but leave the turtle in place
+    fn clear_turtle(&mut self, turtle: TurtleID);
+
     // set the current turtle shape
     fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape);
 

@@ -206,8 +206,12 @@ impl IndividualTurtle {
                             .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                     }
                 }
+                DrawCommand::SetPosition(pos) => {
+                    tpos = [pos.x as f32, pos.y as f32];
+                }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
                 DrawCommand::StampTurtle
+                | DrawCommand::Clear
                 | DrawCommand::BeginFill
                 | DrawCommand::EndFill
                 | DrawCommand::BeginPoly
@@ -265,6 +269,12 @@ impl TurtleGui for IcedGuiInternal {
 
         self.turtle.insert(id, IndividualTurtle::default());
         id
+    }
+
+    fn clear_turtle(&mut self, turtle: TurtleID) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.cmds.clear();
+        turtle.has_new_cmd = true;
     }
 
     fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape) {

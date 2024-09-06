@@ -381,6 +381,12 @@ impl TurtleData {
                         }
                     }
                 }
+                DrawCommand::Clear => {
+                    gui.clear_turtle(tid);
+                    for cmd in self.state.turtle.get_state() {
+                        gui.append_command(tid, cmd);
+                    }
+                }
                 _ => {
                     gui.append_command(tid, command);
                 }
@@ -619,13 +625,16 @@ impl TurtleTask {
         }
 
         for turtle in self.turtle_list.iter_mut() {
-            if let Some(mut timer) = turtle.event.ontimer.take() {
-                let d = timer.prev.elapsed();
-                if d > timer.time {
-                    timer.prev = Instant::now();
-                    spawn!(self, turtle, turtle.turtle_id, timer.func, d);
+            let timer = match &turtle.event.ontimer {
+                Some(timer) if timer.prev.elapsed() > timer.time => {
+                    Some((timer.prev.elapsed(), timer.func))
                 }
-                turtle.event.ontimer = Some(timer);
+                _ => None,
+            };
+
+            if let Some((duration, func)) = timer {
+                spawn!(self, turtle, turtle.turtle_id, func, duration);
+                turtle.event.ontimer = None;
             }
 
             turtle.time_passes(gui, 0.01); // TODO: use actual time delta

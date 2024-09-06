@@ -35,6 +35,7 @@ impl CirclePos {
 
 #[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
+    Clear,
     Filler,
     Filled(usize),
     BeginFill,
@@ -46,6 +47,7 @@ pub(crate) enum DrawCommand {
     SetPenColor(TurtleColor),
     SetPenWidth(f32),
     SetFillColor(TurtleColor),
+    SetPosition(ScreenPosition<isize>),
     DrawPolygon(TurtlePolygon),
     SetHeading(f32, f32),
     DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
@@ -60,6 +62,7 @@ pub(crate) struct CurrentTurtleState {
     pen_down: bool,
     pen_width: f32,
     fill_color: TurtleColor,
+    pen_color: TurtleColor,
     circle_units: f32, // number of "degrees" in a circle
 }
 
@@ -90,6 +93,7 @@ impl Default for CurrentTurtleState {
             transform: Transform2D::identity(),
             angle: 0.,
             pen_width: 1.,
+            pen_color: "black".into(),
             fill_color: "black".into(),
             circle_units: 360.,
         }
@@ -118,6 +122,16 @@ impl CurrentTurtleState {
             y: point.y,
             pen_down: self.pen_down,
         }
+    }
+
+    pub(crate) fn get_state(&self) -> Vec<DrawCommand> {
+        vec![
+            DrawCommand::SetPosition(self.get_point()),
+            DrawCommand::SetHeading(0., self.angle),
+            DrawCommand::SetPenWidth(self.pen_width),
+            DrawCommand::SetPenColor(self.pen_color),
+            DrawCommand::SetFillColor(self.fill_color),
+        ]
     }
 
     pub(crate) fn apply(&mut self, cmd: &DrawRequest) -> Option<DrawCommand> {
@@ -213,6 +227,9 @@ impl CurrentTurtleState {
                 TimedDrawCmd::Undo => {}
             },
             DrawRequest::InstantaneousDraw(id) => match id {
+                InstantaneousDrawCmd::Clear => {
+                    return Some(DrawCommand::Clear);
+                }
                 InstantaneousDrawCmd::SetDegrees(deg) => {
                     self.circle_units = *deg;
                     println!("circle_units = {}", self.circle_units);
@@ -225,12 +242,15 @@ impl CurrentTurtleState {
                     self.pen_down = false;
                 }
                 InstantaneousDrawCmd::PenColor(pc) => {
+                    self.pen_color = *pc;
                     return Some(DrawCommand::SetPenColor(*pc));
                 }
                 InstantaneousDrawCmd::FillColor(fc) => {
+                    self.fill_color = *fc;
                     return Some(DrawCommand::SetFillColor(*fc));
                 }
                 InstantaneousDrawCmd::PenWidth(pw) => {
+                    self.pen_width = *pw / 2.;
                     return Some(DrawCommand::SetPenWidth(*pw / 2.));
                 }
                 InstantaneousDrawCmd::Dot(size, color) => {

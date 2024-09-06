@@ -51,4 +51,8 @@ impl Turtle {
             panic!("invalid response from turtle");
         }
     }
+
+    pub fn clear(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Clear))
+    }
 }
