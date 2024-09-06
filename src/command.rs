@@ -54,6 +54,7 @@ pub enum InstantaneousDrawCmd {
     SetDegrees(f32),
     Clear,
     Reset,
+    Text(String),
 }
 
 #[derive(Copy, Clone, Debug)]

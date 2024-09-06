@@ -59,4 +59,10 @@ impl Turtle {
     pub fn reset(&mut self) {
         self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Reset))
     }
+
+    pub fn write(&mut self, text: &str) {
+        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Text(
+            text.to_string(),
+        )))
+    }
 }

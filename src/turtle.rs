@@ -394,13 +394,14 @@ impl TurtleData {
                 }
 
                 DrawCommand::Filler
+                | DrawCommand::Text(..)
                 | DrawCommand::Filled(_)
                 | DrawCommand::SetPenWidth(_)
                 | DrawCommand::SetFillColor(_)
                 | DrawCommand::SetPosition(_)
-                | DrawCommand::SetHeading(_, _)
-                | DrawCommand::DrawDot(_, _, _)
-                | DrawCommand::DrawPolyAt(_, _, _)
+                | DrawCommand::SetHeading(..)
+                | DrawCommand::DrawDot(..)
+                | DrawCommand::DrawPolyAt(..)
                 | DrawCommand::SetPenColor(_) => {
                     gui.append_command(tid, command);
                 }

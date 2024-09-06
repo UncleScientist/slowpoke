@@ -1,16 +1,21 @@
 use std::collections::HashMap;
 
+use iced::widget::text;
+
 use iced::{
+    alignment::{Horizontal, Vertical},
     event, executor, mouse,
     multi_window::Application,
     widget::{
         button,
-        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, LineJoin, Path, Stroke},
-        column, container, horizontal_space, row, text, text_input, vertical_space, Canvas,
-        TextInput,
+        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, LineJoin, Path, Stroke, Text},
+        column, container, horizontal_space, row,
+        text::{LineHeight, Shaping},
+        text_input, vertical_space, Canvas, TextInput,
     },
     window::{self, Id as WindowID},
-    Color, Element, Event, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
+    Color, Element, Event, Font, Length, Point, Rectangle, Renderer, Settings, Size, Subscription,
+    Theme,
 };
 
 use iced::keyboard::{Event::KeyPressed, Event::KeyReleased, Key};
@@ -46,6 +51,7 @@ pub(crate) enum Message {
 pub(crate) enum IcedDrawCmd {
     Stroke(Path, Color, f32),
     Fill(Path, Color),
+    Text(Point, String),
 }
 
 #[derive(Default)]
@@ -77,6 +83,19 @@ impl IndividualTurtle {
                         rule: Rule::EvenOdd,
                     },
                 ),
+                IcedDrawCmd::Text(pos, text) => {
+                    frame.fill_text(Text {
+                        content: text.to_string(),
+                        position: *pos,
+                        color: Color::BLACK,
+                        size: 10.into(),
+                        line_height: LineHeight::Relative(1.0),
+                        font: Font::DEFAULT,
+                        horizontal_alignment: Horizontal::Left,
+                        vertical_alignment: Vertical::Bottom,
+                        shaping: Shaping::Basic,
+                    });
+                }
             }
         }
     }
@@ -208,6 +227,10 @@ impl IndividualTurtle {
                 }
                 DrawCommand::SetPosition(pos) => {
                     tpos = [pos.x as f32, pos.y as f32];
+                }
+                DrawCommand::Text(pos, text) => {
+                    let pos = Point { x: pos.x, y: pos.y };
+                    self.drawing.push(IcedDrawCmd::Text(pos, text.to_string()));
                 }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
                 DrawCommand::StampTurtle

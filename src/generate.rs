@@ -54,6 +54,7 @@ pub(crate) enum DrawCommand {
     DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
     DrawPolyAt(TurtlePolygon, ScreenPosition<f32>, f32), // poly, pos, angle
     Circle(Vec<CirclePos>),
+    Text(Point2D<f32>, String),
 }
 
 #[derive(Debug)]
@@ -279,6 +280,10 @@ impl CurrentTurtleState {
                 InstantaneousDrawCmd::EndFill => return Some(DrawCommand::EndFill),
                 InstantaneousDrawCmd::BeginPoly => return Some(DrawCommand::BeginPoly),
                 InstantaneousDrawCmd::EndPoly => return Some(DrawCommand::EndPoly),
+                InstantaneousDrawCmd::Text(t) => {
+                    let point = self.get_floatpoint();
+                    return Some(DrawCommand::Text(point, t.clone()));
+                }
             },
         }
         None
