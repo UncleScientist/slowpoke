@@ -53,6 +53,7 @@ pub enum InstantaneousDrawCmd {
     EndPoly,
     SetDegrees(f32),
     Clear,
+    Reset,
 }
 
 #[derive(Copy, Clone, Debug)]

@@ -212,6 +212,7 @@ impl IndividualTurtle {
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
+                | DrawCommand::Reset
                 | DrawCommand::BeginFill
                 | DrawCommand::EndFill
                 | DrawCommand::BeginPoly

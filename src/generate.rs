@@ -36,6 +36,7 @@ impl CirclePos {
 #[derive(Debug, Clone)]
 pub(crate) enum DrawCommand {
     Clear,
+    Reset,
     Filler,
     Filled(usize),
     BeginFill,
@@ -227,6 +228,9 @@ impl CurrentTurtleState {
                 TimedDrawCmd::Undo => {}
             },
             DrawRequest::InstantaneousDraw(id) => match id {
+                InstantaneousDrawCmd::Reset => {
+                    return Some(DrawCommand::Reset);
+                }
                 InstantaneousDrawCmd::Clear => {
                     return Some(DrawCommand::Clear);
                 }
@@ -304,5 +308,9 @@ impl CurrentTurtleState {
 
     pub(crate) fn get_pen_state(&self) -> bool {
         self.pen_down
+    }
+
+    pub(crate) fn reset(&mut self) {
+        *self = Self::default();
     }
 }

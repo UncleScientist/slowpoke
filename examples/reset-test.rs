@@ -3,7 +3,7 @@ use slowpoke::*;
 fn main() {
     TurtleArgs::default()
         .with_size(400, 400)
-        .with_title("clear test")
+        .with_title("reset test")
         .run(|turtle| {
             turtle.penwidth(4);
             turtle.fillcolor("red");
@@ -12,7 +12,7 @@ fn main() {
             turtle.right(55);
             turtle.forward(100);
             turtle.right(55);
-            turtle.clear();
+            turtle.reset();
             turtle.forward(100);
         });
 }

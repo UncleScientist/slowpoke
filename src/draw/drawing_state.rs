@@ -55,4 +55,8 @@ impl Turtle {
     pub fn clear(&mut self) {
         self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Clear))
     }
+
+    pub fn reset(&mut self) {
+        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Reset))
+    }
 }
