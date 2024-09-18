@@ -20,6 +20,7 @@ pub(crate) enum Response {
     NumInput(f32),
     IsPenDown(bool),
     IsFilling(bool),
+    ShapeList(Vec<String>),
 }
 
 #[derive(Debug)]

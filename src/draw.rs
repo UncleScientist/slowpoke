@@ -13,7 +13,7 @@ use crate::{
     comms::Response,
     polygon::TurtleShapeName,
     turtle::Turtle,
-    ScreenPosition,
+    ScreenPosition, Shape,
 };
 
 impl Turtle {
@@ -142,6 +142,22 @@ impl Turtle {
             Response::Cancel => None,
             bad_response => panic!("invalid response '{bad_response:?}' from turtle"),
         }
+    }
+
+    pub fn getshapes(&self) -> Vec<String> {
+        if let Response::ShapeList(list) = self.do_data(DataCmd::GetShapes) {
+            list
+        } else {
+            panic!("Unable to retrieve list of shape names");
+        }
+    }
+
+    pub fn register_shape<N: ToString>(&mut self, name: N, shape: Shape) {
+        self.do_screen(ScreenCmd::RegisterShape(name.to_string(), shape));
+    }
+
+    pub fn addshape<N: ToString>(&mut self, name: N, shape: Shape) {
+        self.register_shape(name, shape);
     }
 }
 

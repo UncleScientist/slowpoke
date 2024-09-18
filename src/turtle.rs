@@ -16,10 +16,10 @@ use crate::{
     comms::{Request, Response},
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
     gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression, StampCount, TurtleGui},
-    polygon::{generate_default_shapes, TurtlePolygon, TurtleShape},
+    polygon::{generate_default_shapes, ShapeComponent, TurtlePolygon, TurtleShape},
     speed::TurtleSpeed,
     turtle::types::TurtleID,
-    ScreenPosition, TurtleShapeName,
+    ScreenPosition, Shape, TurtleShapeName,
 };
 
 macro_rules! spawn {
@@ -687,6 +687,22 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            ScreenCmd::RegisterShape(name, shape) => {
+                match shape {
+                    Shape::Polygon(ShapeComponent { polygon, .. }) => {
+                        self.shapes.insert(
+                            name.clone(),
+                            TurtleShape {
+                                name,
+                                shape: polygon,
+                            },
+                        );
+                    }
+                    Shape::Image(_) => todo!(),
+                    Shape::Compound(_) => todo!(),
+                };
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::SetSize(s) => {
                 gui.resize(turtle, thread, s[0], s[1]);
                 // Note: don't send "done" here -- wait for the resize event from the GUI
@@ -779,6 +795,9 @@ impl TurtleTask {
             .clone();
 
         let _ = match &cmd {
+            DataCmd::GetShapes => {
+                resp.send(Response::ShapeList(self.shapes.keys().cloned().collect()))
+            }
             DataCmd::GetFillingState => resp.send(Response::IsFilling(
                 self.turtle_list[turtle].state.insert_fill.is_some(),
             )),

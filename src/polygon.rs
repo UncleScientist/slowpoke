@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use iced::widget::canvas::Path;
 
+use crate::color_names::TurtleColor;
+
 const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
 const ARROW: [[f32; 2]; 4] = [[0., 0.], [-10., 12.], [-10., -12.], [0., 0.]];
 const CIRCLE: [[f32; 2]; 10] = [
@@ -55,6 +57,46 @@ impl Default for TurtleShape {
 pub enum TurtleShapeName {
     GetCurrent,
     Shape(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct ShapeComponent {
+    // TODO: can ShapeComponent be "more private" than Shape?
+    pub(crate) polygon: TurtlePolygon,
+    pub(crate) fill: TurtleColor,
+    pub(crate) outline: TurtleColor,
+}
+
+#[derive(Debug, Clone)]
+pub enum Shape {
+    Polygon(ShapeComponent),
+    Image(Vec<u8>),
+    Compound(Vec<ShapeComponent>),
+}
+
+impl Shape {
+    pub fn polygon(polygon: &[[f32; 2]]) -> Self {
+        Self::Polygon(ShapeComponent {
+            polygon: TurtlePolygon::new(polygon),
+            fill: TurtleColor::CurrentColor,
+            outline: TurtleColor::CurrentColor,
+        })
+    }
+
+    pub fn addcomponent<F: Into<TurtleColor>, O: Into<TurtleColor>>(
+        &mut self,
+        polygon: &[[f32; 2]],
+        fill: F,
+        outline: O,
+    ) {
+        if let Shape::Compound(v) = self {
+            v.push(ShapeComponent {
+                polygon: TurtlePolygon::new(polygon),
+                fill: fill.into(),
+                outline: outline.into(),
+            });
+        };
+    }
 }
 
 impl From<&str> for TurtleShapeName {

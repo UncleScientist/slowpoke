@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use crate::{color_names::TurtleColor, polygon::TurtleShapeName, speed::TurtleSpeed, Turtle};
+use crate::{
+    color_names::TurtleColor, polygon::TurtleShapeName, speed::TurtleSpeed, Shape, Turtle,
+};
 
 //
 // A DrawRequest is something that the turtle thread asks us to put on the screen.
@@ -57,7 +59,7 @@ pub enum InstantaneousDrawCmd {
     Text(String),
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ScreenCmd {
     ClearScreen,
     Background(TurtleColor),
@@ -66,6 +68,7 @@ pub enum ScreenCmd {
     Speed(TurtleSpeed),
     ShowTurtle(bool),
     SetSize([isize; 2]),
+    RegisterShape(String, Shape),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -81,6 +84,7 @@ pub enum InputCmd {
 // Commands which return data
 #[derive(Clone, Debug)]
 pub enum DataCmd {
+    GetShapes,
     GetScreenSize,
     GetPoly,
     GetPenState,
