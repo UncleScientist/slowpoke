@@ -74,6 +74,12 @@ pub enum Shape {
     Compound(Vec<ShapeComponent>),
 }
 
+impl From<Vec<[f32; 2]>> for Shape {
+    fn from(poly: Vec<[f32; 2]>) -> Self {
+        Self::polygon(&poly)
+    }
+}
+
 impl Shape {
     pub fn polygon(polygon: &[[f32; 2]]) -> Self {
         Self::Polygon(ShapeComponent {

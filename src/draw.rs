@@ -92,10 +92,11 @@ impl Turtle {
     }
 
     pub fn shape<S: Into<TurtleShapeName>>(&self, shape: S) -> String {
-        if let Response::Name(shape) = self.do_data(DataCmd::TurtleShape(shape.into())) {
+        let response = self.do_data(DataCmd::TurtleShape(shape.into()));
+        if let Response::Name(shape) = response {
             shape
         } else {
-            panic!("invalid response from turtle");
+            panic!("invalid response from turtle: {response:?}");
         }
     }
 
@@ -152,8 +153,8 @@ impl Turtle {
         }
     }
 
-    pub fn register_shape<N: ToString>(&mut self, name: N, shape: Shape) {
-        self.do_screen(ScreenCmd::RegisterShape(name.to_string(), shape));
+    pub fn register_shape<N: ToString, S: Into<Shape>>(&mut self, name: N, shape: S) {
+        self.do_screen(ScreenCmd::RegisterShape(name.to_string(), shape.into()));
     }
 
     pub fn addshape<N: ToString>(&mut self, name: N, shape: Shape) {

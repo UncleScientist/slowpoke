@@ -1,3 +1,4 @@
+use rand::Rng;
 use slowpoke::*;
 
 fn main() {
@@ -10,11 +11,37 @@ fn main() {
                 Shape::polygon(&[[100., 100.], [-100., 100.], [-100., -100.], [100., -100.]]);
             turtle.register_shape("different square", shape);
             println!(" after: {:?}", turtle.getshapes());
-            for _ in 0..10 {
-                turtle.shape("square");
-                std::thread::sleep(std::time::Duration::from_millis(500));
-                turtle.shape("different square");
-                std::thread::sleep(std::time::Duration::from_millis(500));
+            turtle.shape("different square");
+            std::thread::sleep(std::time::Duration::from_millis(500));
+
+            turtle.shape("classic");
+
+            let mut rng = rand::thread_rng();
+
+            // turtle.tracer(false);
+            turtle.penup();
+            turtle.begin_poly();
+            for _ in 0..5 {
+                if rng.gen::<f64>() < 0.5 {
+                    turtle.right(90. + rng.gen::<f64>() * 45.);
+                } else {
+                    turtle.left(90. + rng.gen::<f64>() * 45.);
+                }
+                turtle.forward(30. + rng.gen::<f64>() * 30.)
+            }
+            turtle.end_poly();
+            turtle.goto(0, 0);
+            turtle.pendown();
+            // turtle.tracer(true);
+
+            let poly = turtle.get_poly();
+            println!("poly: {poly:?}");
+            turtle.register_shape("oddball", poly);
+
+            turtle.shape("oddball");
+            for _ in 0..4 {
+                turtle.forward(100);
+                turtle.right(90);
             }
         });
 }
