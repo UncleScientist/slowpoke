@@ -291,7 +291,13 @@ impl TurtleGui for IcedGuiInternal {
     fn new_turtle(&mut self) -> TurtleID {
         let id = self.last_id.get();
 
-        self.turtle.insert(id, IndividualTurtle::default());
+        self.turtle.insert(
+            id,
+            IndividualTurtle {
+                has_new_cmd: true,
+                ..Default::default()
+            },
+        );
         id
     }
 
@@ -302,10 +308,9 @@ impl TurtleGui for IcedGuiInternal {
     }
 
     fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape) {
-        self.turtle
-            .get_mut(&turtle)
-            .expect("missing turtle")
-            .turtle_shape = shape;
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.turtle_shape = shape;
+        turtle.has_new_cmd = true;
     }
 
     fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32) -> usize {
