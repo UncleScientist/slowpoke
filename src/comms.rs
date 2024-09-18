@@ -1,6 +1,7 @@
 use crate::{
     command::Command,
     turtle::types::{TurtleID, TurtleThread},
+    Turtle,
 };
 
 #[derive(Debug)]
@@ -21,6 +22,7 @@ pub(crate) enum Response {
     IsPenDown(bool),
     IsFilling(bool),
     ShapeList(Vec<String>),
+    Turtles(Vec<Turtle>),
 }
 
 #[derive(Debug)]

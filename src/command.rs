@@ -84,6 +84,7 @@ pub enum InputCmd {
 // Commands which return data
 #[derive(Clone, Debug)]
 pub enum DataCmd {
+    GetTurtles,
     GetShapes,
     GetScreenSize,
     GetPoly,

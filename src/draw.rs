@@ -121,7 +121,16 @@ impl Turtle {
         if let Response::ScreenSize(size) = response {
             size
         } else {
-            panic!("{}", format!("invalid response from turtle: {response:?}"));
+            panic!("invalid response from turtle: {response:?}");
+        }
+    }
+
+    pub fn turtles(&self) -> Vec<Turtle> {
+        let response = self.do_data(DataCmd::GetTurtles);
+        if let Response::Turtles(turtles) = response {
+            turtles
+        } else {
+            panic!("invalid response from turtle: {response:?}");
         }
     }
 

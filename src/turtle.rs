@@ -795,6 +795,15 @@ impl TurtleTask {
             .clone();
 
         let _ = match &cmd {
+            DataCmd::GetTurtles => {
+                let mut turtles = Vec::new();
+                for turtle in self.turtle_list.iter_mut() {
+                    let thread = turtle.next_thread.get();
+                    let thing = turtle.spawn(thread, self.issue_command.as_ref().unwrap().clone());
+                    turtles.push(thing);
+                }
+                resp.send(Response::Turtles(turtles))
+            }
             DataCmd::GetShapes => {
                 resp.send(Response::ShapeList(self.shapes.keys().cloned().collect()))
             }
