@@ -66,9 +66,20 @@ fn main() {
                 turtle.shape(TurtleShapeName::GetCurrent)
             );
 
-            println!("press return to finish");
+            println!("press return to clear");
             let mut s = String::new();
             let _ = std::io::stdin().read_line(&mut s);
+
+            turtle.clearscreen();
+
+            println!("press return to move forward");
+            let _ = std::io::stdin().read_line(&mut s);
+
+            turtle.forward(100);
+
+            println!("press return to exit");
+            let _ = std::io::stdin().read_line(&mut s);
+
             std::process::exit(0);
         });
 }

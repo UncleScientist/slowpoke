@@ -66,6 +66,9 @@ pub(crate) trait TurtleGui: Default + Sized {
 
     // get the current visibility status
     fn is_visible(&self, turtle: TurtleID) -> bool;
+
+    // clear all turtles from the screen
+    fn clearscreen(&mut self);
 }
 
 #[derive(Default, Debug, Clone, Copy)]

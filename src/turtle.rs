@@ -257,6 +257,12 @@ pub(crate) struct DrawState {
     turtle: CurrentTurtleState,
 }
 
+impl DrawState {
+    fn reset(&mut self) {
+        *self = Self::default();
+    }
+}
+
 struct TurtleTimer {
     time: Duration,
     prev: Instant,
@@ -500,6 +506,10 @@ impl TurtleData {
         } else {
             Response::Done
         });
+    }
+
+    fn reset(&mut self) {
+        self.state.reset();
     }
 }
 

@@ -20,24 +20,25 @@ use crate::generate::TurtlePosition;
 pub(crate) struct TurtleTask {
     issue_command: Option<Sender<Request>>,
     receive_command: Option<Receiver<Request>>,
-    bgcolor: TurtleColor,
     turtle_list: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
     winsize: [isize; 2],
 }
 
 macro_rules! spawn {
-    ($task: expr, $td:expr, $idx:expr, $func:expr, $($args:tt)*) => {{
-        let _turtle :TurtleID = $idx.into();
-        let _thread = $td.next_thread.get();
+    ($task:expr, $td:expr, $idx:expr, $func:expr, $($args:tt)*) => {
+        {
+            let _turtle :TurtleID = $idx.into();
+            let _thread = $td.next_thread.get();
 
-        let mut _new_turtle = $td.spawn(_thread,
-            $task.issue_command.as_ref().unwrap().clone());
+            let mut _new_turtle = $td.spawn(_thread,
+                $task.issue_command.as_ref().unwrap().clone());
 
-        let _ = std::thread::spawn(move || {
-            $func(&mut _new_turtle, $($args)*);
-        });
-    }};
+            let _ = std::thread::spawn(move || {
+                $func(&mut _new_turtle, $($args)*);
+            });
+        }
+    };
 }
 
 impl TurtleTask {
@@ -234,7 +235,10 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearScreen => {
-                self.bgcolor = TurtleColor::from("black");
+                gui.bgcolor("white".into());
+                gui.clearscreen();
+                self.turtle_list.truncate(1);
+                self.turtle_list[0].reset();
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::ClearStamp(id) => {

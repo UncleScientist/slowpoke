@@ -289,6 +289,19 @@ struct IcedGuiInternal {
 }
 
 impl TurtleGui for IcedGuiInternal {
+    fn clearscreen(&mut self) {
+        let id0 = TurtleID::new(0);
+
+        self.turtle.retain(|&k, _| k == id0);
+
+        self.turtle.entry(id0).and_modify(|t| {
+            *t = IndividualTurtle {
+                has_new_cmd: true,
+                ..Default::default()
+            }
+        });
+    }
+
     fn new_turtle(&mut self) -> TurtleID {
         let id = self.last_id.get();
 
