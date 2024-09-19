@@ -31,8 +31,9 @@ use crate::{
     gui::{popup::PopupData, TurtleGui},
     polygon::TurtleShape,
     turtle::{
+        task::TurtleTask,
         types::{TurtleID, TurtleThread},
-        TurtleFlags, TurtleTask,
+        TurtleFlags,
     },
     ScreenPosition,
 };

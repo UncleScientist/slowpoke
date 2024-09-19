@@ -5,28 +5,31 @@ fn main() {
         .with_size(400, 400)
         .with_title("lotsa turtles")
         .run(|turtle| {
-            for _ in 0..12 {
+            for _ in 0..11 {
                 let _ = turtle.hatch();
             }
 
-            for (i, mut t) in turtle.turtles().into_iter().enumerate() {
+            let tlist = turtle.turtles();
+            println!("There are {} turtles.", tlist.len());
+
+            for (i, t) in turtle.turtles().iter_mut().enumerate() {
                 t.right(i as u32 * 360 / 12);
-                t.forward(i as u32 * 12)
+                t.forward(i as u32 * 12);
             }
 
             loop {
                 for t in turtle.turtles().iter_mut() {
                     t.fillcolor("red");
-                    t.forward(0);
                 }
+                std::thread::sleep(std::time::Duration::from_millis(500));
                 for t in turtle.turtles().iter_mut() {
                     t.fillcolor("green");
-                    t.forward(0);
                 }
+                std::thread::sleep(std::time::Duration::from_millis(500));
                 for t in turtle.turtles().iter_mut() {
                     t.fillcolor("blue");
-                    t.forward(0);
                 }
+                std::thread::sleep(std::time::Duration::from_millis(500));
             }
         });
 }

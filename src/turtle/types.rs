@@ -37,7 +37,7 @@ impl TurtleThread {
     pub(crate) fn get(&mut self) -> Self {
         self.thread += 1;
         Self {
-            thread: self.thread - 1,
+            thread: self.thread,
         }
     }
 }

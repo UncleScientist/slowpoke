@@ -237,7 +237,6 @@ impl CurrentTurtleState {
                 }
                 InstantaneousDrawCmd::SetDegrees(deg) => {
                     self.circle_units = *deg;
-                    println!("circle_units = {}", self.circle_units);
                 }
                 InstantaneousDrawCmd::Tracer(_) => {}
                 InstantaneousDrawCmd::PenDown => {
