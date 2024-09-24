@@ -202,13 +202,8 @@ impl TurtleTask {
             ScreenCmd::RegisterShape(name, shape) => {
                 match shape {
                     Shape::Polygon(ShapeComponent { polygon, .. }) => {
-                        self.shapes.insert(
-                            name.clone(),
-                            TurtleShape {
-                                name,
-                                shape: polygon,
-                            },
-                        );
+                        self.shapes
+                            .insert(name.clone(), TurtleShape::new(&name, polygon));
                     }
                     Shape::Image(_) => todo!(),
                     Shape::Compound(_) => todo!(),

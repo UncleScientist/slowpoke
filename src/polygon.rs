@@ -38,17 +38,38 @@ const SHAPES: [(&str, &[[f32; 2]]); 5] = [
     ("triangle", &TRIANGLE),
 ];
 
+// struct TurtleShapeComponent
+
 #[derive(Debug, Clone)]
-pub struct TurtleShape {
-    pub(crate) name: String,         // TODO: make accessor
-    pub(crate) shape: TurtlePolygon, // TODO: make a get_path()
+pub(crate) struct TurtleShape {
+    pub(crate) name: String,
+    pub(crate) poly: Vec<ShapeComponent>,
 }
 
 impl Default for TurtleShape {
     fn default() -> Self {
+        let shape = ShapeComponent {
+            polygon: TurtlePolygon::new(&CLASSIC), // TODO: maybe not allocate in default()?
+            fill: TurtleColor::CurrentColor,
+            outline: TurtleColor::CurrentColor,
+        };
         Self {
             name: "classic".into(),
-            shape: TurtlePolygon::new(&CLASSIC),
+            poly: vec![shape],
+        }
+    }
+}
+
+impl TurtleShape {
+    pub(crate) fn new(name: &str, polygon: TurtlePolygon) -> Self {
+        let shape = ShapeComponent {
+            polygon,
+            fill: TurtleColor::CurrentColor,
+            outline: TurtleColor::CurrentColor,
+        };
+        Self {
+            name: name.into(),
+            poly: vec![shape],
         }
     }
 }
@@ -142,10 +163,7 @@ pub(crate) fn generate_default_shapes() -> HashMap<String, TurtleShape> {
     for (name, poly) in &SHAPES {
         shapes.insert(
             (*name).into(),
-            TurtleShape {
-                name: (*name).into(),
-                shape: TurtlePolygon::new(poly),
-            },
+            TurtleShape::new(name, TurtlePolygon::new(poly)),
         );
     }
 

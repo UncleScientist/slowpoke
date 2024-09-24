@@ -253,7 +253,7 @@ impl IndividualTurtle {
         }
 
         if !self.hide_turtle {
-            let path = self.turtle_shape.shape.get_path();
+            let path = self.turtle_shape.poly[0].polygon.get_path();
             let angle = Angle::degrees(trot);
             let transform = Transform2D::rotation(angle).then_translate(tpos.into());
             let path = path.transform(&transform);
@@ -330,7 +330,7 @@ impl TurtleGui for IcedGuiInternal {
     fn stamp(&mut self, turtle: TurtleID, pos: ScreenPosition<f32>, angle: f32) -> usize {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.push(DrawCommand::DrawPolyAt(
-            turtle.turtle_shape.shape.clone(),
+            turtle.turtle_shape.poly[0].polygon.clone(),
             pos,
             angle,
         ));
