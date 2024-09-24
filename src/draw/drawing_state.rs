@@ -52,6 +52,17 @@ impl Turtle {
         }
     }
 
+    pub fn pensize<N: Into<f64>>(&mut self, width: N) {
+        let width = width.into() as f32;
+        self.do_draw(DrawRequest::InstantaneousDraw(
+            InstantaneousDrawCmd::PenWidth(width),
+        ));
+    }
+
+    pub fn width<N: Into<f64>>(&mut self, width: N) {
+        self.pensize(width);
+    }
+
     pub fn clear(&mut self) {
         self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Clear))
     }

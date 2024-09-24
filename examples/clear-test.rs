@@ -5,7 +5,7 @@ fn main() {
         .with_size(400, 400)
         .with_title("clear test")
         .run(|turtle| {
-            turtle.penwidth(4);
+            turtle.width(4);
             turtle.fillcolor("red");
             turtle.pencolor("blue");
             turtle.forward(100);

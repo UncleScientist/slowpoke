@@ -6,7 +6,7 @@ fn main() {
         .with_title("nested cubes")
         .run(|turtle| {
             turtle.speed("fastest");
-            turtle.penwidth(2);
+            turtle.width(2);
             for i in 0..290 {
                 let i = i as f64;
                 turtle.pencolor(((i / 300.0 * 4.0) % 1.0, 1.0, 1.0));

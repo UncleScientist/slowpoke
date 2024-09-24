@@ -74,6 +74,14 @@ impl Turtle {
         self.goto(xpos, ypos);
     }
 
+    pub fn teleport<X: Into<f64>, Y: Into<f64>>(&mut self, xpos: X, ypos: Y) {
+        let x = xpos.into() as f32;
+        let y = ypos.into() as f32;
+        self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(
+            MotionCmd::Teleport(x, -y),
+        )));
+    }
+
     pub fn setx<N: Into<f64>>(&mut self, xpos: N) {
         let x = xpos.into() as f32;
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Motion(

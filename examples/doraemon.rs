@@ -161,7 +161,7 @@ fn main() {
             }
 
             turtle.bgcolor("#f0f0f0");
-            turtle.penwidth(3);
+            turtle.width(3);
             turtle.speed(9);
             doraemon(turtle);
             turtle.teleport(100, -300);
