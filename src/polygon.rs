@@ -72,6 +72,13 @@ impl TurtleShape {
             poly: vec![shape],
         }
     }
+
+    pub(crate) fn multi(name: &str, poly: &[ShapeComponent]) -> Self {
+        Self {
+            name: name.into(),
+            poly: poly.into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +115,10 @@ impl Shape {
             fill: TurtleColor::CurrentColor,
             outline: TurtleColor::CurrentColor,
         })
+    }
+
+    pub fn compound() -> Self {
+        Self::Compound(Vec::new())
     }
 
     pub fn addcomponent<F: Into<TurtleColor>, O: Into<TurtleColor>>(

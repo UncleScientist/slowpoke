@@ -253,14 +253,30 @@ impl IndividualTurtle {
         }
 
         if !self.hide_turtle {
-            let path = self.turtle_shape.poly[0].polygon.get_path();
             let angle = Angle::degrees(trot);
             let transform = Transform2D::rotation(angle).then_translate(tpos.into());
-            let path = path.transform(&transform);
-            self.drawing
-                .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
-            self.drawing
-                .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+
+            for poly in &self.turtle_shape.poly {
+                let path = poly.polygon.get_path();
+                let path = path.transform(&transform);
+
+                let fillcolor = if matches!(poly.fill, TurtleColor::CurrentColor) {
+                    fillcolor
+                } else {
+                    (&poly.fill).into()
+                };
+
+                let pencolor = if matches!(poly.outline, TurtleColor::CurrentColor) {
+                    pencolor
+                } else {
+                    (&poly.outline).into()
+                };
+
+                self.drawing
+                    .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+                self.drawing
+                    .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+            }
         }
     }
 }

@@ -43,5 +43,20 @@ fn main() {
                 turtle.forward(100);
                 turtle.right(90);
             }
+
+            let mut compound = Shape::compound();
+            compound.addcomponent(
+                &[
+                    [50., -20.],
+                    [30., 20.],
+                    [-50., 20.],
+                    [-30., -20.],
+                    [50., -20.],
+                ],
+                "red",
+                "blue",
+            );
+            turtle.register_shape("pg", compound);
+            turtle.shape("pg");
         });
 }

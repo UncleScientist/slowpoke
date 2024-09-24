@@ -206,7 +206,10 @@ impl TurtleTask {
                             .insert(name.clone(), TurtleShape::new(&name, polygon));
                     }
                     Shape::Image(_) => todo!(),
-                    Shape::Compound(_) => todo!(),
+                    Shape::Compound(s) => {
+                        self.shapes
+                            .insert(name.clone(), TurtleShape::multi(&name, &s));
+                    }
                 };
                 let _ = resp.send(Response::Done);
             }
