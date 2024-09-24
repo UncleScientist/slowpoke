@@ -199,6 +199,7 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            ScreenCmd::BgPic(_picdata) => todo!(),
             ScreenCmd::RegisterShape(name, shape) => {
                 match shape {
                     Shape::Polygon(ShapeComponent { polygon, .. }) => {

@@ -63,6 +63,7 @@ pub enum InstantaneousDrawCmd {
 pub enum ScreenCmd {
     ClearScreen,
     Background(TurtleColor),
+    BgPic(Vec<u8>),
     ClearStamp(usize),
     ClearStamps(isize),
     Speed(TurtleSpeed),
