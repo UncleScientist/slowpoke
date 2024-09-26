@@ -6,21 +6,25 @@ fn main() {
         .with_size(500, 500)
         .with_title("multiple turtles")
         .run(|turtle| {
+            turtle.shape("turtle");
             turtle.width(2);
 
             let mut t1 = turtle.hatch();
+            t1.shape("turtle");
             t1.right(90);
             t1.pencolor("red");
             t1.fillcolor("red");
             t1.width(2);
 
             let mut t2 = turtle.hatch();
+            t2.shape("turtle");
             t2.right(180);
             t2.pencolor("green");
             t2.fillcolor("green");
             t2.width(2);
 
             let mut t3 = turtle.hatch();
+            t3.shape("turtle");
             t3.left(90);
             t3.pencolor("blue");
             t3.fillcolor("blue");

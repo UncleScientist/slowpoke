@@ -27,15 +27,42 @@ const SQUARE: [[f32; 2]; 6] = [
     [0., 0.],
 ];
 const TRIANGLE: [[f32; 2]; 4] = [[0., 0.], [-16., 8.], [-16., -8.], [0., 0.]];
+const TURTLE: [[f32; 2]; 24] = [
+    [16., 0.],
+    [14., -2.],
+    [10., -1.],
+    [7., -4.],
+    [9., -7.],
+    [8., -9.],
+    [5., -6.],
+    [1., -7.],
+    [-3., -5.],
+    [-6., -8.],
+    [-8., -6.],
+    [-5., -4.],
+    [-7., 0.],
+    [-5., 4.],
+    [-8., 6.],
+    [-6., 8.],
+    [-3., 5.],
+    [1., 7.],
+    [5., 6.],
+    [8., 9.],
+    [9., 7.],
+    [7., 4.],
+    [10., 1.],
+    [14., 2.],
+];
 
 // TODO: add complex turtle shape
 
-const SHAPES: [(&str, &[[f32; 2]]); 5] = [
+const SHAPES: [(&str, &[[f32; 2]]); 6] = [
     ("classic", &CLASSIC),
     ("arrow", &ARROW),
     ("circle", &CIRCLE),
     ("square", &SQUARE),
     ("triangle", &TRIANGLE),
+    ("turtle", &TURTLE),
 ];
 
 // struct TurtleShapeComponent

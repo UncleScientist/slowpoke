@@ -334,7 +334,9 @@ impl TurtleTask {
             )),
             DataCmd::TurtleShape(shape) => {
                 if let TurtleShapeName::Shape(name) = shape {
-                    gui.set_shape(turtle, self.shapes[name].clone());
+                    if let Some(shape) = self.shapes.get(name) {
+                        gui.set_shape(turtle, shape.clone());
+                    }
                 }
                 resp.send(Response::Name(gui.get_turtle_shape_name(turtle)))
             }
