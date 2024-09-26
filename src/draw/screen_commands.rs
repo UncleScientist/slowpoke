@@ -42,4 +42,8 @@ impl Turtle {
     pub fn exitonclick(&mut self) {
         self.do_screen(ScreenCmd::ExitOnClick);
     }
+
+    pub fn bye(&self) {
+        std::process::exit(0);
+    }
 }
