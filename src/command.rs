@@ -70,6 +70,7 @@ pub enum ScreenCmd {
     ShowTurtle(bool),
     SetSize([isize; 2]),
     RegisterShape(String, Shape),
+    SetTitle(String),
 }
 
 #[derive(Copy, Clone, Debug)]

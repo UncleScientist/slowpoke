@@ -69,6 +69,9 @@ pub(crate) trait TurtleGui: Default + Sized {
 
     // clear all turtles from the screen
     fn clearscreen(&mut self);
+
+    // set the text in the title bar of the window
+    fn set_title(&mut self, title: String);
 }
 
 #[derive(Default, Debug, Clone, Copy)]

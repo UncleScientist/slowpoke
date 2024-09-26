@@ -199,6 +199,10 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            ScreenCmd::SetTitle(s) => {
+                gui.set_title(s);
+                let _ = resp.send(Response::Done);
+            }
             ScreenCmd::BgPic(_picdata) => todo!(),
             ScreenCmd::RegisterShape(name, shape) => {
                 match shape {

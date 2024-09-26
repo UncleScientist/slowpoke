@@ -69,6 +69,10 @@ pub(crate) struct PopupData {
 }
 
 impl PopupData {
+    pub(crate) fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
+
     pub fn mainwin(title: &str) -> Self {
         Self {
             title: title.to_string(),

@@ -305,6 +305,14 @@ struct IcedGuiInternal {
 }
 
 impl TurtleGui for IcedGuiInternal {
+    fn set_title(&mut self, title: String) {
+        let popup = self
+            .popups
+            .get_mut(&WindowID::MAIN)
+            .expect("missing window");
+        popup.set_title(title);
+    }
+
     fn clearscreen(&mut self) {
         let id0 = TurtleID::new(0);
 
