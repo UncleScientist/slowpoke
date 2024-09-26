@@ -8,10 +8,10 @@ mod comms;
 mod draw;
 mod generate;
 mod gui;
-mod input;
 mod polygon;
 pub mod speed;
 mod turtle;
+mod user_events;
 
 pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
