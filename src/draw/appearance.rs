@@ -1,4 +1,8 @@
-use crate::{command::DataCmd, comms::Response, Turtle, TurtleShapeName};
+use crate::{
+    command::{DataCmd, ScreenCmd},
+    comms::Response,
+    Shape, Turtle, TurtleShapeName,
+};
 
 impl Turtle {
     pub fn shape<S: Into<TurtleShapeName>>(&self, shape: S) -> String {
@@ -8,6 +12,30 @@ impl Turtle {
         } else {
             panic!("invalid response from turtle: {response:?}");
         }
+    }
+
+    pub fn isvisible(&self) -> bool {
+        if let Response::Visibility(can_see) = self.do_data(DataCmd::Visibility) {
+            can_see
+        } else {
+            panic!("invalid response from turtle");
+        }
+    }
+
+    pub fn getshapes(&self) -> Vec<String> {
+        if let Response::ShapeList(list) = self.do_data(DataCmd::GetShapes) {
+            list
+        } else {
+            panic!("Unable to retrieve list of shape names");
+        }
+    }
+
+    pub fn register_shape<N: ToString, S: Into<Shape>>(&mut self, name: N, shape: S) {
+        self.do_screen(ScreenCmd::RegisterShape(name.to_string(), shape.into()));
+    }
+
+    pub fn addshape<N: ToString>(&mut self, name: N, shape: Shape) {
+        self.register_shape(name, shape);
     }
 
     // TODO: pub fn resizemode(); (auto, user, noresize)

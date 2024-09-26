@@ -1,4 +1,9 @@
-use crate::{color_names::TurtleColor, command::ScreenCmd, Turtle};
+use crate::{
+    color_names::TurtleColor,
+    command::{DataCmd, ScreenCmd},
+    comms::Response,
+    Turtle,
+};
 
 impl Turtle {
     pub fn bgcolor<C: Into<TurtleColor>>(&mut self, color: C) {
@@ -19,5 +24,14 @@ impl Turtle {
 
     pub fn screensize<S: Into<[isize; 2]>>(&mut self, s: S) {
         self.do_screen(ScreenCmd::SetSize(s.into()));
+    }
+
+    pub fn getscreensize(&self) -> [isize; 2] {
+        let response = self.do_data(DataCmd::GetScreenSize);
+        if let Response::ScreenSize(size) = response {
+            size
+        } else {
+            panic!("invalid response from turtle: {response:?}");
+        }
     }
 }
