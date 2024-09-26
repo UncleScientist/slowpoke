@@ -39,6 +39,14 @@ impl Turtle {
         }
     }
 
+    pub fn window_height(&self) -> isize {
+        self.getscreensize()[1]
+    }
+
+    pub fn window_width(&self) -> isize {
+        self.getscreensize()[0]
+    }
+
     pub fn exitonclick(&mut self) {
         self.do_screen(ScreenCmd::ExitOnClick);
     }
