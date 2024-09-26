@@ -18,7 +18,7 @@ fn main() {
 
             let mut rng = rand::thread_rng();
 
-            // turtle.tracer(false);
+            turtle.tracer(false);
             turtle.penup();
             turtle.begin_poly();
             for _ in 0..5 {
@@ -32,7 +32,7 @@ fn main() {
             turtle.end_poly();
             turtle.goto(0, 0);
             turtle.pendown();
-            // turtle.tracer(true);
+            turtle.tracer(true);
 
             let poly = turtle.get_poly();
             println!("poly: {poly:?}");
@@ -58,5 +58,6 @@ fn main() {
             );
             turtle.register_shape("pg", compound);
             turtle.shape("pg");
+            std::process::exit(0);
         });
 }

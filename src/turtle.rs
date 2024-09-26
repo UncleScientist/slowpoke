@@ -464,12 +464,12 @@ impl TurtleData {
                 self.state.respond_immediately = false;
             }
 
-            if !self.state.respond_immediately {
-                self.send_response(self.event.requesting_thread, cmd.is_stamp());
-            }
-
             if cmd.tracer_false() {
                 self.state.respond_immediately = true;
+            }
+
+            if !self.state.respond_immediately {
+                self.send_response(self.event.requesting_thread, cmd.is_stamp());
             }
         }
 
