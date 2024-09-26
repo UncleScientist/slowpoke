@@ -23,6 +23,7 @@ pub(crate) struct TurtleTask {
     turtle_list: Vec<TurtleData>,
     shapes: HashMap<String, TurtleShape>,
     winsize: [isize; 2],
+    exit_on_click: bool,
 }
 
 macro_rules! spawn {
@@ -112,6 +113,9 @@ impl TurtleTask {
                 }
             }
             MousePress(x, y) => {
+                if self.exit_on_click {
+                    std::process::exit(0);
+                }
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousepress {
                         spawn!(self, turtle, idx, func, x, y);
@@ -199,6 +203,11 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            ScreenCmd::ExitOnClick => {
+                // Note: this does not send back a response as it is meant to just
+                // block until the user clicks the mouse.
+                self.exit_on_click = true;
+            }
             ScreenCmd::SetTitle(s) => {
                 gui.set_title(s);
                 let _ = resp.send(Response::Done);
@@ -219,8 +228,9 @@ impl TurtleTask {
                 let _ = resp.send(Response::Done);
             }
             ScreenCmd::SetSize(s) => {
+                // Note: we don't send "done" here because we need to
+                // wait for the resize event from the GUI
                 gui.resize(turtle, thread, s[0], s[1]);
-                // Note: don't send "done" here -- wait for the resize event from the GUI
             }
             ScreenCmd::ShowTurtle(t) => {
                 gui.set_visible(turtle, t);

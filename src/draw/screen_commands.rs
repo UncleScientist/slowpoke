@@ -38,4 +38,8 @@ impl Turtle {
             panic!("invalid response from turtle: {response:?}");
         }
     }
+
+    pub fn exitonclick(&mut self) {
+        self.do_screen(ScreenCmd::ExitOnClick);
+    }
 }

@@ -71,6 +71,7 @@ pub enum ScreenCmd {
     SetSize([isize; 2]),
     RegisterShape(String, Shape),
     SetTitle(String),
+    ExitOnClick,
 }
 
 #[derive(Copy, Clone, Debug)]
