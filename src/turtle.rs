@@ -16,11 +16,17 @@ use crate::{
     },
     comms::{Request, Response},
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
-    gui::{events::TurtleEvent, iced_gui::IcedGuiFramework, Progression, TurtleGui},
+    gui::{events::TurtleEvent, Progression, TurtleGui},
     polygon::TurtlePolygon,
     speed::TurtleSpeed,
     ScreenPosition,
 };
+
+#[cfg(feature = "iced")]
+use crate::gui::iced_gui::IcedGuiFramework;
+
+#[cfg(feature = "ratatui")]
+use crate::gui::ratatui_tui::RatatuiFramework;
 
 #[derive(Debug)]
 struct TurtleCommand {
@@ -95,8 +101,11 @@ impl Turtle {
             size: [xsize, ysize],
         };
 
-        // #[cfg(an option to specify the "iced" crate for the gui)]
+        #[cfg(feature = "iced")]
         IcedGuiFramework::start(flags);
+
+        #[cfg(feature = "ratatui")]
+        RatatuiFramework::start(flags);
 
         // EguiGui::start(flags);
         // SlintGui::start(flags);
