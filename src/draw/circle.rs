@@ -3,7 +3,7 @@ use crate::{
     Turtle,
 };
 
-pub struct TurtleCircle<'a> {
+pub struct TurtleCircleProps<'a> {
     radius: f64,
     steps: usize,
     extent: f64,
@@ -11,8 +11,8 @@ pub struct TurtleCircle<'a> {
 }
 
 impl Turtle {
-    pub fn circle<R: Into<f64>>(&mut self, radius: R) -> TurtleCircle {
-        TurtleCircle {
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) -> TurtleCircleProps {
+        TurtleCircleProps {
             radius: radius.into(),
             steps: 32,
             extent: 360.,
@@ -21,19 +21,20 @@ impl Turtle {
     }
 }
 
-impl<'a> TurtleCircle<'a> {
-    pub fn with_steps(mut self, steps: usize) -> TurtleCircle<'a> {
+impl<'a> TurtleCircleProps<'a> {
+    pub fn with_steps(mut self, steps: usize) -> TurtleCircleProps<'a> {
         self.steps = steps;
         self
     }
 
-    pub fn with_extent<E: Into<f64>>(mut self, extent: E) -> TurtleCircle<'a> {
+    pub fn with_extent<E: Into<f64>>(mut self, extent: E) -> TurtleCircleProps<'a> {
         self.extent = extent.into();
         self
     }
 }
 
-impl<'a> Drop for TurtleCircle<'a> {
+impl<'a> Drop for TurtleCircleProps<'a> {
+    #[allow(clippy::cast_possible_truncation)]
     fn drop(&mut self) {
         self.turtle
             .do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Circle(

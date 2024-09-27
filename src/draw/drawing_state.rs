@@ -44,6 +44,7 @@ impl Turtle {
     //
     // let attributes = turtle.pen().shown(true).pensize(4).done();
 
+    /// # Panics
     pub fn isdown(&mut self) -> bool {
         if let Response::IsPenDown(state) = self.do_data(DataCmd::GetPenState) {
             state
@@ -53,6 +54,7 @@ impl Turtle {
     }
 
     pub fn pensize<N: Into<f64>>(&mut self, width: N) {
+        #[allow(clippy::cast_possible_truncation)]
         let width = width.into() as f32;
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::PenWidth(width),
@@ -64,16 +66,16 @@ impl Turtle {
     }
 
     pub fn clear(&mut self) {
-        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Clear))
+        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Clear));
     }
 
     pub fn reset(&mut self) {
-        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Reset))
+        self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Reset));
     }
 
     pub fn write(&mut self, text: &str) {
         self.do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Text(
             text.to_string(),
-        )))
+        )));
     }
 }

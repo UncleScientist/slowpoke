@@ -26,10 +26,11 @@ impl Turtle {
         self.do_screen(ScreenCmd::SetSize(s.into()));
     }
 
-    pub fn title<S: ToString>(&mut self, s: S) {
-        self.do_screen(ScreenCmd::SetTitle(s.to_string()));
+    pub fn title<S: AsRef<str>>(&mut self, s: S) {
+        self.do_screen(ScreenCmd::SetTitle(s.as_ref().to_string()));
     }
 
+    /// # Panics
     pub fn getscreensize(&self) -> [isize; 2] {
         let response = self.do_data(DataCmd::GetScreenSize);
         if let Response::ScreenSize(size) = response {

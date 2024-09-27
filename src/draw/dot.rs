@@ -4,15 +4,15 @@ use crate::{
     Turtle,
 };
 
-pub struct TurtleDot<'a> {
+pub struct TurtleDotProps<'a> {
     width: Option<f32>,
     color: TurtleColor,
     turtle: &'a mut Turtle,
 }
 
 impl Turtle {
-    pub fn dot(&mut self) -> TurtleDot {
-        TurtleDot {
+    pub fn dot(&mut self) -> TurtleDotProps {
+        TurtleDotProps {
             width: None,
             color: TurtleColor::CurrentColor,
             turtle: self,
@@ -20,19 +20,20 @@ impl Turtle {
     }
 }
 
-impl<'a> TurtleDot<'a> {
-    pub fn with_size<S: Into<f64>>(mut self, size: S) -> TurtleDot<'a> {
+impl<'a> TurtleDotProps<'a> {
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn with_size<S: Into<f64>>(mut self, size: S) -> TurtleDotProps<'a> {
         self.width = Some(size.into() as f32);
         self
     }
 
-    pub fn with_color<C: Into<TurtleColor>>(mut self, color: C) -> TurtleDot<'a> {
+    pub fn with_color<C: Into<TurtleColor>>(mut self, color: C) -> TurtleDotProps<'a> {
         self.color = color.into();
         self
     }
 }
 
-impl<'a> Drop for TurtleDot<'a> {
+impl<'a> Drop for TurtleDotProps<'a> {
     fn drop(&mut self) {
         self.turtle
             .do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Dot(

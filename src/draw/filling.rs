@@ -5,6 +5,7 @@ use crate::{
 };
 
 impl Turtle {
+    /// # Panics
     pub fn filling(&mut self) -> bool {
         if let Response::IsFilling(state) = self.do_data(DataCmd::GetFillingState) {
             state

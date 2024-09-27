@@ -145,10 +145,10 @@ impl IndividualTurtle {
                 DrawCommand::Line(l) => {
                     let start: Point = [l.begin.x as f32, l.begin.y as f32].into();
                     let end: Point = if last_element {
-                        let endx = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
-                        let endy = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
-                        tpos = [endx, endy];
-                        [endx, endy]
+                        let end_x = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
+                        let end_y = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
+                        tpos = [end_x, end_y];
+                        [end_x, end_y]
                     } else {
                         tpos = [l.end.x as f32, l.end.y as f32];
                         [l.end.x as f32, l.end.y as f32]
@@ -213,9 +213,9 @@ impl IndividualTurtle {
                                 tpos = end;
                                 if last_element && last_segment {
                                     let (_, begin) = p[0].get_data();
-                                    let endx = begin[0] + (end[0] - begin[0]) * subpercent;
-                                    let endy = begin[1] + (end[1] - begin[1]) * subpercent;
-                                    tpos = [endx, endy];
+                                    let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
+                                    let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
+                                    tpos = [end_x, end_y];
                                 }
                                 b.line_to(tpos.into());
                                 trot = end_angle;

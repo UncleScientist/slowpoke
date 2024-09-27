@@ -182,9 +182,7 @@ impl Turtle {
             } else if is_data_cmd {
                 loop {
                     if let Ok(result) = self.command_complete.recv() {
-                        if matches!(result, Response::Done) {
-                            continue;
-                        } else {
+                        if !matches!(result, Response::Done) {
                             return result;
                         }
                     }
@@ -193,9 +191,7 @@ impl Turtle {
                 loop {
                     match self.command_complete.try_recv() {
                         Ok(response) => {
-                            if matches!(response, Response::Done) {
-                                continue;
-                            } else {
+                            if !matches!(response, Response::Done) {
                                 panic!("Received data response: {response:?}");
                             }
                         }

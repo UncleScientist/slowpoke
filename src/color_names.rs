@@ -49,14 +49,17 @@ impl From<&str> for TurtleColor {
             // #rrggbbaa
             let value = u32::from_str_radix(&color_name[1..=6], 16)
                 .unwrap_or_else(|_| panic!("Could not parse {color_name} as a hex string"));
-            let r = (value >> 16) & 0xff;
-            let g = (value >> 8) & 0xff;
-            let b = value & 0xff;
-            return TurtleColor::Color(r as f32 / 255., g as f32 / 255., b as f32 / 255.);
+            let r = f32::from(((value >> 16) & 0xff) as u8) / 255.;
+            let g = f32::from(((value >> 8) & 0xff) as u8) / 255.;
+            let b = f32::from((value & 0xff) as u8) / 255.;
+            return TurtleColor::Color(r, g, b);
         }
         for c in &COLOR {
             if color_name == c.0 {
-                return TurtleColor::Color(c.1 as f32 / 255., c.2 as f32 / 255., c.3 as f32 / 255.);
+                let r = f32::from(c.1) / 255.;
+                let g = f32::from(c.2) / 255.;
+                let b = f32::from(c.3) / 255.;
+                return TurtleColor::Color(r, g, b);
             }
         }
 
@@ -71,6 +74,7 @@ impl From<(f64, f64, f64)> for TurtleColor {
         }
 
         if in_range(r) && in_range(g) && in_range(b) {
+            #[allow(clippy::cast_possible_truncation)]
             TurtleColor::Color(r as f32, g as f32, b as f32)
         } else {
             TurtleColor::CurrentColor
@@ -94,7 +98,10 @@ impl From<(f32, f32, f32)> for TurtleColor {
 
 impl From<(u8, u8, u8)> for TurtleColor {
     fn from((r, g, b): (u8, u8, u8)) -> Self {
-        TurtleColor::Color(r as f32 / 255., g as f32 / 255., b as f32 / 255.)
+        let r = f32::from(r) / 255.;
+        let g = f32::from(g) / 255.;
+        let b = f32::from(b) / 255.;
+        TurtleColor::Color(r, g, b)
     }
 }
 

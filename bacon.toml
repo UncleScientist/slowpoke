@@ -20,7 +20,7 @@ command = [
     "cargo", "clippy",
     "--all-targets",
     "--color", "always",
-    "--", "-Wclippy::all", "-Wclippy::pedantic", "-Wclippy::nursery"
+    "--", "-Wclippy::all", # "-Wclippy::pedantic" #, "-Wclippy::nursery"
 ]
 need_stdout = false
 

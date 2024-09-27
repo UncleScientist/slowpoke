@@ -17,6 +17,7 @@ impl Turtle {
         ));
     }
 
+    /// # Panics
     pub fn get_poly(&self) -> Vec<[f32; 2]> {
         if let Response::Polygon(polygon) = self.do_data(DataCmd::GetPoly) {
             polygon
@@ -25,6 +26,7 @@ impl Turtle {
         }
     }
 
+    /// # Panics
     pub fn undobufferentries(&self) -> usize {
         if let Response::Count(count) = self.do_data(DataCmd::UndoBufferEntries) {
             count

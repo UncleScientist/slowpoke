@@ -7,6 +7,7 @@ use crate::{
 
 impl Turtle {
     pub fn degrees<D: Into<f64>>(&mut self, fullcircle: D) {
+        #[allow(clippy::cast_possible_truncation)]
         let degrees = fullcircle.into() as f32;
         self.do_draw(DrawRequest::InstantaneousDraw(
             InstantaneousDrawCmd::SetDegrees(degrees),
