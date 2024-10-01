@@ -12,7 +12,7 @@ pub(crate) mod ratatui_tui;
 
 use crate::turtle::types::{TurtleID, TurtleThread};
 
-pub(crate) trait TurtleGui: Default + Sized {
+pub(crate) trait TurtleGui {
     // Generate a new connection to the windowing system
     fn new_turtle(&mut self) -> TurtleID;
 

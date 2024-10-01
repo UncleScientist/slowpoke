@@ -284,7 +284,6 @@ impl IndividualTurtle {
 
 type IcedCommand<T> = iced::Command<T>;
 
-#[derive(Default)]
 pub(crate) struct IcedGuiFramework {
     cache: Cache,
     tt: TurtleTask,
