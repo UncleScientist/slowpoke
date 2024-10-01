@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use iced::widget::canvas::Path;
-
 use crate::color_names::TurtleColor;
 
 const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
@@ -172,26 +170,14 @@ impl From<&str> for TurtleShapeName {
 
 #[derive(Clone, Debug)]
 pub struct TurtlePolygon {
-    path: Path,
+    pub(crate) path: Vec<[f32; 2]>,
 }
 
 impl TurtlePolygon {
     pub fn new(diagram: &[[f32; 2]]) -> Self {
-        let mut iter = diagram.iter();
-
-        let first = iter.next().unwrap();
-        let path = Path::new(|b| {
-            b.move_to((*first).into());
-            for i in iter {
-                b.line_to((*i).into());
-            }
-        });
-
-        Self { path }
-    }
-
-    pub(crate) fn get_path(&self) -> &Path {
-        &self.path
+        Self {
+            path: diagram.to_vec(),
+        }
     }
 }
 

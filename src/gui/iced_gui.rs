@@ -25,6 +25,7 @@ use either::Either;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use super::{events::TurtleEvent, StampCount};
+use crate::polygon::TurtlePolygon;
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
@@ -799,5 +800,18 @@ impl From<Event> for TurtleEvent {
             Event::Touch(_) => TurtleEvent::Unhandled,
             _ => TurtleEvent::Unhandled,
         }
+    }
+}
+
+impl TurtlePolygon {
+    fn get_path(&self) -> Path {
+        let mut iter = self.path.iter();
+        let first = iter.next().unwrap();
+        Path::new(|b| {
+            b.move_to((*first).into());
+            for i in iter {
+                b.line_to((*i).into());
+            }
+        })
     }
 }
