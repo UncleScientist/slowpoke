@@ -16,6 +16,9 @@ pub(crate) trait TurtleGui: Default + Sized {
     // Generate a new connection to the windowing system
     fn new_turtle(&mut self) -> TurtleID;
 
+    // shut down the UI
+    fn shut_down(&mut self);
+
     // Clear this turtle's drawing, but leave the turtle in place
     fn clear_turtle(&mut self, turtle: TurtleID);
 

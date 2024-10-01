@@ -32,7 +32,7 @@ use crate::{
     gui::{popup::PopupData, TurtleGui},
     polygon::TurtleShape,
     turtle::{
-        task::TurtleTask,
+        task::{EventResult, TurtleTask},
         types::{TurtleID, TurtleThread},
         TurtleFlags,
     },
@@ -340,6 +340,10 @@ impl TurtleGui for IcedGuiInternal {
         id
     }
 
+    fn shut_down(&mut self) {
+        std::process::exit(0);
+    }
+
     fn clear_turtle(&mut self, turtle: TurtleID) {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.clear();
@@ -545,11 +549,14 @@ impl Application for IcedGuiFramework {
                     TurtleEvent::MouseDrag(_, _) => unimplemented!(),
                     TurtleEvent::MousePress(_x, _y) => {
                         self.mouse_down = true;
-                        self.tt.handle_event(
+                        if self.tt.handle_event(
                             None,
                             None,
                             TurtleEvent::MousePress(self.mouse_pos.0, self.mouse_pos.1),
-                        );
+                        ) == EventResult::ShutDown
+                        {
+                            std::process::exit(0);
+                        }
                     }
                     TurtleEvent::MouseRelease(_x, _y) => {
                         self.mouse_down = false;

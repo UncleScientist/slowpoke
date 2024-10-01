@@ -11,6 +11,6 @@ fn main() {
             turtle.undo(); // back up 50 pixels
             turtle.undo(); // turn to the left by 90
             turtle.backward(100); // return to origin
-            std::process::exit(0);
+            turtle.bye();
         });
 }

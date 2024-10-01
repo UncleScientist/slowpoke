@@ -31,6 +31,6 @@ fn main() {
             println!("press return");
             let _ = std::io::stdin().read_line(&mut s);
 
-            std::process::exit(0);
+            turtle.bye();
         });
 }

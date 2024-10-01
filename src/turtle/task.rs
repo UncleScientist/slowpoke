@@ -42,6 +42,12 @@ macro_rules! spawn {
     };
 }
 
+#[derive(PartialEq)]
+pub(crate) enum EventResult {
+    Continue,
+    ShutDown,
+}
+
 impl TurtleTask {
     pub(crate) fn new(flags: &mut TurtleFlags) -> Self {
         let issue_command = flags.issue_command.take();
@@ -80,7 +86,7 @@ impl TurtleTask {
         turtle: Option<TurtleID>,
         thread: Option<TurtleThread>,
         event: TurtleEvent,
-    ) {
+    ) -> EventResult {
         use super::TurtleEvent::*;
 
         match event {
@@ -114,7 +120,7 @@ impl TurtleTask {
             }
             MousePress(x, y) => {
                 if self.exit_on_click {
-                    std::process::exit(0);
+                    return EventResult::ShutDown;
                 }
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousepress {
@@ -140,6 +146,8 @@ impl TurtleTask {
             _Timer => todo!(),
             Unhandled => {}
         }
+
+        EventResult::Continue
     }
 
     pub(crate) fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
@@ -203,6 +211,9 @@ impl TurtleTask {
             .unwrap()
             .clone();
         match cmd {
+            ScreenCmd::Bye => {
+                gui.shut_down();
+            }
             ScreenCmd::ExitOnClick => {
                 // Note: this does not send back a response as it is meant to just
                 // block until the user clicks the mouse.

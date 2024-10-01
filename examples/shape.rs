@@ -58,6 +58,6 @@ fn main() {
             );
             turtle.register_shape("pg", compound);
             turtle.shape("pg");
-            std::process::exit(0);
+            turtle.bye();
         });
 }
