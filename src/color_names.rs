@@ -27,22 +27,6 @@ impl From<TurtleColor> for [f32; 4] {
     }
 }
 
-//TODO: use tryfrom instead?
-impl From<&TurtleColor> for iced::Color {
-    fn from(value: &TurtleColor) -> Self {
-        if let TurtleColor::Color(r, g, b) = value {
-            iced::Color {
-                r: *r,
-                g: *g,
-                b: *b,
-                a: 1.,
-            }
-        } else {
-            todo!()
-        }
-    }
-}
-
 impl From<&str> for TurtleColor {
     fn from(color_name: &str) -> Self {
         if color_name.starts_with('#') {
