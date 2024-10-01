@@ -4,7 +4,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use ratatui::{backend::CrosstermBackend, crossterm::event, Frame, Terminal};
+use ratatui::{
+    backend::CrosstermBackend,
+    crossterm::event,
+    symbols::Marker,
+    widgets::{canvas::Canvas, Block},
+    Frame, Terminal,
+};
 
 use crate::{
     generate::DrawCommand,
@@ -12,7 +18,7 @@ use crate::{
     turtle::{task::TurtleTask, types::TurtleID, TurtleFlags},
 };
 
-use super::TurtleGui;
+use super::{StampCount, TurtleGui};
 
 pub(crate) struct RatatuiFramework {
     tt: TurtleTask,
@@ -32,6 +38,7 @@ struct RatatuiInternal {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
+    title: String, // TODO: implement popups
 }
 
 impl RatatuiInternal {
@@ -40,6 +47,7 @@ impl RatatuiInternal {
             terminal: ratatui::init(),
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
+            title: "*default title*".to_string(),
         };
         let _turtle = this.new_turtle();
         this
@@ -64,10 +72,6 @@ enum RatatuiDrawCmd {
     Text,
 }
 
-fn draw(_frame: &mut Frame) {
-    // TODO: draw stuff
-}
-
 impl RatatuiFramework {
     pub(crate) fn start(mut flags: TurtleFlags) {
         let func = flags.start_func.take();
@@ -86,7 +90,7 @@ impl RatatuiFramework {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
         let result = loop {
-            if let Err(e) = self.tui.terminal.draw(|frame| draw(frame)) {
+            if let Err(e) = self.tui.terminal.draw(|frame| self.draw(frame)) {
                 break Err(e);
             }
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
@@ -101,14 +105,26 @@ impl RatatuiFramework {
             }
 
             if last_tick.elapsed() >= tick_rate {
-                // self.on_tick();
+                self.tt.tick(&mut self.tui);
                 last_tick = Instant::now();
             }
         };
     }
+
+    fn draw(&self, frame: &mut Frame) {
+        let area = frame.area();
+        let widget = Canvas::default()
+            .block(Block::bordered().title(self.tui.title.clone()))
+            .marker(Marker::Braille)
+            .paint(|ctx| { /* draw */ })
+            .x_bounds([-200., 200.])
+            .y_bounds([-200., 200.]);
+
+        frame.render_widget(widget, area);
+    }
 }
 
-impl TurtleGui for RatatuiFramework {
+impl TurtleGui for RatatuiInternal {
     fn new_turtle(&mut self) -> TurtleID {
         todo!()
     }
@@ -133,7 +149,7 @@ impl TurtleGui for RatatuiFramework {
         todo!()
     }
 
-    fn clear_stamps(&mut self, turtle: TurtleID, count: super::StampCount) {
+    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount) {
         todo!()
     }
 
@@ -141,15 +157,16 @@ impl TurtleGui for RatatuiFramework {
         todo!()
     }
 
-    fn append_command(&mut self, turtle: TurtleID, cmd: crate::generate::DrawCommand) {
-        todo!()
+    fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.cmds.push(cmd);
     }
 
     fn get_position(&self, turtle: TurtleID) -> usize {
         todo!()
     }
 
-    fn fill_polygon(&mut self, turtle: TurtleID, cmd: crate::generate::DrawCommand, index: usize) {
+    fn fill_polygon(&mut self, turtle: TurtleID, cmd: DrawCommand, index: usize) {
         todo!()
     }
 
@@ -157,7 +174,7 @@ impl TurtleGui for RatatuiFramework {
         todo!()
     }
 
-    fn pop(&mut self, turtle: TurtleID) -> Option<crate::generate::DrawCommand> {
+    fn pop(&mut self, turtle: TurtleID) -> Option<DrawCommand> {
         todo!()
     }
 
@@ -212,6 +229,6 @@ impl TurtleGui for RatatuiFramework {
     }
 
     fn set_title(&mut self, title: String) {
-        todo!()
+        self.title = title;
     }
 }
