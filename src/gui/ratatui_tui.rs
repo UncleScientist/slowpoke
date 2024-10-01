@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     io::Stdout,
     time::{Duration, Instant},
@@ -7,8 +8,12 @@ use std::{
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::event,
+    style::Color,
     symbols::Marker,
-    widgets::{canvas::Canvas, Block},
+    widgets::{
+        canvas::{Canvas, Context, Line},
+        Block,
+    },
     Frame, Terminal,
 };
 
@@ -34,8 +39,24 @@ struct IndividualTurtle {
     hide_turtle: bool,
 }
 
+impl IndividualTurtle {
+    fn draw(&self, ctx: &mut Context) {
+        for cmd in &self.cmds {
+            if let DrawCommand::Line(l) = cmd {
+                ctx.draw(&Line::new(
+                    l.begin.x as f64,
+                    l.begin.y as f64,
+                    l.end.x as f64,
+                    l.end.y as f64,
+                    Color::Yellow,
+                ));
+            }
+        }
+    }
+}
+
 struct RatatuiInternal {
-    terminal: Terminal<CrosstermBackend<Stdout>>,
+    terminal: RefCell<Terminal<CrosstermBackend<Stdout>>>,
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
     title: String, // TODO: implement popups
@@ -44,7 +65,7 @@ struct RatatuiInternal {
 impl RatatuiInternal {
     fn new() -> Self {
         let mut this = Self {
-            terminal: ratatui::init(),
+            terminal: RefCell::new(ratatui::init()),
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
             title: "*default title*".to_string(),
@@ -90,8 +111,11 @@ impl RatatuiFramework {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
         let result = loop {
-            if let Err(e) = self.tui.terminal.draw(|frame| self.draw(frame)) {
-                break Err(e);
+            {
+                let mut term = self.tui.terminal.borrow_mut();
+                if let Err(e) = term.draw(|frame| self.draw(frame)) {
+                    break Err(e);
+                }
             }
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
 
@@ -116,7 +140,11 @@ impl RatatuiFramework {
         let widget = Canvas::default()
             .block(Block::bordered().title(self.tui.title.clone()))
             .marker(Marker::Braille)
-            .paint(|ctx| { /* draw */ })
+            .paint(|ctx| {
+                for turtle in self.tui.turtle.values() {
+                    turtle.draw(ctx);
+                }
+            })
             .x_bounds([-200., 200.])
             .y_bounds([-200., 200.]);
 
