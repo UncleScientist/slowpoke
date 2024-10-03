@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::event,
@@ -44,6 +45,7 @@ impl IndividualTurtle {
     fn draw(&self, ctx: &mut Context, pct: f32) {
         let mut pencolor = Color::White;
         let mut trot = 0f32;
+        let mut tpos = [0f64, 0f64];
         let mut iter = self.cmds.iter().peekable();
 
         while let Some(cmd) = iter.next() {
@@ -54,11 +56,11 @@ impl IndividualTurtle {
                     let (end_x, end_y) = if last_element {
                         let end_x = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
                         let end_y = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
-                        // tpos = [end_x, end_y];
-                        (end_x as f64, end_y as f64)
+                        tpos = [end_x as f64, end_y as f64];
+                        (tpos[0], tpos[1])
                     } else {
-                        // tpos = [l.end.x as f32, l.end.y as f32];
-                        (l.end.x as f64, l.end.y as f64)
+                        tpos = [l.end.x as f64, l.end.y as f64];
+                        (tpos[0], tpos[1])
                     };
                     if l.pen_down {
                         ctx.draw(&Line::new(begin_x, begin_y, end_x, end_y, pencolor));
@@ -94,6 +96,34 @@ impl IndividualTurtle {
                 | DrawCommand::EndFill
                 | DrawCommand::BeginPoly
                 | DrawCommand::EndPoly => panic!("invalid draw command in gui"),
+            }
+        }
+
+        if !self.hide_turtle {
+            let angle = Angle::degrees(trot);
+            let tpos = [tpos[0] as f32, tpos[1] as f32];
+            let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+            for poly in &self.turtle_shape.poly {
+                for pair in poly.polygon.path.as_slice().windows(2) {
+                    let p1 = pair[0];
+                    let p2 = pair[1];
+                    let start = transform.transform_point(p1.into());
+                    let end = transform.transform_point(p2.into());
+
+                    let pencolor = if matches!(poly.outline, TurtleColor::CurrentColor) {
+                        pencolor
+                    } else {
+                        (&poly.outline).into()
+                    };
+
+                    ctx.draw(&Line::new(
+                        start.x as f64,
+                        start.y as f64,
+                        end.x as f64,
+                        end.y as f64,
+                        pencolor,
+                    ));
+                }
             }
         }
     }
@@ -289,7 +319,7 @@ impl TurtleGui for RatatuiInternal {
     }
 
     fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
-        todo!()
+        // TODO: change background color
     }
 
     fn resize(
