@@ -18,6 +18,7 @@ use ratatui::{
 };
 
 use crate::{
+    color_names::TurtleColor,
     generate::DrawCommand,
     polygon::TurtleShape,
     turtle::{task::TurtleTask, types::TurtleID, TurtleFlags},
@@ -41,15 +42,55 @@ struct IndividualTurtle {
 
 impl IndividualTurtle {
     fn draw(&self, ctx: &mut Context) {
-        for cmd in &self.cmds {
-            if let DrawCommand::Line(l) = cmd {
-                ctx.draw(&Line::new(
-                    l.begin.x as f64,
-                    l.begin.y as f64,
-                    l.end.x as f64,
-                    l.end.y as f64,
-                    Color::Yellow,
-                ));
+        let mut pencolor = Color::White;
+        let mut trot = 0f32;
+        let mut iter = self.cmds.iter().peekable();
+        let mut pct = 1.;
+
+        while let Some(cmd) = iter.next() {
+            let last_element = iter.peek().is_none() && pct < 1.;
+            match cmd {
+                DrawCommand::Line(l) => {
+                    if l.pen_down {
+                        ctx.draw(&Line::new(
+                            l.begin.x as f64,
+                            l.begin.y as f64,
+                            l.end.x as f64,
+                            l.end.y as f64,
+                            pencolor,
+                        ));
+                    }
+                }
+                DrawCommand::Clear => todo!(),
+                DrawCommand::Reset => todo!(),
+                DrawCommand::Filler => todo!(),
+                DrawCommand::Filled(_) => todo!(),
+                DrawCommand::BeginFill => todo!(),
+                DrawCommand::EndFill => todo!(),
+                DrawCommand::BeginPoly => todo!(),
+                DrawCommand::EndPoly => todo!(),
+                DrawCommand::StampTurtle => todo!(),
+                DrawCommand::SetPenColor(pc) => pencolor = pc.into(),
+                DrawCommand::SetPenWidth(_) => {
+                    // TODO: figure out pen width for ratatui
+                }
+                DrawCommand::SetFillColor(_) => {
+                    // TODO: figure out fill color for ratatui
+                }
+                DrawCommand::SetPosition(_) => todo!(),
+                DrawCommand::DrawPolygon(_) => todo!(),
+                DrawCommand::SetHeading(start, end) => {
+                    let rotation = if last_element {
+                        *start + (*end - *start) * pct
+                    } else {
+                        *end
+                    };
+                    trot = rotation;
+                }
+                DrawCommand::DrawDot(_, _, _) => todo!(),
+                DrawCommand::DrawPolyAt(_, _, _) => todo!(),
+                DrawCommand::Circle(_) => todo!(),
+                DrawCommand::Text(_, _) => todo!(),
             }
         }
     }
@@ -154,7 +195,16 @@ impl RatatuiFramework {
 
 impl TurtleGui for RatatuiInternal {
     fn new_turtle(&mut self) -> TurtleID {
-        todo!()
+        let id = self.last_id.get();
+
+        self.turtle.insert(
+            id,
+            IndividualTurtle {
+                has_new_cmd: true,
+                ..Default::default()
+            },
+        );
+        id
     }
 
     fn shut_down(&mut self) {
@@ -166,7 +216,9 @@ impl TurtleGui for RatatuiInternal {
     }
 
     fn set_shape(&mut self, turtle: TurtleID, shape: crate::polygon::TurtleShape) {
-        todo!()
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.turtle_shape = shape;
+        turtle.has_new_cmd = true;
     }
 
     fn stamp(&mut self, turtle: TurtleID, pos: crate::ScreenPosition<f32>, angle: f32) -> usize {
@@ -181,8 +233,9 @@ impl TurtleGui for RatatuiInternal {
         todo!()
     }
 
-    fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String {
-        todo!()
+    fn get_turtle_shape_name(&mut self, turtle: TurtleID) -> String {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.turtle_shape.name.clone()
     }
 
     fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
@@ -258,5 +311,16 @@ impl TurtleGui for RatatuiInternal {
 
     fn set_title(&mut self, title: String) {
         self.title = title;
+    }
+}
+//
+//TODO: use tryfrom instead?
+impl From<&TurtleColor> for Color {
+    fn from(value: &TurtleColor) -> Self {
+        if let TurtleColor::Color(r, g, b) = value {
+            Color::Rgb((*r * 255.) as u8, (*g * 255.) as u8, (*b * 255.) as u8)
+        } else {
+            todo!()
+        }
     }
 }

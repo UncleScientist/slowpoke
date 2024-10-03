@@ -35,7 +35,7 @@ pub(crate) trait TurtleGui {
     fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount);
 
     // get the name of the current turtle's shape
-    fn get_turtle_shape_name(&mut self, turtle_id: TurtleID) -> String;
+    fn get_turtle_shape_name(&mut self, turtle: TurtleID) -> String;
 
     // Call this to add a drawing command to the screen. These will be drawn
     // before the "current_command" gets drawn
