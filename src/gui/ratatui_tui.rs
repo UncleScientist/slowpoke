@@ -41,35 +41,31 @@ struct IndividualTurtle {
 }
 
 impl IndividualTurtle {
-    fn draw(&self, ctx: &mut Context) {
+    fn draw(&self, ctx: &mut Context, pct: f32) {
         let mut pencolor = Color::White;
         let mut trot = 0f32;
         let mut iter = self.cmds.iter().peekable();
-        let mut pct = 1.;
 
         while let Some(cmd) = iter.next() {
             let last_element = iter.peek().is_none() && pct < 1.;
             match cmd {
                 DrawCommand::Line(l) => {
+                    let (begin_x, begin_y): (f64, f64) = (l.begin.x as f64, l.begin.y as f64);
+                    let (end_x, end_y) = if last_element {
+                        let end_x = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
+                        let end_y = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
+                        // tpos = [end_x, end_y];
+                        (end_x as f64, end_y as f64)
+                    } else {
+                        // tpos = [l.end.x as f32, l.end.y as f32];
+                        (l.end.x as f64, l.end.y as f64)
+                    };
                     if l.pen_down {
-                        ctx.draw(&Line::new(
-                            l.begin.x as f64,
-                            l.begin.y as f64,
-                            l.end.x as f64,
-                            l.end.y as f64,
-                            pencolor,
-                        ));
+                        ctx.draw(&Line::new(begin_x, begin_y, end_x, end_y, pencolor));
                     }
                 }
-                DrawCommand::Clear => todo!(),
-                DrawCommand::Reset => todo!(),
                 DrawCommand::Filler => todo!(),
                 DrawCommand::Filled(_) => todo!(),
-                DrawCommand::BeginFill => todo!(),
-                DrawCommand::EndFill => todo!(),
-                DrawCommand::BeginPoly => todo!(),
-                DrawCommand::EndPoly => todo!(),
-                DrawCommand::StampTurtle => todo!(),
                 DrawCommand::SetPenColor(pc) => pencolor = pc.into(),
                 DrawCommand::SetPenWidth(_) => {
                     // TODO: figure out pen width for ratatui
@@ -91,6 +87,13 @@ impl IndividualTurtle {
                 DrawCommand::DrawPolyAt(_, _, _) => todo!(),
                 DrawCommand::Circle(_) => todo!(),
                 DrawCommand::Text(_, _) => todo!(),
+                DrawCommand::StampTurtle
+                | DrawCommand::Clear
+                | DrawCommand::Reset
+                | DrawCommand::BeginFill
+                | DrawCommand::EndFill
+                | DrawCommand::BeginPoly
+                | DrawCommand::EndPoly => panic!("invalid draw command in gui"),
             }
         }
     }
@@ -182,8 +185,9 @@ impl RatatuiFramework {
             .block(Block::bordered().title(self.tui.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
-                for turtle in self.tui.turtle.values() {
-                    turtle.draw(ctx);
+                for (tid, turtle) in self.tui.turtle.iter() {
+                    let (pct, _) = self.tt.progress(*tid);
+                    turtle.draw(ctx, pct);
                 }
             })
             .x_bounds([-200., 200.])
@@ -208,7 +212,8 @@ impl TurtleGui for RatatuiInternal {
     }
 
     fn shut_down(&mut self) {
-        todo!();
+        ratatui::restore();
+        std::process::exit(0);
     }
 
     fn clear_turtle(&mut self, turtle: TurtleID) {
