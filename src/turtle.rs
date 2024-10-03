@@ -220,17 +220,17 @@ impl Turtle {
 
 #[derive(Default)]
 struct PolygonBuilder {
-    last_point: Option<ScreenPosition<isize>>,
+    last_point: Option<ScreenPosition<i32>>,
     verticies: Vec<[f32; 2]>,
 }
 
 impl PolygonBuilder {
-    fn start(&mut self, pos: ScreenPosition<isize>) {
+    fn start(&mut self, pos: ScreenPosition<i32>) {
         self.last_point = Some(pos);
         self.verticies = vec![[pos.x as f32, pos.y as f32]];
     }
 
-    fn update(&mut self, pos: ScreenPosition<isize>) {
+    fn update(&mut self, pos: ScreenPosition<i32>) {
         if let Some(p) = self.last_point {
             if p != pos {
                 let new_point = [pos.x as f32, pos.y as f32];

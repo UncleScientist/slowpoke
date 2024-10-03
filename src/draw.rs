@@ -25,10 +25,13 @@ impl Turtle {
     /*
      * Other commands
      */
-    pub fn hatch(&mut self) -> Turtle {
+    #[must_use]
+    pub fn hatch(&mut self) -> Self {
         self.do_hatch()
     }
 
+    /// # Panics
+    /// Panics when it can't read the file
     pub fn bgpic<P: AsRef<Path>>(&mut self, path: P) {
         let mut file = File::open(path.as_ref()).expect("couldn't open file");
         let mut vec = Vec::new();
@@ -36,6 +39,8 @@ impl Turtle {
         self.do_screen(ScreenCmd::BgPic(vec));
     }
 
+    /// # Panics
+    /// Panics when there's a library bug
     pub fn turtles(&self) -> Vec<Turtle> {
         let response = self.do_data(DataCmd::GetTurtles);
         if let Response::Turtles(turtles) = response {
@@ -47,7 +52,7 @@ impl Turtle {
 }
 
 // TODO: move to src/turtle/types.rs ??
-impl From<&Turtle> for ScreenPosition<isize> {
+impl From<&Turtle> for ScreenPosition<i32> {
     fn from(other_turtle: &Turtle) -> Self {
         other_turtle.pos()
     }

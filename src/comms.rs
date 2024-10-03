@@ -9,7 +9,7 @@ pub(crate) enum Response {
     Done,
     Cancel,
     Heading(f32),
-    Position(crate::ScreenPosition<isize>),
+    Position(crate::ScreenPosition<i32>),
     StampID(crate::StampID),
     Turtle(crate::Turtle),
     Count(usize),

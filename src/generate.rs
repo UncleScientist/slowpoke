@@ -1,3 +1,6 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_possible_truncation)]
+
 use std::f32::consts::PI;
 
 use lyon_tessellation::{
@@ -14,16 +17,16 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub(crate) struct LineInfo {
-    pub begin: ScreenPosition<isize>,
-    pub end: ScreenPosition<isize>,
+    pub begin: ScreenPosition<i32>,
+    pub end: ScreenPosition<i32>,
     pub pen_down: bool,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct CirclePos {
     pub angle: f32,
-    pub x: isize,
-    pub y: isize,
+    pub x: i32,
+    pub y: i32,
     pub pen_down: bool,
 }
 
@@ -48,7 +51,7 @@ pub(crate) enum DrawCommand {
     SetPenColor(TurtleColor),
     SetPenWidth(f32),
     SetFillColor(TurtleColor),
-    SetPosition(ScreenPosition<isize>),
+    SetPosition(ScreenPosition<i32>),
     DrawPolygon(TurtlePolygon),
     SetHeading(f32, f32),
     DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
@@ -79,12 +82,12 @@ impl TurtlePosition<f32> for CurrentTurtleState {
     }
 }
 
-impl TurtlePosition<isize> for CurrentTurtleState {
-    fn pos(&self) -> ScreenPosition<isize> {
+impl TurtlePosition<i32> for CurrentTurtleState {
+    fn pos(&self) -> ScreenPosition<i32> {
         let point = self
             .transform
             .transform_point(ScreenPosition::new(0f32, 0f32));
-        ScreenPosition::new(point.x as isize, point.y as isize)
+        ScreenPosition::new(point.x as i32, point.y as i32)
     }
 }
 
@@ -107,9 +110,9 @@ impl CurrentTurtleState {
         self.angle
     }
 
-    fn get_point(&self) -> ScreenPosition<isize> {
+    fn get_point(&self) -> ScreenPosition<i32> {
         let point: ScreenPosition<f32> = self.pos();
-        [point.x.round() as isize, point.y.round() as isize].into()
+        [point.x.round() as i32, point.y.round() as i32].into()
     }
 
     fn get_floatpoint(&self) -> ScreenPosition<f32> {
@@ -140,66 +143,10 @@ impl CurrentTurtleState {
         match cmd {
             DrawRequest::TimedDraw(td) => match td {
                 TimedDrawCmd::Circle(radius, extent, steps) => {
-                    let mut pointlist = vec![self.get_circlepos()];
-                    let rsign = -radius.signum();
-
-                    let extent = extent * (360. / self.circle_units);
-                    let theta_d = rsign * (extent / (*steps as f32));
-                    let theta_r = rsign * (theta_d * (2. * PI / 360.));
-                    let len = 2. * radius.abs() * (theta_r / 2.).sin();
-
-                    let half_d: Angle = Angle::degrees(theta_d / 2.);
-                    let angle_d = Angle::degrees(theta_d);
-
-                    for s in 0..*steps {
-                        if s == 0 {
-                            self.transform = self.transform.pre_rotate(half_d);
-                            self.angle += theta_d / 2.;
-                        } else {
-                            self.transform = self.transform.pre_rotate(angle_d);
-                            self.angle += theta_d;
-                        }
-
-                        self.transform = self.transform.pre_translate([len, 0.].into());
-                        pointlist.push(self.get_circlepos());
-                    }
-
-                    self.transform = self.transform.pre_rotate(half_d);
-                    self.angle += theta_d / 2.;
-                    return Some(DrawCommand::Circle(pointlist));
+                    return Some(self.create_circle(*radius, *extent, *steps));
                 }
                 TimedDrawCmd::Motion(motion) => {
-                    let begin = self.get_point();
-                    let start = self.get_floatpoint();
-                    let angle = Angle::degrees(self.angle);
-
-                    let mut pen_down = self.pen_down;
-                    match motion {
-                        MotionCmd::Forward(dist) => {
-                            self.transform = self.transform.pre_translate([*dist, 0.].into());
-                        }
-                        MotionCmd::Teleport(x, y) => {
-                            self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
-                            pen_down = false;
-                        }
-                        MotionCmd::GoTo(x, y) => {
-                            self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
-                        }
-                        MotionCmd::SetX(x) => {
-                            self.transform =
-                                Transform2D::translation(*x, start.y).then_rotate(angle);
-                        }
-                        MotionCmd::SetY(y) => {
-                            self.transform =
-                                Transform2D::translation(start.x, *y).then_rotate(angle);
-                        }
-                    }
-                    let end = self.get_point();
-                    return Some(DrawCommand::Line(LineInfo {
-                        begin,
-                        end,
-                        pen_down,
-                    }));
+                    return Some(self.create_motion(motion));
                 }
                 TimedDrawCmd::Rotate(rotation) => {
                     let start = self.angle;
@@ -316,5 +263,69 @@ impl CurrentTurtleState {
 
     pub(crate) fn reset(&mut self) {
         *self = Self::default();
+    }
+
+    fn create_circle(&mut self, radius: f32, extent: f32, steps: usize) -> DrawCommand {
+        let mut pointlist = vec![self.get_circlepos()];
+        let rsign = -radius.signum();
+
+        let extent = extent * (360. / self.circle_units);
+        let theta_d = rsign * (extent / (steps as f32));
+        let theta_r = rsign * (theta_d * (2. * PI / 360.));
+        let len = 2. * radius.abs() * (theta_r / 2.).sin();
+
+        let half_d: Angle = Angle::degrees(theta_d / 2.);
+        let angle_d = Angle::degrees(theta_d);
+
+        for s in 0..steps {
+            if s == 0 {
+                self.transform = self.transform.pre_rotate(half_d);
+                self.angle += theta_d / 2.;
+            } else {
+                self.transform = self.transform.pre_rotate(angle_d);
+                self.angle += theta_d;
+            }
+
+            self.transform = self.transform.pre_translate([len, 0.].into());
+            pointlist.push(self.get_circlepos());
+        }
+
+        self.transform = self.transform.pre_rotate(half_d);
+        self.angle += theta_d / 2.;
+
+        DrawCommand::Circle(pointlist)
+    }
+
+    fn create_motion(&mut self, motion: &MotionCmd) -> DrawCommand {
+        let begin = self.get_point();
+        let start = self.get_floatpoint();
+        let angle = Angle::degrees(self.angle);
+
+        let mut pen_down = self.pen_down;
+        match motion {
+            MotionCmd::Forward(dist) => {
+                self.transform = self.transform.pre_translate([*dist, 0.].into());
+            }
+            MotionCmd::Teleport(x, y) => {
+                self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
+                pen_down = false;
+            }
+            MotionCmd::GoTo(x, y) => {
+                self.transform = Transform2D::translation(*x, *y).pre_rotate(angle);
+            }
+            MotionCmd::SetX(x) => {
+                self.transform = Transform2D::translation(*x, start.y).then_rotate(angle);
+            }
+            MotionCmd::SetY(y) => {
+                self.transform = Transform2D::translation(start.x, *y).then_rotate(angle);
+            }
+        }
+        let end = self.get_point();
+
+        DrawCommand::Line(LineInfo {
+            begin,
+            end,
+            pen_down,
+        })
     }
 }
