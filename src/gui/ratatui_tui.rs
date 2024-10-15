@@ -20,7 +20,7 @@ use ratatui::{
 
 use crate::{
     color_names::TurtleColor,
-    generate::DrawCommand,
+    generate::{CirclePos, DrawCommand},
     polygon::TurtleShape,
     turtle::{task::TurtleTask, types::TurtleID, TurtleFlags},
 };
@@ -43,7 +43,7 @@ struct IndividualTurtle {
 
 impl IndividualTurtle {
     fn draw(&self, ctx: &mut Context, pct: f32) {
-        let mut pencolor = Color::White;
+        let mut pencolor = Color::Black;
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
         let mut iter = self.cmds.iter().peekable();
@@ -87,7 +87,21 @@ impl IndividualTurtle {
                 }
                 DrawCommand::DrawDot(_, _, _) => todo!(),
                 DrawCommand::DrawPolyAt(_, _, _) => todo!(),
-                DrawCommand::Circle(_) => todo!(),
+                DrawCommand::Circle(points) => {
+                    let (line_list, final_pos, final_angle) =
+                        Self::circle_path(last_element, pct, points);
+                    tpos = [final_pos[0] as f64, final_pos[1] as f64];
+                    trot = final_angle;
+                    for line in line_list {
+                        ctx.draw(&Line::new(
+                            line.0[0] as f64,
+                            line.0[1] as f64,
+                            line.1[0] as f64,
+                            line.1[1] as f64,
+                            pencolor,
+                        ));
+                    }
+                }
                 DrawCommand::Text(_, _) => todo!(),
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
@@ -126,6 +140,45 @@ impl IndividualTurtle {
                 }
             }
         }
+    }
+
+    // returns path, final point, and final angle
+    fn circle_path(
+        last_element: bool,
+        pct: f32,
+        points: &[CirclePos],
+    ) -> (Vec<([f32; 2], [f32; 2])>, [f32; 2], f32) {
+        let mut line_list = Vec::new();
+
+        let (total, subpercent) = if last_element {
+            let partial = (points.len() - 1) as f32 * pct;
+            let p = (partial.floor() as i64).checked_abs().expect("too small") as usize;
+            (p, (partial - partial.floor()))
+        } else {
+            (points.len() - 1, 1_f32)
+        };
+        let mut tpos = [0., 0.];
+        let mut trot = 0.;
+        let (_, mut start) = points[0].get_data();
+
+        let mut iter = points.windows(2).take(total + 1).peekable();
+        while let Some(p) = iter.next() {
+            let (end_angle, end) = p[1].get_data();
+            let last_segment = iter.peek().is_none();
+            tpos = end;
+            if last_element && last_segment {
+                let (_, begin) = p[0].get_data();
+                let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
+                let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
+                tpos = [end_x, end_y].into();
+            }
+            if points[0].pen_down {
+                line_list.push((start, tpos));
+            }
+            start = end;
+            trot = end_angle;
+        }
+        (line_list, tpos, trot)
     }
 }
 
@@ -212,6 +265,7 @@ impl RatatuiFramework {
     fn draw(&self, frame: &mut Frame) {
         let area = frame.area();
         let widget = Canvas::default()
+            .background_color(Color::White)
             .block(Block::bordered().title(self.tui.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
