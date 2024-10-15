@@ -8,7 +8,7 @@ use std::{
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::event,
+    crossterm::event::{self, Event},
     style::Color,
     symbols::Marker,
     widgets::{
@@ -43,7 +43,7 @@ struct IndividualTurtle {
 
 impl IndividualTurtle {
     fn draw(&self, ctx: &mut Context, pct: f32) {
-        let mut pencolor = Color::Black;
+        let mut pencolor = TurtleColor::default();
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
         let mut iter = self.cmds.iter().peekable();
@@ -63,12 +63,17 @@ impl IndividualTurtle {
                         (tpos[0], tpos[1])
                     };
                     if l.pen_down {
-                        ctx.draw(&Line::new(begin_x, begin_y, end_x, end_y, pencolor));
+                        ctx.draw(&Line::new(
+                            begin_x,
+                            begin_y,
+                            end_x,
+                            end_y,
+                            (&pencolor).into(),
+                        ));
                     }
                 }
-                DrawCommand::Filler => todo!(),
-                DrawCommand::Filled(_) => todo!(),
-                DrawCommand::SetPenColor(pc) => pencolor = pc.into(),
+                DrawCommand::Filler | DrawCommand::Filled(_) => {}
+                DrawCommand::SetPenColor(pc) => pencolor = *pc,
                 DrawCommand::SetPenWidth(_) => {
                     // TODO: figure out pen width for ratatui
                 }
@@ -76,7 +81,9 @@ impl IndividualTurtle {
                     // TODO: figure out fill color for ratatui
                 }
                 DrawCommand::SetPosition(_) => todo!(),
-                DrawCommand::DrawPolygon(_) => todo!(),
+                DrawCommand::DrawPolygon(_) => {
+                    // TODO: How to fill a polygon in ratatui?
+                }
                 DrawCommand::SetHeading(start, end) => {
                     let rotation = if last_element {
                         *start + (*end - *start) * pct
@@ -98,7 +105,7 @@ impl IndividualTurtle {
                             line.0[1] as f64,
                             line.1[0] as f64,
                             line.1[1] as f64,
-                            pencolor,
+                            (&pencolor).into(),
                         ));
                     }
                 }
@@ -124,18 +131,14 @@ impl IndividualTurtle {
                     let start = transform.transform_point(p1.into());
                     let end = transform.transform_point(p2.into());
 
-                    let pencolor = if matches!(poly.outline, TurtleColor::CurrentColor) {
-                        pencolor
-                    } else {
-                        (&poly.outline).into()
-                    };
+                    let pencolor = pencolor.color_or(&poly.outline);
 
                     ctx.draw(&Line::new(
                         start.x as f64,
                         start.y as f64,
                         end.x as f64,
                         end.y as f64,
-                        pencolor,
+                        (&pencolor).into(),
                     ));
                 }
             }
@@ -170,7 +173,7 @@ impl IndividualTurtle {
                 let (_, begin) = p[0].get_data();
                 let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
                 let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
-                tpos = [end_x, end_y].into();
+                tpos = [end_x, end_y];
             }
             if points[0].pen_down {
                 line_list.push((start, tpos));
@@ -229,15 +232,15 @@ impl RatatuiFramework {
 
         let tui = RatatuiInternal::new();
         let mut rata = Self { tt, tui };
-        rata.run();
+        let _ = rata.run();
 
         ratatui::restore();
     }
 
-    fn run(&mut self) {
+    fn run(&mut self) -> Result<Event, std::io::Error> {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
-        let result = loop {
+        loop {
             {
                 let mut term = self.tui.terminal.borrow_mut();
                 if let Err(e) = term.draw(|frame| self.draw(frame)) {
@@ -259,7 +262,7 @@ impl RatatuiFramework {
                 self.tt.tick(&mut self.tui);
                 last_tick = Instant::now();
             }
-        };
+        }
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -333,11 +336,13 @@ impl TurtleGui for RatatuiInternal {
     }
 
     fn get_position(&self, turtle: TurtleID) -> usize {
-        todo!()
+        self.turtle[&turtle].cmds.len()
     }
 
     fn fill_polygon(&mut self, turtle: TurtleID, cmd: DrawCommand, index: usize) {
-        todo!()
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.cmds[index] = cmd;
+        turtle.cmds.push(DrawCommand::Filled(index));
     }
 
     fn undo(&mut self, turtle: TurtleID) {
