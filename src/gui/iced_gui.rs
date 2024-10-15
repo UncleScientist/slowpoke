@@ -1,3 +1,6 @@
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_possible_truncation)]
+
 use std::collections::HashMap;
 
 use iced::widget::text;
@@ -25,6 +28,7 @@ use either::Either;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use super::{events::TurtleEvent, StampCount};
+use crate::generate::{CirclePos, LineInfo};
 use crate::polygon::TurtlePolygon;
 use crate::{
     color_names::TurtleColor,
@@ -102,6 +106,7 @@ impl IndividualTurtle {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn convert(&mut self, pct: f32) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Path {
             Path::new(|b| {
@@ -143,22 +148,13 @@ impl IndividualTurtle {
             }
 
             match element {
-                DrawCommand::Line(l) => {
-                    let start: Point = [l.begin.x as f32, l.begin.y as f32].into();
-                    let end: Point = if last_element {
-                        let end_x = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
-                        let end_y = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
-                        tpos = [end_x, end_y];
-                        [end_x, end_y]
-                    } else {
-                        tpos = [l.end.x as f32, l.end.y as f32];
-                        [l.end.x as f32, l.end.y as f32]
-                    }
-                    .into();
+                DrawCommand::Line(line) => {
+                    let (start, end) = Self::start_and_end(last_element, pct, line);
+                    tpos = [end.x, end.y];
                     if cur_path.is_empty() {
-                        cur_path.push((l.pen_down, start));
+                        cur_path.push((line.pen_down, start));
                     }
-                    cur_path.push((l.pen_down, end));
+                    cur_path.push((line.pen_down, end));
                 }
                 DrawCommand::SetPenColor(pc) => {
                     pencolor = pc.into();
@@ -195,37 +191,12 @@ impl IndividualTurtle {
                         .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                 }
                 DrawCommand::Circle(points) => {
-                    if points[0].pen_down {
-                        let (total, subpercent) = if last_element {
-                            let partial = (points.len() - 1) as f32 * pct;
-                            (partial.floor() as usize, (partial - partial.floor()))
-                        } else {
-                            (points.len() - 1, 1_f32)
-                        };
-                        let path = Path::new(|b| {
-                            let (_, start) = points[0].get_data();
-
-                            b.move_to(start.into());
-
-                            let mut iter = points.windows(2).take(total + 1).peekable();
-                            while let Some(p) = iter.next() {
-                                let (end_angle, end) = p[1].get_data();
-                                let last_segment = iter.peek().is_none();
-                                tpos = end;
-                                if last_element && last_segment {
-                                    let (_, begin) = p[0].get_data();
-                                    let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
-                                    let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
-                                    tpos = [end_x, end_y];
-                                }
-                                b.line_to(tpos.into());
-                                trot = end_angle;
-                            }
-                        });
-
-                        self.drawing
-                            .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
-                    }
+                    let (path, final_pos, final_angle) =
+                        Self::circle_path(last_element, pct, points);
+                    tpos = final_pos.into();
+                    trot = final_angle;
+                    self.drawing
+                        .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
                 }
                 DrawCommand::SetPosition(pos) => {
                     tpos = [pos.x as f32, pos.y as f32];
@@ -254,31 +225,90 @@ impl IndividualTurtle {
         }
 
         if !self.hide_turtle {
-            let angle = Angle::degrees(trot);
-            let transform = Transform2D::rotation(angle).then_translate(tpos.into());
-
-            for poly in &self.turtle_shape.poly {
-                let path = poly.polygon.get_path();
-                let path = path.transform(&transform);
-
-                let fillcolor = if matches!(poly.fill, TurtleColor::CurrentColor) {
-                    fillcolor
-                } else {
-                    (&poly.fill).into()
-                };
-
-                let pencolor = if matches!(poly.outline, TurtleColor::CurrentColor) {
-                    pencolor
-                } else {
-                    (&poly.outline).into()
-                };
-
+            for (path, fillcolor, pencolor) in
+                self.calculate_turtle(tpos, trot, (&fillcolor).into(), (&pencolor).into())
+            {
                 self.drawing
-                    .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
+                    .push(IcedDrawCmd::Fill(path.clone(), (&fillcolor).into()));
                 self.drawing
-                    .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                    .push(IcedDrawCmd::Stroke(path, (&pencolor).into(), penwidth));
             }
         }
+    }
+
+    fn calculate_turtle(
+        &self,
+        tpos: [f32; 2],
+        trot: f32,
+        fillcolor: TurtleColor,
+        pencolor: TurtleColor,
+    ) -> Vec<(Path, TurtleColor, TurtleColor)> {
+        let angle = Angle::degrees(trot);
+        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+        let mut result = Vec::new();
+
+        for poly in &self.turtle_shape.poly {
+            let path = poly.polygon.get_path();
+            let path = path.transform(&transform);
+
+            let fillcolor = fillcolor.color_or(&poly.fill);
+            let pencolor = pencolor.color_or(&poly.outline);
+            result.push((path, fillcolor, pencolor));
+        }
+
+        result
+    }
+
+    fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
+        (
+            [line.begin.x as f32, line.begin.y as f32].into(),
+            if last_element {
+                let end_x = line.begin.x as f32 + (line.end.x - line.begin.x) as f32 * pct;
+                let end_y = line.begin.y as f32 + (line.end.y - line.begin.y) as f32 * pct;
+                [end_x, end_y]
+            } else {
+                [line.end.x as f32, line.end.y as f32]
+            }
+            .into(),
+        )
+    }
+
+    // returns path, final point, and final angle
+    fn circle_path(last_element: bool, pct: f32, points: &[CirclePos]) -> (Path, Point, f32) {
+        let (total, subpercent) = if last_element {
+            let partial = (points.len() - 1) as f32 * pct;
+            let p = (partial.floor() as i64).checked_abs().expect("too small") as usize;
+            (p, (partial - partial.floor()))
+        } else {
+            (points.len() - 1, 1_f32)
+        };
+        let mut tpos = Point::default();
+        let mut trot = 0.;
+        let path = Path::new(|b| {
+            let (_, start) = points[0].get_data();
+
+            b.move_to(start.into());
+
+            let mut iter = points.windows(2).take(total + 1).peekable();
+            while let Some(p) = iter.next() {
+                let (end_angle, end) = p[1].get_data();
+                let last_segment = iter.peek().is_none();
+                tpos = end.into();
+                if last_element && last_segment {
+                    let (_, begin) = p[0].get_data();
+                    let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
+                    let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
+                    tpos = [end_x, end_y].into();
+                }
+                if points[0].pen_down {
+                    b.line_to(tpos);
+                } else {
+                    b.move_to(tpos);
+                }
+                trot = end_angle;
+            }
+        });
+        (path, tpos, trot)
     }
 }
 
@@ -388,7 +418,7 @@ impl TurtleGui for IcedGuiInternal {
             if let Some(cmd) = iter.next() {
                 if matches!(cmd, DrawCommand::DrawPolyAt(_, _, _)) {
                     count -= 1;
-                    *cmd = DrawCommand::Filler
+                    *cmd = DrawCommand::Filler;
                 }
             } else {
                 break;
@@ -536,7 +566,7 @@ impl Application for IcedGuiFramework {
                         }
                     }
                     TurtleEvent::MousePosition(x, y) => {
-                        self.mouse_pos = self.to_turtle_pos(x, y);
+                        self.mouse_pos = self.to_turtle_pos(*x, *y);
                         if self.mouse_down {
                             self.tt.handle_event(
                                 None,
@@ -725,7 +755,7 @@ impl IcedGuiFramework {
     fn update_turtles(&mut self) -> bool {
         let mut done = true;
 
-        for (tid, turtle) in self.gui.turtle.iter_mut() {
+        for (tid, turtle) in &mut self.gui.turtle {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
                 done = false;
@@ -739,9 +769,7 @@ impl IcedGuiFramework {
         !done
     }
 
-    fn to_turtle_pos(&self, x: &f32, y: &f32) -> (f32, f32) {
-        let x = *x;
-        let y = *y;
+    fn to_turtle_pos(&self, x: f32, y: f32) -> (f32, f32) {
         (x - self.winsize.0 / 2., -(y - self.winsize.1 / 2.))
     }
 }
@@ -803,8 +831,7 @@ impl From<Event> for TurtleEvent {
                 TurtleEvent::WindowResize(width, height)
             }
             Event::Mouse(mouse_event) => convert_mouse_event(mouse_event),
-            Event::Touch(_) => TurtleEvent::Unhandled,
-            _ => TurtleEvent::Unhandled,
+            Event::Touch(_) | Event::Window(..) | Event::Keyboard(_) => TurtleEvent::Unhandled,
         }
     }
 }
@@ -835,5 +862,11 @@ impl From<&TurtleColor> for iced::Color {
         } else {
             todo!()
         }
+    }
+}
+
+impl From<&iced::Color> for TurtleColor {
+    fn from(value: &iced::Color) -> Self {
+        TurtleColor::Color(value.r, value.g, value.b)
     }
 }

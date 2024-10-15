@@ -15,7 +15,7 @@ use crate::{
     ScreenPosition,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct LineInfo {
     pub begin: ScreenPosition<i32>,
     pub end: ScreenPosition<i32>,

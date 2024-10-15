@@ -26,7 +26,7 @@ impl PopupType {
             PopupType::TextInput { thread, .. } | PopupType::NumericalInput { thread, .. } => {
                 *thread
             }
-            _ => panic!("invalid popup for turtle id"),
+            PopupType::Null => panic!("invalid popup for turtle id"),
         }
     }
 
@@ -35,7 +35,7 @@ impl PopupType {
             PopupType::TextInput { turtle, .. } | PopupType::NumericalInput { turtle, .. } => {
                 *turtle
             }
-            _ => panic!("invalid popup for turtle id"),
+            PopupType::Null => panic!("invalid popup for turtle id"),
         }
     }
 
@@ -44,7 +44,7 @@ impl PopupType {
             PopupType::TextInput { prompt, .. } | PopupType::NumericalInput { prompt, .. } => {
                 prompt
             }
-            _ => panic!("invalid popup for turtle id"),
+            PopupType::Null => panic!("invalid popup for turtle id"),
         }
     }
 
@@ -56,7 +56,7 @@ impl PopupType {
             | PopupType::NumericalInput {
                 text_input_field, ..
             } => text_input_field,
-            _ => panic!("invalid popup for turtle id"),
+            PopupType::Null => panic!("invalid popup for turtle id"),
         }
     }
 }
@@ -88,7 +88,7 @@ impl PopupData {
                 prompt: prompt.to_string(),
                 turtle,
                 thread,
-                text_input_field: "".to_string(),
+                text_input_field: String::new(),
             },
         }
     }
@@ -101,7 +101,7 @@ impl PopupData {
                 prompt: prompt.to_string(),
                 thread,
                 turtle,
-                text_input_field: "".to_string(),
+                text_input_field: String::new(),
             },
         }
     }
@@ -114,11 +114,11 @@ impl PopupData {
         match &mut self.popup {
             PopupType::TextInput {
                 text_input_field, ..
-            } => *text_input_field = message.into(),
-            PopupType::NumericalInput {
+            }
+            | PopupType::NumericalInput {
                 text_input_field, ..
             } => *text_input_field = message.into(),
-            _ => panic!("invalid popup type for message"),
+            PopupType::Null => panic!("invalid popup type for message"),
         }
     }
 
@@ -152,7 +152,7 @@ impl PopupData {
                     Err("Not a floating point value".to_string())
                 }
             }
-            _ => panic!("invalid window type for retriving data"),
+            PopupType::Null => panic!("invalid window type for retriving data"),
         }
     }
 

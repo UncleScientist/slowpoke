@@ -6,6 +6,16 @@ pub enum TurtleColor {
     Color(f32, f32, f32),
 }
 
+impl TurtleColor {
+    pub(crate) fn color_or(self, or: &TurtleColor) -> TurtleColor {
+        if matches!(self, TurtleColor::CurrentColor) {
+            *or
+        } else {
+            self
+        }
+    }
+}
+
 impl Default for TurtleColor {
     fn default() -> Self {
         Self::Color(0., 0., 0.)
