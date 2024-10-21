@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use either::Either;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use ratatui::{
     backend::CrosstermBackend,
@@ -80,7 +81,9 @@ impl IndividualTurtle {
                 DrawCommand::SetFillColor(_) => {
                     // TODO: figure out fill color for ratatui
                 }
-                DrawCommand::SetPosition(_) => todo!(),
+                DrawCommand::SetPosition(pos) => {
+                    tpos = [pos.x as f64, pos.y as f64];
+                }
                 DrawCommand::DrawPolygon(_) => {
                     // TODO: How to fill a polygon in ratatui?
                 }
@@ -100,7 +103,25 @@ impl IndividualTurtle {
                         color: color.into(),
                     });
                 }
-                DrawCommand::DrawPolyAt(_, _, _) => todo!(),
+                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
+                    let angle = Angle::degrees(*angle);
+                    let pos = [pos.x, pos.y];
+                    let transform = Transform2D::rotation(angle).then_translate(pos.into());
+
+                    for pair in polygon.path.as_slice().windows(2) {
+                        let p1 = pair[0];
+                        let p2 = pair[1];
+                        let start = transform.transform_point(p1.into());
+                        let end = transform.transform_point(p2.into());
+                        ctx.draw(&Line::new(
+                            start.x as f64,
+                            start.y as f64,
+                            end.x as f64,
+                            end.y as f64,
+                            (&pencolor).into(),
+                        ));
+                    }
+                }
                 DrawCommand::Circle(points) => {
                     let (line_list, final_pos, final_angle) =
                         Self::circle_path(last_element, pct, points);
@@ -320,16 +341,47 @@ impl TurtleGui for RatatuiInternal {
         turtle.has_new_cmd = true;
     }
 
-    fn stamp(&mut self, _turtle: TurtleID, _pos: crate::ScreenPosition<f32>, _angle: f32) -> usize {
-        todo!()
+    fn stamp(&mut self, turtle: TurtleID, pos: crate::ScreenPosition<f32>, angle: f32) -> usize {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.cmds.push(DrawCommand::DrawPolyAt(
+            turtle.turtle_shape.poly[0].polygon.clone(),
+            pos,
+            angle,
+        ));
+        turtle.cmds.len() - 1
     }
 
-    fn clear_stamp(&mut self, _turtle: TurtleID, _stamp: usize) {
-        todo!()
+    fn clear_stamp(&mut self, turtle: TurtleID, stamp: usize) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        assert!(matches!(
+            turtle.cmds[stamp],
+            DrawCommand::DrawPolyAt(_, _, _)
+        ));
+        turtle.cmds[stamp] = DrawCommand::Filler;
+        turtle.has_new_cmd = true;
     }
 
-    fn clear_stamps(&mut self, _turtle: TurtleID, _count: StampCount) {
-        todo!()
+    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        let all = turtle.cmds.len();
+        let (mut iter, mut count) = match count {
+            StampCount::Forward(count) => (Either::Right(turtle.cmds.iter_mut()), count),
+            StampCount::Reverse(count) => (Either::Left(turtle.cmds.iter_mut().rev()), count),
+            StampCount::All => (Either::Right(turtle.cmds.iter_mut()), all),
+        };
+
+        while count > 0 {
+            if let Some(cmd) = iter.next() {
+                if matches!(cmd, DrawCommand::DrawPolyAt(_, _, _)) {
+                    count -= 1;
+                    *cmd = DrawCommand::Filler;
+                }
+            } else {
+                break;
+            }
+        }
+
+        turtle.has_new_cmd = true;
     }
 
     fn get_turtle_shape_name(&mut self, turtle: TurtleID) -> String {
