@@ -10,6 +10,7 @@ use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::event::{self, Event},
+    layout::Rect,
     style::Color,
     symbols::Marker,
     widgets::{
@@ -43,11 +44,23 @@ struct IndividualTurtle {
 }
 
 impl IndividualTurtle {
-    fn draw(&self, ctx: &mut Context, pct: f32) {
+    fn draw(&self, ctx: &mut Context) {
+        for cmd in &self.drawing {
+            match cmd {
+                RatatuiDrawCmd::Line(l) => ctx.draw(l),
+                RatatuiDrawCmd::Circle(c) => ctx.draw(c),
+                RatatuiDrawCmd::Text { x, y, text } => todo!(),
+            }
+        }
+    }
+
+    fn convert(&mut self, pct: f32) {
         let mut pencolor = TurtleColor::default();
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
         let mut iter = self.cmds.iter().peekable();
+
+        self.drawing.clear();
 
         while let Some(cmd) = iter.next() {
             let last_element = iter.peek().is_none() && pct < 1.;
@@ -64,13 +77,13 @@ impl IndividualTurtle {
                         (tpos[0], tpos[1])
                     };
                     if l.pen_down {
-                        ctx.draw(&Line::new(
+                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                             begin_x,
                             begin_y,
                             end_x,
                             end_y,
                             (&pencolor).into(),
-                        ));
+                        )));
                     }
                 }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
@@ -96,12 +109,12 @@ impl IndividualTurtle {
                     trot = rotation;
                 }
                 DrawCommand::DrawDot(center, radius, color) => {
-                    ctx.draw(&Circle {
+                    self.drawing.push(RatatuiDrawCmd::Circle(Circle {
                         x: center.x as f64,
                         y: center.y as f64,
                         radius: *radius as f64,
                         color: color.into(),
-                    });
+                    }));
                 }
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let angle = Angle::degrees(*angle);
@@ -113,13 +126,13 @@ impl IndividualTurtle {
                         let p2 = pair[1];
                         let start = transform.transform_point(p1.into());
                         let end = transform.transform_point(p2.into());
-                        ctx.draw(&Line::new(
+                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                             start.x as f64,
                             start.y as f64,
                             end.x as f64,
                             end.y as f64,
                             (&pencolor).into(),
-                        ));
+                        )));
                     }
                 }
                 DrawCommand::Circle(points) => {
@@ -128,13 +141,13 @@ impl IndividualTurtle {
                     tpos = [final_pos[0] as f64, final_pos[1] as f64];
                     trot = final_angle;
                     for line in line_list {
-                        ctx.draw(&Line::new(
+                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                             line.0[0] as f64,
                             line.0[1] as f64,
                             line.1[0] as f64,
                             line.1[1] as f64,
                             (&pencolor).into(),
-                        ));
+                        )));
                     }
                 }
                 DrawCommand::Text(_, _) => todo!(),
@@ -161,13 +174,13 @@ impl IndividualTurtle {
 
                     let pencolor = pencolor.color_or(&poly.outline);
 
-                    ctx.draw(&Line::new(
+                    self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                         start.x as f64,
                         start.y as f64,
                         end.x as f64,
                         end.y as f64,
                         (&pencolor).into(),
-                    ));
+                    )));
                 }
             }
         }
@@ -247,8 +260,9 @@ impl RatatuiInternal {
 }
 
 enum RatatuiDrawCmd {
-    Line,
-    Text,
+    Line(Line),
+    Circle(Circle),
+    Text { x: f32, y: f32, text: String },
 }
 
 impl RatatuiFramework {
@@ -288,8 +302,20 @@ impl RatatuiFramework {
 
             if last_tick.elapsed() >= tick_rate {
                 self.tt.tick(&mut self.tui);
-                last_tick = Instant::now();
+
+                // let mut done = true;
+                for (tid, turtle) in &mut self.tui.turtle {
+                    let (pct, prog) = self.tt.progress(*tid);
+                    if turtle.has_new_cmd {
+                        // done = false;
+                        turtle.convert(pct);
+                        if prog.is_done(pct) {
+                            turtle.has_new_cmd = false;
+                        }
+                    }
+                }
             }
+            last_tick = Instant::now();
         }
     }
 
@@ -302,13 +328,23 @@ impl RatatuiFramework {
             .paint(|ctx| {
                 for (tid, turtle) in self.tui.turtle.iter() {
                     let (pct, _) = self.tt.progress(*tid);
-                    turtle.draw(ctx, pct);
+                    turtle.draw(ctx);
                 }
             })
             .x_bounds([-200., 200.])
             .y_bounds([-200., 200.]);
 
         frame.render_widget(widget, area);
+        /*
+         * Render pop-up windows here
+        let overlay = Rect {
+            x: 10,
+            y: 10,
+            width: 5,
+            height: 3,
+        };
+        frame.render_widget(Block::bordered().title("a block"), overlay);
+        */
     }
 }
 
@@ -348,6 +384,7 @@ impl TurtleGui for RatatuiInternal {
             pos,
             angle,
         ));
+        turtle.has_new_cmd = true;
         turtle.cmds.len() - 1
     }
 
@@ -392,6 +429,7 @@ impl TurtleGui for RatatuiInternal {
     fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.push(cmd);
+        turtle.has_new_cmd = true;
     }
 
     fn get_position(&self, turtle: TurtleID) -> usize {
@@ -402,6 +440,7 @@ impl TurtleGui for RatatuiInternal {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds[index] = cmd;
         turtle.cmds.push(DrawCommand::Filled(index));
+        turtle.has_new_cmd = true;
     }
 
     fn undo(&mut self, _turtle: TurtleID) {
