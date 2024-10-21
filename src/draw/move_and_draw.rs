@@ -1,7 +1,7 @@
 use crate::{
     command::{DataCmd, DrawRequest, MotionCmd, RotateCmd, ScreenCmd, TimedDrawCmd},
     comms::Response,
-    speed::TurtleSpeed,
+    speed::Speed,
     StampID, Turtle,
 };
 
@@ -145,7 +145,7 @@ impl Turtle {
         self.do_draw(DrawRequest::TimedDraw(TimedDrawCmd::Undo));
     }
 
-    pub fn speed<S: Into<TurtleSpeed>>(&mut self, speed: S) {
+    pub fn speed<S: Into<Speed>>(&mut self, speed: S) {
         self.do_screen(ScreenCmd::Speed(speed.into()));
     }
 }

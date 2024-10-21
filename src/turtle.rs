@@ -16,9 +16,9 @@ use crate::{
     },
     comms::{Request, Response},
     generate::{CurrentTurtleState, DrawCommand, TurtlePosition},
-    gui::{events::TurtleEvent, Progression, TurtleGui},
-    polygon::TurtlePolygon,
-    speed::TurtleSpeed,
+    gui::{Progression, TurtleGui},
+    polygon::PolygonPath,
+    speed::Speed,
     ScreenPosition,
 };
 
@@ -255,7 +255,7 @@ pub(crate) struct DrawState {
     drawing_done: bool,
     tracer: bool,
     respond_immediately: bool,
-    speed: TurtleSpeed,
+    speed: Speed,
     current_stamp: usize,
     fill_poly: PolygonBuilder,
     shape_poly: PolygonBuilder,
@@ -380,7 +380,7 @@ impl TurtleData {
                 }
                 DrawCommand::EndFill => {
                     if !self.state.fill_poly.verticies.is_empty() {
-                        let polygon = TurtlePolygon::new(&self.state.fill_poly.verticies);
+                        let polygon = PolygonPath::new(&self.state.fill_poly.verticies);
                         self.state.fill_poly.last_point = None;
                         if let Some(index) = self.state.insert_fill.take() {
                             gui.fill_polygon(tid, DrawCommand::DrawPolygon(polygon), index);

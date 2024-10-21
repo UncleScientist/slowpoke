@@ -1,13 +1,14 @@
 #[derive(Debug, Copy, Clone)]
-pub struct TurtleSpeed(u8);
+pub struct Speed(u8);
 
-impl Default for TurtleSpeed {
+impl Default for Speed {
     fn default() -> Self {
-        TurtleSpeed(3)
+        Speed(3)
     }
 }
 
-impl TurtleSpeed {
+impl Speed {
+    #[must_use]
     pub fn get(&self) -> u8 {
         self.0
     }
@@ -24,25 +25,25 @@ where
 }
 */
 
-impl From<u8> for TurtleSpeed {
+impl From<u8> for Speed {
     fn from(value: u8) -> Self {
         Self(value.clamp(0, 10))
     }
 }
 
-impl From<i32> for TurtleSpeed {
+impl From<i32> for Speed {
     fn from(value: i32) -> Self {
-        Self(value.clamp(0, 10) as u8)
+        Self((value.clamp(0, 10).unsigned_abs() & 0xff) as u8)
     }
 }
 
-impl From<usize> for TurtleSpeed {
+impl From<usize> for Speed {
     fn from(value: usize) -> Self {
-        Self(value.clamp(0, 10) as u8)
+        Self(u8::try_from(value.clamp(0, 10)).expect("try_from failure"))
     }
 }
 
-impl From<&str> for TurtleSpeed {
+impl From<&str> for Speed {
     fn from(value: &str) -> Self {
         match value {
             "fastest" => Self(0),

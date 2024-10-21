@@ -74,7 +74,7 @@ pub(crate) struct TurtleShape {
 impl Default for TurtleShape {
     fn default() -> Self {
         let shape = ShapeComponent {
-            polygon: TurtlePolygon::new(&CLASSIC), // TODO: maybe not allocate in default()?
+            polygon: PolygonPath::new(&CLASSIC), // TODO: maybe not allocate in default()?
             fill: TurtleColor::CurrentColor,
             outline: TurtleColor::CurrentColor,
         };
@@ -86,7 +86,7 @@ impl Default for TurtleShape {
 }
 
 impl TurtleShape {
-    pub(crate) fn new(name: &str, polygon: TurtlePolygon) -> Self {
+    pub(crate) fn new(name: &str, polygon: PolygonPath) -> Self {
         let shape = ShapeComponent {
             polygon,
             fill: TurtleColor::CurrentColor,
@@ -115,7 +115,7 @@ pub enum TurtleShapeName {
 #[derive(Debug, Clone)]
 pub struct ShapeComponent {
     // TODO: can ShapeComponent be "more private" than Shape?
-    pub(crate) polygon: TurtlePolygon,
+    pub(crate) polygon: PolygonPath,
     pub(crate) fill: TurtleColor,
     pub(crate) outline: TurtleColor,
 }
@@ -134,14 +134,16 @@ impl From<Vec<[f32; 2]>> for Shape {
 }
 
 impl Shape {
+    #[must_use]
     pub fn polygon(polygon: &[[f32; 2]]) -> Self {
         Self::Polygon(ShapeComponent {
-            polygon: TurtlePolygon::new(polygon),
+            polygon: PolygonPath::new(polygon),
             fill: TurtleColor::CurrentColor,
             outline: TurtleColor::CurrentColor,
         })
     }
 
+    #[must_use]
     pub fn compound() -> Self {
         Self::Compound(Vec::new())
     }
@@ -154,7 +156,7 @@ impl Shape {
     ) {
         if let Shape::Compound(v) = self {
             v.push(ShapeComponent {
-                polygon: TurtlePolygon::new(polygon),
+                polygon: PolygonPath::new(polygon),
                 fill: fill.into(),
                 outline: outline.into(),
             });
@@ -169,11 +171,11 @@ impl From<&str> for TurtleShapeName {
 }
 
 #[derive(Clone, Debug)]
-pub struct TurtlePolygon {
+pub(crate) struct PolygonPath {
     pub(crate) path: Vec<[f32; 2]>,
 }
 
-impl TurtlePolygon {
+impl PolygonPath {
     pub fn new(diagram: &[[f32; 2]]) -> Self {
         Self {
             path: diagram.to_vec(),
@@ -187,7 +189,7 @@ pub(crate) fn generate_default_shapes() -> HashMap<String, TurtleShape> {
     for (name, poly) in &SHAPES {
         shapes.insert(
             (*name).into(),
-            TurtleShape::new(name, TurtlePolygon::new(poly)),
+            TurtleShape::new(name, PolygonPath::new(poly)),
         );
     }
 

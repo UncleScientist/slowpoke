@@ -29,7 +29,7 @@ use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 use super::{events::TurtleEvent, StampCount};
 use crate::generate::{CirclePos, LineInfo};
-use crate::polygon::TurtlePolygon;
+use crate::polygon::PolygonPath;
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
@@ -557,12 +557,12 @@ impl Application for IcedGuiFramework {
                     TurtleEvent::WindowResize(x, y) => {
                         self.winsize = (*x as f32, *y as f32);
                         if self.gui.resize_request.is_none() {
-                            self.tt.handle_event(None, None, turtle_event);
+                            self.tt.handle_event(None, None, &turtle_event);
                         } else {
                             let (turtle, thread) =
                                 self.gui.resize_request.expect("missing resize data");
                             self.tt
-                                .handle_event(Some(turtle), Some(thread), turtle_event);
+                                .handle_event(Some(turtle), Some(thread), &turtle_event);
                         }
                     }
                     TurtleEvent::MousePosition(x, y) => {
@@ -571,7 +571,7 @@ impl Application for IcedGuiFramework {
                             self.tt.handle_event(
                                 None,
                                 None,
-                                TurtleEvent::MouseDrag(self.mouse_pos.0, self.mouse_pos.1),
+                                &TurtleEvent::MouseDrag(self.mouse_pos.0, self.mouse_pos.1),
                             );
                         }
                     }
@@ -581,7 +581,7 @@ impl Application for IcedGuiFramework {
                         if self.tt.handle_event(
                             None,
                             None,
-                            TurtleEvent::MousePress(self.mouse_pos.0, self.mouse_pos.1),
+                            &TurtleEvent::MousePress(self.mouse_pos.0, self.mouse_pos.1),
                         ) == EventResult::ShutDown
                         {
                             std::process::exit(0);
@@ -592,12 +592,12 @@ impl Application for IcedGuiFramework {
                         self.tt.handle_event(
                             None,
                             None,
-                            TurtleEvent::MouseRelease(self.mouse_pos.0, self.mouse_pos.1),
+                            &TurtleEvent::MouseRelease(self.mouse_pos.0, self.mouse_pos.1),
                         );
                     }
                     TurtleEvent::Unhandled => {}
                     TurtleEvent::KeyPress(_) | TurtleEvent::KeyRelease(_) => {
-                        self.tt.handle_event(None, None, turtle_event);
+                        self.tt.handle_event(None, None, &turtle_event);
                     }
                     TurtleEvent::_Timer => todo!(),
                 }
@@ -827,8 +827,10 @@ impl From<Event> for TurtleEvent {
                     TurtleEvent::Unhandled
                 }
             }
-            Event::Window(window::Id::MAIN, Resized { width, height }) => {
-                TurtleEvent::WindowResize(width, height)
+            Event::Window(window::Id::MAIN, Resized { width, height }) =>
+            {
+                #[allow(clippy::cast_possible_wrap)]
+                TurtleEvent::WindowResize(width as isize, height as isize)
             }
             Event::Mouse(mouse_event) => convert_mouse_event(mouse_event),
             Event::Touch(_) | Event::Window(..) | Event::Keyboard(_) => TurtleEvent::Unhandled,
@@ -836,7 +838,7 @@ impl From<Event> for TurtleEvent {
     }
 }
 
-impl TurtlePolygon {
+impl PolygonPath {
     fn get_path(&self) -> Path {
         let mut iter = self.path.iter();
         let first = iter.next().unwrap();

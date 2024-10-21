@@ -1,8 +1,6 @@
 use std::time::Duration;
 
-use crate::{
-    color_names::TurtleColor, polygon::TurtleShapeName, speed::TurtleSpeed, Shape, Turtle,
-};
+use crate::{color_names::TurtleColor, polygon::TurtleShapeName, speed::Speed, Shape, Turtle};
 
 //
 // A DrawRequest is something that the turtle thread asks us to put on the screen.
@@ -66,7 +64,7 @@ pub enum ScreenCmd {
     BgPic(Vec<u8>),
     ClearStamp(usize),
     ClearStamps(isize),
-    Speed(TurtleSpeed),
+    Speed(Speed),
     ShowTurtle(bool),
     SetSize([isize; 2]),
     RegisterShape(String, Shape),

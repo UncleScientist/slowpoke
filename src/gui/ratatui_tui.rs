@@ -303,7 +303,7 @@ impl TurtleGui for RatatuiInternal {
         std::process::exit(0);
     }
 
-    fn clear_turtle(&mut self, turtle: TurtleID) {
+    fn clear_turtle(&mut self, _turtle: TurtleID) {
         todo!()
     }
 
@@ -313,15 +313,15 @@ impl TurtleGui for RatatuiInternal {
         turtle.has_new_cmd = true;
     }
 
-    fn stamp(&mut self, turtle: TurtleID, pos: crate::ScreenPosition<f32>, angle: f32) -> usize {
+    fn stamp(&mut self, _turtle: TurtleID, _pos: crate::ScreenPosition<f32>, _angle: f32) -> usize {
         todo!()
     }
 
-    fn clear_stamp(&mut self, turtle: TurtleID, stamp: usize) {
+    fn clear_stamp(&mut self, _turtle: TurtleID, _stamp: usize) {
         todo!()
     }
 
-    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount) {
+    fn clear_stamps(&mut self, _turtle: TurtleID, _count: StampCount) {
         todo!()
     }
 
@@ -345,57 +345,57 @@ impl TurtleGui for RatatuiInternal {
         turtle.cmds.push(DrawCommand::Filled(index));
     }
 
-    fn undo(&mut self, turtle: TurtleID) {
+    fn undo(&mut self, _turtle: TurtleID) {
         todo!()
     }
 
-    fn pop(&mut self, turtle: TurtleID) -> Option<DrawCommand> {
+    fn pop(&mut self, _turtle: TurtleID) -> Option<DrawCommand> {
         todo!()
     }
 
-    fn undo_count(&self, turtle: TurtleID) -> usize {
+    fn undo_count(&self, _turtle: TurtleID) -> usize {
         todo!()
     }
 
     fn numinput(
         &mut self,
-        turtle: TurtleID,
-        thread: crate::turtle::types::TurtleThread,
-        title: &str,
-        prompt: &str,
+        _turtle: TurtleID,
+        _thread: crate::turtle::types::TurtleThread,
+        _title: &str,
+        _prompt: &str,
     ) {
         todo!()
     }
 
     fn textinput(
         &mut self,
-        turtle: TurtleID,
-        thread: crate::turtle::types::TurtleThread,
-        title: &str,
-        prompt: &str,
+        _turtle: TurtleID,
+        _thread: crate::turtle::types::TurtleThread,
+        _title: &str,
+        _prompt: &str,
     ) {
         todo!()
     }
 
-    fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
+    fn bgcolor(&mut self, _color: crate::color_names::TurtleColor) {
         // TODO: change background color
     }
 
     fn resize(
         &mut self,
-        turtle: TurtleID,
-        thread: crate::turtle::types::TurtleThread,
-        width: isize,
-        height: isize,
+        _turtle: TurtleID,
+        _thread: crate::turtle::types::TurtleThread,
+        _width: isize,
+        _height: isize,
     ) {
         todo!()
     }
 
-    fn set_visible(&mut self, turtle: TurtleID, visible: bool) {
+    fn set_visible(&mut self, _turtle: TurtleID, _visible: bool) {
         todo!()
     }
 
-    fn is_visible(&self, turtle: TurtleID) -> bool {
+    fn is_visible(&self, _turtle: TurtleID) -> bool {
         todo!()
     }
 

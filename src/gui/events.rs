@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub(crate) enum TurtleEvent {
-    WindowResize(u32, u32), // width, height
+    WindowResize(isize, isize), // width, height
     KeyPress(char),
     KeyRelease(char),
     MousePosition(f32, f32), // x and y

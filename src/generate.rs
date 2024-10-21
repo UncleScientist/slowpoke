@@ -11,7 +11,7 @@ use lyon_tessellation::{
 use crate::{
     color_names::TurtleColor,
     command::{DrawRequest, InstantaneousDrawCmd, MotionCmd, RotateCmd, TimedDrawCmd},
-    polygon::TurtlePolygon,
+    polygon::PolygonPath,
     ScreenPosition,
 };
 
@@ -52,10 +52,10 @@ pub(crate) enum DrawCommand {
     SetPenWidth(f32),
     SetFillColor(TurtleColor),
     SetPosition(ScreenPosition<i32>),
-    DrawPolygon(TurtlePolygon),
+    DrawPolygon(PolygonPath),
     SetHeading(f32, f32),
     DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
-    DrawPolyAt(TurtlePolygon, ScreenPosition<f32>, f32), // poly, pos, angle
+    DrawPolyAt(PolygonPath, ScreenPosition<f32>, f32), // poly, pos, angle
     Circle(Vec<CirclePos>),
     Text(Point2D<f32>, String),
 }

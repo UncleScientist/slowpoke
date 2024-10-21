@@ -85,13 +85,11 @@ impl TurtleTask {
         &mut self,
         turtle: Option<TurtleID>,
         thread: Option<TurtleThread>,
-        event: TurtleEvent,
+        event: &TurtleEvent,
     ) -> EventResult {
-        use super::TurtleEvent::*;
-
         match event {
-            WindowResize(width, height) => {
-                self.winsize = [width as isize, height as isize];
+            TurtleEvent::WindowResize(width, height) => {
+                self.winsize = [*width, *height];
                 if turtle.is_none() {
                     assert!(thread.is_none());
                 } else {
@@ -100,51 +98,56 @@ impl TurtleTask {
                     let _ = self.turtle_list[turtle].responder[&thread].send(Response::Done);
                 }
             }
-            KeyPress(ch) => {
+            TurtleEvent::KeyPress(ch) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
-                    if let Some(func) = turtle.event.onkeypress.get(&ch).copied() {
+                    if let Some(func) = turtle.event.onkeypress.get(ch).copied() {
                         if !turtle.pending_key_event() {
+                            let ch = *ch;
                             spawn!(self, turtle, idx, func, ch);
                         }
                     }
                 }
             }
-            KeyRelease(ch) => {
+            TurtleEvent::KeyRelease(ch) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
-                    if let Some(func) = turtle.event.onkeyrelease.get(&ch).copied() {
+                    if let Some(func) = turtle.event.onkeyrelease.get(ch).copied() {
                         if !turtle.pending_key_event() {
+                            let ch = *ch;
                             spawn!(self, turtle, idx, func, ch);
                         }
                     }
                 }
             }
-            MousePress(x, y) => {
+            TurtleEvent::MousePress(x, y) => {
                 if self.exit_on_click {
                     return EventResult::ShutDown;
                 }
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousepress {
+                        let (x, y) = (*x, *y);
                         spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
-            MouseRelease(x, y) => {
+            TurtleEvent::MouseRelease(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmouserelease {
+                        let (x, y) = (*x, *y);
                         spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
-            MousePosition(_, _) => todo!(),
-            MouseDrag(x, y) => {
+            TurtleEvent::MousePosition(_, _) => todo!(),
+            TurtleEvent::MouseDrag(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousedrag {
+                        let (x, y) = (*x, *y);
                         spawn!(self, turtle, idx, func, x, y);
                     }
                 }
             }
-            _Timer => todo!(),
-            Unhandled => {}
+            TurtleEvent::_Timer => todo!(),
+            TurtleEvent::Unhandled => {}
         }
 
         EventResult::Continue
@@ -163,7 +166,7 @@ impl TurtleTask {
             self.handle_command(req, gui);
         }
 
-        for turtle in self.turtle_list.iter_mut() {
+        for turtle in &mut self.turtle_list {
             let timer = match &turtle.event.ontimer {
                 Some(timer) if timer.prev.elapsed() > timer.time => {
                     Some((timer.prev.elapsed(), timer.func))
@@ -272,11 +275,11 @@ impl TurtleTask {
             ScreenCmd::ClearStamps(count) => {
                 #[allow(clippy::comparison_chain)]
                 if count < 0 {
-                    gui.clear_stamps(turtle, StampCount::Reverse((-count) as usize));
+                    gui.clear_stamps(turtle, StampCount::Reverse(count.unsigned_abs()));
                 } else if count == 0 {
                     gui.clear_stamps(turtle, StampCount::All);
                 } else {
-                    gui.clear_stamps(turtle, StampCount::Forward(count as usize));
+                    gui.clear_stamps(turtle, StampCount::Forward(count.unsigned_abs()));
                 }
                 let _ = resp.send(Response::Done);
             }
