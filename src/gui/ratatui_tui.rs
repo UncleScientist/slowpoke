@@ -12,7 +12,7 @@ use ratatui::{
     style::Color,
     symbols::Marker,
     widgets::{
-        canvas::{Canvas, Context, Line},
+        canvas::{Canvas, Circle, Context, Line},
         Block,
     },
     Frame, Terminal,
@@ -92,7 +92,14 @@ impl IndividualTurtle {
                     };
                     trot = rotation;
                 }
-                DrawCommand::DrawDot(_, _, _) => todo!(),
+                DrawCommand::DrawDot(center, radius, color) => {
+                    ctx.draw(&Circle {
+                        x: center.x as f64,
+                        y: center.y as f64,
+                        radius: *radius as f64,
+                        color: color.into(),
+                    });
+                }
                 DrawCommand::DrawPolyAt(_, _, _) => todo!(),
                 DrawCommand::Circle(points) => {
                     let (line_list, final_pos, final_angle) =
