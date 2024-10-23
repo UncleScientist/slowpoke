@@ -11,11 +11,11 @@ use ratatui::{
     backend::CrosstermBackend,
     crossterm::event::{self, Event},
     layout::Rect,
-    style::Color,
+    style::{Color, Style},
     symbols::Marker,
     widgets::{
-        canvas::{Canvas, Circle, Context, Line},
-        Block,
+        canvas::{Canvas, Circle, Context, Line, Painter},
+        Block, Borders,
     },
     Frame, Terminal,
 };
@@ -44,14 +44,28 @@ struct IndividualTurtle {
 }
 
 impl IndividualTurtle {
-    fn draw(&self, ctx: &mut Context) {
+    fn draw(&self, ctx: &mut Context) -> Vec<RatatuiDrawCmd> {
+        let mut text_draw_cmds = Vec::new();
         for cmd in &self.drawing {
             match cmd {
                 RatatuiDrawCmd::Line(l) => ctx.draw(l),
                 RatatuiDrawCmd::Circle(c) => ctx.draw(c),
-                RatatuiDrawCmd::Text { x, y, text } => todo!(),
+                RatatuiDrawCmd::Text { x, y, text, color } => {
+                    let painter: Painter = ctx.into();
+                    if let Some((x, y)) = painter.get_point(*x as f64, *y as f64) {
+                        let x = x as f32 / 2.;
+                        let y = y as f32 / 4.;
+                        text_draw_cmds.push(RatatuiDrawCmd::Text {
+                            x,
+                            y,
+                            text: text.clone(),
+                            color: *color,
+                        });
+                    }
+                }
             }
         }
+        text_draw_cmds
     }
 
     fn convert(&mut self, pct: f32) {
@@ -150,7 +164,14 @@ impl IndividualTurtle {
                         )));
                     }
                 }
-                DrawCommand::Text(_, _) => todo!(),
+                DrawCommand::Text(pos, text) => {
+                    self.drawing.push(RatatuiDrawCmd::Text {
+                        x: pos.x,
+                        y: pos.y,
+                        text: text.to_string(),
+                        color: pencolor.into(),
+                    });
+                }
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
                 | DrawCommand::Reset
@@ -261,10 +282,16 @@ impl RatatuiInternal {
     }
 }
 
+#[derive(Debug)]
 enum RatatuiDrawCmd {
     Line(Line),
     Circle(Circle),
-    Text { x: f32, y: f32, text: String },
+    Text {
+        x: f32,
+        y: f32,
+        text: String,
+        color: Color,
+    },
 }
 
 impl RatatuiFramework {
@@ -322,21 +349,42 @@ impl RatatuiFramework {
     }
 
     fn draw(&self, frame: &mut Frame) {
+        struct TextList {
+            list: RefCell<Vec<RatatuiDrawCmd>>,
+        }
+
+        let text_list_cmds = TextList {
+            list: RefCell::new(Vec::new()), // TODO: can we do this without a RefCell?
+        };
+
         let area = frame.area();
         let widget = Canvas::default()
             .background_color(self.tui.bgcolor)
             .block(Block::bordered().title(self.tui.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
-                for (tid, turtle) in self.tui.turtle.iter() {
-                    let (pct, _) = self.tt.progress(*tid);
-                    turtle.draw(ctx);
+                for turtle in self.tui.turtle.values() {
+                    let text_list = turtle.draw(ctx);
+                    text_list_cmds.list.borrow_mut().extend(text_list);
                 }
             })
             .x_bounds([-200., 200.])
             .y_bounds([-200., 200.]);
 
         frame.render_widget(widget, area);
+
+        for text in text_list_cmds.list.borrow().iter() {
+            assert!(matches!(text, RatatuiDrawCmd::Text { .. }));
+            if let RatatuiDrawCmd::Text { x, y, text, color } = text {
+                let block = Block::new()
+                    .borders(Borders::NONE)
+                    .title(text.clone())
+                    .style(Style::new().fg(*color));
+                let text_rect = Rect::new(*x as u16, *y as u16, text.len() as u16, 1);
+                frame.render_widget(block, text_rect);
+            }
+        }
+
         /*
          * Render pop-up windows here
         let overlay = Rect {
