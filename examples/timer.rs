@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use slowpoke::*;
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("timed output")
         .run(|turtle| {

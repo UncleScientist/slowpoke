@@ -1,7 +1,7 @@
-use slowpoke::*;
+use slowpoke::Slowpoke;
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(600, 600)
         .with_title("star shape example from python docs")
         .run(|turtle| {

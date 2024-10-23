@@ -1,8 +1,8 @@
 use rand::*;
-use slowpoke::*;
+use slowpoke::Slowpoke;
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(500, 500)
         .with_title("multiple turtles")
         .run(|turtle| {

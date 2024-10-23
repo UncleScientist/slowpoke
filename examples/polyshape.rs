@@ -1,7 +1,7 @@
-use slowpoke::*;
+use slowpoke::{Shape, Slowpoke};
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("polygon test")
         .run(|turtle| {

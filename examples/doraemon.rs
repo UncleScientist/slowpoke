@@ -3,10 +3,10 @@
 //
 // Ported to rust
 
-use slowpoke::*;
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(600, 800)
         .with_title("a doraemon")
         .run(|turtle| {

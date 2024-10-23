@@ -1,6 +1,6 @@
 use lyon_tessellation::geom::euclid::{Point2D, UnknownUnit};
 pub use polygon::{Shape, TurtleShapeName};
-pub use turtle::{Turtle, TurtleArgs};
+pub use turtle::{Slowpoke, Turtle};
 
 pub mod color_names;
 mod command;

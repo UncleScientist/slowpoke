@@ -326,7 +326,7 @@ impl TurtleTask {
     fn data_cmd<G: TurtleGui>(
         &mut self,
         turtle: TurtleID,
-        cmd: DataCmd,
+        cmd: &DataCmd,
         thread: TurtleThread,
         gui: &mut G,
     ) {
@@ -336,10 +336,10 @@ impl TurtleTask {
             .unwrap()
             .clone();
 
-        let _ = match &cmd {
+        let _ = match cmd {
             DataCmd::GetTurtles => {
                 let mut turtles = Vec::new();
-                for turtle in self.turtle_list.iter_mut() {
+                for turtle in &mut self.turtle_list {
                     let thread = turtle.next_thread.get();
                     let thing = turtle.spawn(thread, self.issue_command.as_ref().unwrap().clone());
                     turtles.push(thing);
@@ -439,7 +439,7 @@ impl TurtleTask {
             Command::Screen(cmd) => self.screen_cmd(turtle, cmd, thread, gui),
             Command::Draw(cmd) => self.draw_cmd(turtle, cmd, thread),
             Command::Input(cmd) => self.input_cmd(turtle, cmd, thread),
-            Command::Data(cmd) => self.data_cmd(turtle, cmd, thread, gui),
+            Command::Data(cmd) => self.data_cmd(turtle, &cmd, thread, gui),
             Command::Hatch => {
                 let new_turtle = self.hatch_turtle(gui);
                 let resp = &self.turtle_list[turtle].responder[&thread];

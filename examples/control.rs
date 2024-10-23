@@ -1,7 +1,7 @@
-use slowpoke::*;
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    let ta = TurtleArgs::default();
+    let ta = Slowpoke::default();
 
     Turtle::run(&ta, |turtle| {
         let mut t1 = turtle.hatch();

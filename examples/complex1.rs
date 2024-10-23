@@ -1,15 +1,15 @@
 use rand::*;
-use slowpoke::*;
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(500, 500)
         .with_title("cool patterns")
         .run(|turtle| {
             turtle.speed("fastest");
 
-            fn draw(turtle: &mut Turtle, n: isize, x: isize, angle: f64) {
-                for i in 0..n {
+            fn draw(turtle: &mut Turtle, count: isize, x: isize, angle: f64) {
+                for i in 0..count {
                     let mut rng = rand::thread_rng();
 
                     let a: f64 = rng.gen::<f64>();
@@ -21,9 +21,9 @@ fn main() {
 
                     turtle.begin_fill();
                     for _ in 0..5 {
-                        turtle.forward((5 * n - 5 * i) as f64);
+                        turtle.forward((5 * count - 5 * i) as f64);
                         turtle.right(x as f64);
-                        turtle.forward((5 * n - 5 * i) as f64);
+                        turtle.forward((5 * count - 5 * i) as f64);
                         turtle.right((72 - x) as f64);
                     }
                     turtle.end_fill();
@@ -34,6 +34,7 @@ fn main() {
             draw(turtle, 30, 144, 18.)
         });
 }
+
 /*
 from turtle import *
 

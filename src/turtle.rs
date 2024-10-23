@@ -35,12 +35,12 @@ struct TurtleCommand {
     thread: TurtleThread,
 }
 
-pub struct TurtleArgs {
+pub struct Slowpoke {
     pub(crate) size: [isize; 2],
     pub(crate) title: String,
 }
 
-impl Default for TurtleArgs {
+impl Default for Slowpoke {
     fn default() -> Self {
         Self {
             size: [800, 800],
@@ -49,18 +49,26 @@ impl Default for TurtleArgs {
     }
 }
 
-impl TurtleArgs {
+impl Slowpoke {
+    #[must_use]
+    pub fn new() -> Slowpoke {
+        Slowpoke::default()
+    }
+
+    #[must_use]
     pub fn with_size(mut self, x: isize, y: isize) -> Self {
         self.size = [x, y];
         self
     }
+
+    #[must_use]
     pub fn with_title<S: Into<String>>(mut self, title: S) -> Self {
         self.title = title.into();
         self
     }
 
     pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(&self, func: F) {
-        Turtle::run(self, func)
+        Turtle::run(self, func);
     }
 }
 
@@ -82,14 +90,9 @@ impl Drop for Turtle {
 }
 
 impl Turtle {
-    #[allow(clippy::new_ret_no_self)] // TODO: fix this
-    pub fn new() -> TurtleArgs {
-        TurtleArgs::default()
-    }
-
-    pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &TurtleArgs, func: F) {
-        let xsize = args.size[0] as f32;
-        let ysize = args.size[1] as f32;
+    pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &Slowpoke, func: F) {
+        let xsize = to_f32(args.size[0]);
+        let ysize = to_f32(args.size[1]);
 
         let (issue_command, receive_command) = mpsc::channel();
 
@@ -200,9 +203,10 @@ impl Turtle {
                 loop {
                     match self.command_complete.try_recv() {
                         Ok(response) => {
-                            if !matches!(response, Response::Done) {
-                                panic!("Received data response: {response:?}");
-                            }
+                            assert!(
+                                !matches!(response, Response::Done),
+                                "Received data response: {response:?}"
+                            );
                         }
                         Err(TryRecvError::Empty) => return Response::Done,
                         Err(TryRecvError::Disconnected) => panic!("lost main thread"),
@@ -227,13 +231,13 @@ struct PolygonBuilder {
 impl PolygonBuilder {
     fn start(&mut self, pos: ScreenPosition<i32>) {
         self.last_point = Some(pos);
-        self.verticies = vec![[pos.x as f32, pos.y as f32]];
+        self.verticies = vec![[to_f32(pos.x as isize), to_f32(pos.y as isize)]];
     }
 
     fn update(&mut self, pos: ScreenPosition<i32>) {
         if let Some(p) = self.last_point {
             if p != pos {
-                let new_point = [pos.x as f32, pos.y as f32];
+                let new_point = [to_f32(pos.x as isize), to_f32(pos.y as isize)];
                 self.verticies.push(new_point);
                 self.last_point = Some(pos);
             }
@@ -340,7 +344,7 @@ impl TurtleData {
             let tid = self.turtle_id;
 
             if matches!(command, DrawCommand::Filler) {
-                self.state.insert_fill = Some(gui.get_position(tid))
+                self.state.insert_fill = Some(gui.get_position(tid));
             }
 
             match &command {
@@ -436,7 +440,7 @@ impl TurtleData {
         if self.state.drawing_done {
             self.state.percent = 1.;
         } else {
-            let multiplier = s as f32;
+            let multiplier = f32::from(s);
 
             match self.state.progression {
                 Progression::Forward => self.state.percent += delta_t * multiplier,
@@ -527,4 +531,9 @@ pub(crate) struct TurtleFlags {
     pub(crate) receive_command: Option<Receiver<Request>>,
     pub(crate) title: String,
     pub(crate) size: [f32; 2],
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn to_f32<I: Into<isize>>(val: I) -> f32 {
+    val.into() as f32
 }

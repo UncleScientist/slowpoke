@@ -1,8 +1,8 @@
-use slowpoke::*;
+use slowpoke::Slowpoke;
 use std::io::Write;
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("a line")
         .run(|turtle| {

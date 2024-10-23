@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use rand::*;
-use slowpoke::*;
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    TurtleArgs::default()
+    Slowpoke::default()
         .with_size(500, 500)
         .with_title("multiple turtles")
         .run(|turtle| {
