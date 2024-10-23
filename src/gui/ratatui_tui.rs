@@ -235,12 +235,12 @@ struct RatatuiInternal {
 }
 
 impl RatatuiInternal {
-    fn new() -> Self {
+    fn new(flags: &TurtleFlags) -> Self {
         let mut this = Self {
             terminal: RefCell::new(ratatui::init()),
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
-            title: "*default title*".to_string(),
+            title: format!(" {} ", flags.title),
             bgcolor: Color::White,
         };
         let _turtle = this.new_turtle();
@@ -274,7 +274,7 @@ impl RatatuiFramework {
         let mut tt = TurtleTask::new(&mut flags);
         tt.run_turtle(func.unwrap());
 
-        let tui = RatatuiInternal::new();
+        let tui = RatatuiInternal::new(&flags);
         let mut rata = Self { tt, tui };
         let _ = rata.run();
 
