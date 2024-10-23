@@ -231,6 +231,7 @@ struct RatatuiInternal {
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
     title: String, // TODO: implement popups
+    bgcolor: Color,
 }
 
 impl RatatuiInternal {
@@ -240,6 +241,7 @@ impl RatatuiInternal {
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
             title: "*default title*".to_string(),
+            bgcolor: Color::White,
         };
         let _turtle = this.new_turtle();
         this
@@ -322,7 +324,7 @@ impl RatatuiFramework {
     fn draw(&self, frame: &mut Frame) {
         let area = frame.area();
         let widget = Canvas::default()
-            .background_color(Color::White)
+            .background_color(self.tui.bgcolor)
             .block(Block::bordered().title(self.tui.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
@@ -475,8 +477,8 @@ impl TurtleGui for RatatuiInternal {
         todo!()
     }
 
-    fn bgcolor(&mut self, _color: crate::color_names::TurtleColor) {
-        // TODO: change background color
+    fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
+        self.bgcolor = color.into();
     }
 
     fn resize(
@@ -514,5 +516,11 @@ impl From<&TurtleColor> for Color {
         } else {
             todo!()
         }
+    }
+}
+
+impl From<TurtleColor> for Color {
+    fn from(value: TurtleColor) -> Self {
+        (&value).into()
     }
 }
