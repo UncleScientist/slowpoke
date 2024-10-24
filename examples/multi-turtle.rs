@@ -1,4 +1,4 @@
-use rand::*;
+use rand::Rng;
 use slowpoke::Slowpoke;
 
 fn main() {
@@ -32,14 +32,14 @@ fn main() {
 
             let mut tlist = [turtle, &mut t1, &mut t2, &mut t3];
 
-            for t in tlist.iter_mut() {
+            for t in &mut tlist {
                 t.speed("fastest");
             }
 
             let mut rng = rand::thread_rng();
 
             loop {
-                for t in tlist.iter_mut() {
+                for t in &mut tlist {
                     let dist: f64 = 10. + rng.gen::<f64>() * 20.;
                     let pos = t.pos();
                     if pos.x > 200 || pos.x < -200 || pos.y > 200 || pos.y < -200 {

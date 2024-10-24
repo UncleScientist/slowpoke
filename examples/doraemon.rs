@@ -5,6 +5,7 @@
 
 use slowpoke::{Slowpoke, Turtle};
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     Slowpoke::default()
         .with_size(600, 800)

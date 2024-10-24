@@ -8,7 +8,7 @@ fn main() {
             turtle.speed("fastest");
             turtle.width(2);
             for i in 0..290 {
-                let i = i as f64;
+                let i = f64::from(i);
                 turtle.pencolor(((i / 300.0 * 4.0) % 1.0, 1.0, 1.0));
                 turtle.forward(i);
                 turtle.right(60.0);

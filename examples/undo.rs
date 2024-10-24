@@ -7,7 +7,7 @@ fn main() {
         .with_title("a line")
         .run(|turtle| {
             for i in 0..17 {
-                turtle.speed(i as u8);
+                turtle.speed(i);
                 turtle.forward(50);
                 turtle.left(87);
             }

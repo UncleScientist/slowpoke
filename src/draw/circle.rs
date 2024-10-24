@@ -22,8 +22,8 @@ impl Turtle {
 }
 
 impl<'a> TurtleCircleProps<'a> {
-    pub fn with_steps(mut self, steps: usize) -> TurtleCircleProps<'a> {
-        self.steps = steps;
+    pub fn with_steps<S: Into<usize>>(mut self, steps: S) -> TurtleCircleProps<'a> {
+        self.steps = steps.into();
         self
     }
 

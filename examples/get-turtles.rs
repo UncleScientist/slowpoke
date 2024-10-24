@@ -1,3 +1,5 @@
+#![allow(clippy::cast_precision_loss)]
+
 use slowpoke::Slowpoke;
 
 fn main() {
@@ -13,20 +15,20 @@ fn main() {
             println!("There are {} turtles.", tlist.len());
 
             for (i, t) in turtle.turtles().iter_mut().enumerate() {
-                t.right(i as u32 * 360 / 12);
-                t.forward(i as u32 * 12);
+                t.right((i * 360 / 12) as f64);
+                t.forward((i * 12) as f64);
             }
 
             loop {
-                for t in turtle.turtles().iter_mut() {
+                for t in &mut turtle.turtles() {
                     t.fillcolor("red");
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
-                for t in turtle.turtles().iter_mut() {
+                for t in &mut turtle.turtles() {
                     t.fillcolor("green");
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));
-                for t in turtle.turtles().iter_mut() {
+                for t in &mut turtle.turtles() {
                     t.fillcolor("blue");
                 }
                 std::thread::sleep(std::time::Duration::from_millis(500));

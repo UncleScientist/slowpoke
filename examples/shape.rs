@@ -27,7 +27,7 @@ fn main() {
                 } else {
                     turtle.left(90. + rng.gen::<f64>() * 45.);
                 }
-                turtle.forward(30. + rng.gen::<f64>() * 30.)
+                turtle.forward(30. + rng.gen::<f64>() * 30.);
             }
             turtle.end_poly();
             turtle.goto(0, 0);

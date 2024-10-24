@@ -1,4 +1,4 @@
-use rand::*;
+use rand::Rng;
 use slowpoke::Slowpoke;
 
 fn main() {

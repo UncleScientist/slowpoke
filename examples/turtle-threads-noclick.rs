@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use rand::*;
+use rand::Rng;
 use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
@@ -30,11 +30,11 @@ fn main() {
 
             let mut tlist = [turtle, &mut t1, &mut t2, &mut t3];
 
-            for t in tlist.iter_mut() {
+            for t in &mut tlist {
                 t.speed("fastest");
             }
 
-            for t in tlist.iter_mut() {
+            for t in &mut tlist {
                 t.ontimer(turtle_thread, 250);
             }
 

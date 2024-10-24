@@ -1,4 +1,4 @@
-use rand::*;
+use rand::Rng;
 use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
@@ -6,8 +6,6 @@ fn main() {
         .with_size(500, 500)
         .with_title("cool patterns")
         .run(|turtle| {
-            turtle.speed("fastest");
-
             fn draw(turtle: &mut Turtle, count: isize, x: isize, angle: f64) {
                 for i in 0..count {
                     let mut rng = rand::thread_rng();
@@ -21,18 +19,24 @@ fn main() {
 
                     turtle.begin_fill();
                     for _ in 0..5 {
-                        turtle.forward((5 * count - 5 * i) as f64);
-                        turtle.right(x as f64);
-                        turtle.forward((5 * count - 5 * i) as f64);
-                        turtle.right((72 - x) as f64);
+                        turtle.forward(to_f64(5 * count - 5 * i));
+                        turtle.right(to_f64(x));
+                        turtle.forward(to_f64(5 * count - 5 * i));
+                        turtle.right(to_f64(72 - x));
                     }
                     turtle.end_fill();
                     turtle.right(angle);
                 }
             }
 
-            draw(turtle, 30, 144, 18.)
+            turtle.speed("fastest");
+            draw(turtle, 30, 144, 18.);
         });
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn to_f64(val: isize) -> f64 {
+    val as f64
 }
 
 /*

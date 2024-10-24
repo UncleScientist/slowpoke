@@ -1,3 +1,5 @@
+#![allow(clippy::cast_precision_loss)]
+
 use slowpoke::Slowpoke;
 
 fn main() {
@@ -9,11 +11,11 @@ fn main() {
             turtle.bgcolor("grey");
             turtle.speed(1);
             turtle.fillcolor("light green");
-            for i in 3..20 {
-                turtle.circle(10 + i as u32 * 10).with_steps(i);
+            for i in 3i16..20 {
+                turtle.circle(10 + i * 10).with_steps(i.unsigned_abs());
             }
-            for i in 3..20 {
-                turtle.circle(-(10. + i as f64 * 10.)).with_steps(i);
+            for i in 3i16..20 {
+                turtle.circle(-(10 + i * 10)).with_steps(i.unsigned_abs());
             }
         });
 }
