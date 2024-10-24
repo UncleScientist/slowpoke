@@ -48,6 +48,12 @@ struct IndividualTurtle {
     hide_turtle: bool,
 }
 
+struct CircleDrawData {
+    line_list: Vec<([f32; 2], [f32; 2])>,
+    position: [f32; 2],
+    angle: f32,
+}
+
 impl IndividualTurtle {
     fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, &String, &Color)> {
         let mut text_draw_cmds = Vec::new();
@@ -158,10 +164,13 @@ impl IndividualTurtle {
                     }
                 }
                 DrawCommand::Circle(points) => {
-                    let (line_list, final_pos, final_angle) =
-                        Self::circle_path(last_element, pct, points);
-                    tpos = [final_pos[0] as f64, final_pos[1] as f64];
-                    trot = final_angle;
+                    let CircleDrawData {
+                        line_list,
+                        position,
+                        angle,
+                    } = Self::circle_path(last_element, pct, points);
+                    tpos = [position[0] as f64, position[1] as f64];
+                    trot = angle;
                     for line in line_list {
                         self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                             line.0[0] as f64,
@@ -202,6 +211,7 @@ impl IndividualTurtle {
                     let end = transform.transform_point(p2.into());
 
                     let pencolor = pencolor.color_or(&poly.outline);
+                    let _fillcolor = fillcolor.color_or(&poly.fill);
 
                     self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                         start.x as f64,
@@ -216,11 +226,7 @@ impl IndividualTurtle {
     }
 
     // returns path, final point, and final angle
-    fn circle_path(
-        last_element: bool,
-        pct: f32,
-        points: &[CirclePos],
-    ) -> (Vec<([f32; 2], [f32; 2])>, [f32; 2], f32) {
+    fn circle_path(last_element: bool, pct: f32, points: &[CirclePos]) -> CircleDrawData {
         let mut line_list = Vec::new();
 
         let (total, subpercent) = if last_element {
@@ -230,28 +236,32 @@ impl IndividualTurtle {
         } else {
             (points.len() - 1, 1_f32)
         };
-        let mut tpos = [0., 0.];
-        let mut trot = 0.;
+        let mut position = [0., 0.];
+        let mut angle = 0.;
         let (_, mut start) = points[0].get_data();
 
         let mut iter = points.windows(2).take(total + 1).peekable();
         while let Some(p) = iter.next() {
             let (end_angle, end) = p[1].get_data();
             let last_segment = iter.peek().is_none();
-            tpos = end;
+            position = end;
             if last_element && last_segment {
                 let (_, begin) = p[0].get_data();
                 let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
                 let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
-                tpos = [end_x, end_y];
+                position = [end_x, end_y];
             }
             if points[0].pen_down {
-                line_list.push((start, tpos));
+                line_list.push((start, position));
             }
             start = end;
-            trot = end_angle;
+            angle = end_angle;
         }
-        (line_list, tpos, trot)
+        CircleDrawData {
+            line_list,
+            position,
+            angle,
+        }
     }
 }
 
@@ -375,10 +385,10 @@ impl RatatuiFramework {
 
         frame.render_widget(widget, area);
 
-        for (x, y, &ref sref, &cref) in text_list_cmds.borrow().iter() {
+        for (x, y, sref, &cref) in text_list_cmds.borrow().iter() {
             let block = Block::new()
                 .borders(Borders::NONE)
-                .title(sref.clone())
+                .title((*sref).clone())
                 .style(Style::new().fg(cref));
             let text_rect = Rect::new(*x as u16, *y as u16, sref.len() as u16, 1);
             frame.render_widget(block, text_rect);
@@ -481,12 +491,20 @@ impl TurtleGui for RatatuiInternal {
         turtle.has_new_cmd = true;
     }
 
-    fn undo(&mut self, _turtle: TurtleID) {
-        todo!()
+    fn undo(&mut self, turtle: TurtleID) {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        turtle.has_new_cmd = true;
     }
 
-    fn pop(&mut self, _turtle: TurtleID) -> Option<DrawCommand> {
-        todo!()
+    fn pop(&mut self, turtle: TurtleID) -> Option<DrawCommand> {
+        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
+        let cmd = turtle.cmds.pop();
+
+        if let Some(DrawCommand::Filled(index)) = &cmd {
+            turtle.cmds[*index] = DrawCommand::Filler;
+        }
+
+        cmd
     }
 
     fn undo_count(&self, _turtle: TurtleID) -> usize {
