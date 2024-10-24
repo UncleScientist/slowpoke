@@ -6,7 +6,12 @@ use std::{
 };
 
 use either::Either;
-use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
+use lyon_tessellation::{
+    geom::{euclid::default::Transform2D, point, Angle, Point},
+    geometry_builder::simple_builder,
+    path::Path,
+    FillOptions, FillTessellator, VertexBuffers,
+};
 use ratatui::{
     backend::CrosstermBackend,
     crossterm::event::{self, Event},
@@ -23,7 +28,7 @@ use ratatui::{
 use crate::{
     color_names::TurtleColor,
     generate::{CirclePos, DrawCommand},
-    polygon::TurtleShape,
+    polygon::{PolygonPath, TurtleShape},
     turtle::{task::TurtleTask, types::TurtleID, TurtleFlags},
 };
 
@@ -64,7 +69,10 @@ impl IndividualTurtle {
     }
 
     fn convert(&mut self, pct: f32) {
+        let mut _penwidth = 1f32;
+
         let mut pencolor = TurtleColor::default();
+        let mut fillcolor = TurtleColor::default();
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
         let mut iter = self.cmds.iter().peekable();
@@ -97,17 +105,22 @@ impl IndividualTurtle {
                 }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
                 DrawCommand::SetPenColor(pc) => pencolor = *pc,
-                DrawCommand::SetPenWidth(_) => {
-                    // TODO: figure out pen width for ratatui
-                }
-                DrawCommand::SetFillColor(_) => {
-                    // TODO: figure out fill color for ratatui
-                }
+                DrawCommand::SetPenWidth(pw) => _penwidth = *pw,
+                DrawCommand::SetFillColor(fc) => fillcolor = *fc,
                 DrawCommand::SetPosition(pos) => {
                     tpos = [pos.x as f64, pos.y as f64];
                 }
-                DrawCommand::DrawPolygon(_) => {
-                    // TODO: How to fill a polygon in ratatui?
+                DrawCommand::DrawPolygon(p) => {
+                    let lines = p.get_path();
+                    for line in lines {
+                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
+                            line.0.x.into(),
+                            line.0.y.into(),
+                            line.1.x.into(),
+                            line.1.y.into(),
+                            (&fillcolor).into(),
+                        )));
+                    }
                 }
                 DrawCommand::SetHeading(start, end) => {
                     let rotation = if last_element {
@@ -545,5 +558,43 @@ impl From<&TurtleColor> for Color {
 impl From<TurtleColor> for Color {
     fn from(value: TurtleColor) -> Self {
         (&value).into()
+    }
+}
+
+impl PolygonPath {
+    // This code has been adapted from the example
+    // in the lyon_tesselation docs.
+    // See https://docs.rs/lyon_tessellation/latest/lyon_tessellation/struct.FillTessellator.html
+    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)> {
+        let mut path_builder = Path::builder();
+        let mut iter = self.path.iter();
+        let p = iter.next().expect("needs at least one point");
+        path_builder.begin(point(p[0], p[1]));
+        for p in iter {
+            path_builder.line_to(point(p[0], p[1]));
+        }
+        path_builder.end(true);
+        let path = path_builder.build();
+        let mut buffers: VertexBuffers<Point<f32>, u16> = VertexBuffers::new();
+        {
+            let mut vertex_builder = simple_builder(&mut buffers);
+            let mut tessellator = FillTessellator::new();
+            tessellator
+                .tessellate_path(&path, &FillOptions::default(), &mut vertex_builder)
+                .expect("tesselation failed");
+        }
+
+        let mut result = Vec::new();
+
+        for triangle in buffers.indices.as_slice().chunks(3) {
+            let p0 = triangle[0] as usize;
+            let p1 = triangle[1] as usize;
+            let p2 = triangle[2] as usize;
+            result.push((buffers.vertices[p0], buffers.vertices[p1]));
+            result.push((buffers.vertices[p1], buffers.vertices[p2]));
+            result.push((buffers.vertices[p2], buffers.vertices[p0]));
+        }
+
+        result
     }
 }
