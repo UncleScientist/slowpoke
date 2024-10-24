@@ -64,8 +64,8 @@ impl IndividualTurtle {
                 RatatuiDrawCmd::Text { x, y, text, color } => {
                     let painter: Painter = ctx.into();
                     if let Some((x, y)) = painter.get_point(*x as f64, *y as f64) {
-                        let x = x as f32 / 2.;
-                        let y = y as f32 / 4.;
+                        let x = x as f32 / 2.; // TODO: this is the "Braille" width
+                        let y = y as f32 / 4.; // TODO: this is the "Braille" height
                         text_draw_cmds.push((x, y, text, color));
                     }
                 }
@@ -271,6 +271,7 @@ struct RatatuiInternal {
     turtle: HashMap<TurtleID, IndividualTurtle>,
     title: String, // TODO: implement popups
     bgcolor: Color,
+    size: [f32; 2],
 }
 
 impl RatatuiInternal {
@@ -281,6 +282,7 @@ impl RatatuiInternal {
             turtle: HashMap::new(),
             title: format!(" {} ", flags.title),
             bgcolor: Color::White,
+            size: flags.size,
         };
         let _turtle = this.new_turtle();
         this
@@ -368,6 +370,11 @@ impl RatatuiFramework {
 
     fn draw(&self, frame: &mut Frame) {
         let text_list_cmds = RefCell::new(Vec::new()); // TODO: can we do this without a RefCell?
+        let width = self.tui.size[0];
+        let height = self.tui.size[1];
+
+        let x_bounds = [-(width / 2.) as f64, (width / 2.) as f64];
+        let y_bounds = [-(height / 2.) as f64, (height / 2.) as f64];
 
         let area = frame.area();
         let widget = Canvas::default()
@@ -380,8 +387,8 @@ impl RatatuiFramework {
                     text_list_cmds.borrow_mut().extend(text_list);
                 }
             })
-            .x_bounds([-200., 200.])
-            .y_bounds([-200., 200.]);
+            .x_bounds(x_bounds)
+            .y_bounds(y_bounds);
 
         frame.render_widget(widget, area);
 
