@@ -44,7 +44,7 @@ struct IndividualTurtle {
 }
 
 impl IndividualTurtle {
-    fn draw(&self, ctx: &mut Context) -> Vec<RatatuiDrawCmd> {
+    fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, &String, &Color)> {
         let mut text_draw_cmds = Vec::new();
         for cmd in &self.drawing {
             match cmd {
@@ -55,12 +55,7 @@ impl IndividualTurtle {
                     if let Some((x, y)) = painter.get_point(*x as f64, *y as f64) {
                         let x = x as f32 / 2.;
                         let y = y as f32 / 4.;
-                        text_draw_cmds.push(RatatuiDrawCmd::Text {
-                            x,
-                            y,
-                            text: text.clone(),
-                            color: *color,
-                        });
+                        text_draw_cmds.push((x, y, text, color));
                     }
                 }
             }
@@ -349,13 +344,7 @@ impl RatatuiFramework {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        struct TextList {
-            list: RefCell<Vec<RatatuiDrawCmd>>,
-        }
-
-        let text_list_cmds = TextList {
-            list: RefCell::new(Vec::new()), // TODO: can we do this without a RefCell?
-        };
+        let text_list_cmds = RefCell::new(Vec::new()); // TODO: can we do this without a RefCell?
 
         let area = frame.area();
         let widget = Canvas::default()
@@ -365,7 +354,7 @@ impl RatatuiFramework {
             .paint(|ctx| {
                 for turtle in self.tui.turtle.values() {
                     let text_list = turtle.draw(ctx);
-                    text_list_cmds.list.borrow_mut().extend(text_list);
+                    text_list_cmds.borrow_mut().extend(text_list);
                 }
             })
             .x_bounds([-200., 200.])
@@ -373,28 +362,14 @@ impl RatatuiFramework {
 
         frame.render_widget(widget, area);
 
-        for text in text_list_cmds.list.borrow().iter() {
-            assert!(matches!(text, RatatuiDrawCmd::Text { .. }));
-            if let RatatuiDrawCmd::Text { x, y, text, color } = text {
-                let block = Block::new()
-                    .borders(Borders::NONE)
-                    .title(text.clone())
-                    .style(Style::new().fg(*color));
-                let text_rect = Rect::new(*x as u16, *y as u16, text.len() as u16, 1);
-                frame.render_widget(block, text_rect);
-            }
+        for (x, y, &ref sref, &cref) in text_list_cmds.borrow().iter() {
+            let block = Block::new()
+                .borders(Borders::NONE)
+                .title(sref.clone())
+                .style(Style::new().fg(cref));
+            let text_rect = Rect::new(*x as u16, *y as u16, sref.len() as u16, 1);
+            frame.render_widget(block, text_rect);
         }
-
-        /*
-         * Render pop-up windows here
-        let overlay = Rect {
-            x: 10,
-            y: 10,
-            width: 5,
-            height: 3,
-        };
-        frame.render_widget(Block::bordered().title("a block"), overlay);
-        */
     }
 }
 
