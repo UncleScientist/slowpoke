@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use clamp_to::{Clamp, ClampTo};
 use either::Either;
 use lyon_tessellation::{
     geom::{euclid::default::Transform2D, point, Angle, Point},
@@ -14,10 +15,11 @@ use lyon_tessellation::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::event::{self, Event},
+    crossterm::event::{self, Event, KeyCode},
     layout::Rect,
     style::{Color, Style},
     symbols::Marker,
+    text::{Line as TextLine, Text},
     widgets::{
         canvas::{Canvas, Circle, Context, Line, Painter},
         Block, Borders,
@@ -29,10 +31,14 @@ use crate::{
     color_names::TurtleColor,
     generate::{CirclePos, DrawCommand},
     polygon::{PolygonPath, TurtleShape},
-    turtle::{task::TurtleTask, types::TurtleID, TurtleFlags},
+    turtle::{
+        task::TurtleTask,
+        types::{PopupID, TurtleID},
+        TurtleFlags,
+    },
 };
 
-use super::{StampCount, TurtleGui};
+use super::{popup::PopupData, StampCount, TurtleGui};
 
 pub(crate) struct RatatuiFramework {
     tt: TurtleTask,
@@ -63,9 +69,10 @@ impl IndividualTurtle {
                 RatatuiDrawCmd::Circle(c) => ctx.draw(c),
                 RatatuiDrawCmd::Text { x, y, text, color } => {
                     let painter: Painter = ctx.into();
-                    if let Some((x, y)) = painter.get_point(*x as f64, *y as f64) {
-                        let x = x as f32 / 2.; // TODO: this is the "Braille" width
-                        let y = y as f32 / 4.; // TODO: this is the "Braille" height
+                    if let Some((x, y)) = painter.get_point(x.clamp_to(), y.clamp_to()) {
+                        // x/2 & y/4 because that's the size of the Marker::Braille dots
+                        let x = x.clamp_to_f32() / 2.;
+                        let y = y.clamp_to_f32() / 4.;
                         text_draw_cmds.push((x, y, text, color));
                     }
                 }
@@ -76,6 +83,7 @@ impl IndividualTurtle {
 
     fn convert(&mut self, pct: f32) {
         let mut _penwidth = 1f32;
+        let pct = f64::from(pct);
 
         let mut pencolor = TurtleColor::default();
         let mut fillcolor = TurtleColor::default();
@@ -89,14 +97,17 @@ impl IndividualTurtle {
             let last_element = iter.peek().is_none() && pct < 1.;
             match cmd {
                 DrawCommand::Line(l) => {
-                    let (begin_x, begin_y): (f64, f64) = (l.begin.x as f64, l.begin.y as f64);
+                    let (begin_x, begin_y): (f64, f64) =
+                        (l.begin.x.clamp_to(), l.begin.y.clamp_to());
                     let (end_x, end_y) = if last_element {
-                        let end_x = l.begin.x as f32 + (l.end.x - l.begin.x) as f32 * pct;
-                        let end_y = l.begin.y as f32 + (l.end.y - l.begin.y) as f32 * pct;
-                        tpos = [end_x as f64, end_y as f64];
+                        let end_x =
+                            l.begin.x.clamp_to_f64() + (l.end.x - l.begin.x).clamp_to_f64() * pct;
+                        let end_y =
+                            l.begin.y.clamp_to_f64() + (l.end.y - l.begin.y).clamp_to_f64() * pct;
+                        tpos = [end_x, end_y];
                         (tpos[0], tpos[1])
                     } else {
-                        tpos = [l.end.x as f64, l.end.y as f64];
+                        tpos = [f64::from(l.end.x), f64::from(l.end.y)];
                         (tpos[0], tpos[1])
                     };
                     if l.pen_down {
@@ -114,7 +125,7 @@ impl IndividualTurtle {
                 DrawCommand::SetPenWidth(pw) => _penwidth = *pw,
                 DrawCommand::SetFillColor(fc) => fillcolor = *fc,
                 DrawCommand::SetPosition(pos) => {
-                    tpos = [pos.x as f64, pos.y as f64];
+                    tpos = [pos.x.clamp_to(), pos.y.clamp_to()];
                 }
                 DrawCommand::DrawPolygon(p) => {
                     let lines = p.get_path();
@@ -130,7 +141,7 @@ impl IndividualTurtle {
                 }
                 DrawCommand::SetHeading(start, end) => {
                     let rotation = if last_element {
-                        *start + (*end - *start) * pct
+                        *start + (*end - *start) * pct.clamp_to_f32()
                     } else {
                         *end
                     };
@@ -138,9 +149,9 @@ impl IndividualTurtle {
                 }
                 DrawCommand::DrawDot(center, radius, color) => {
                     self.drawing.push(RatatuiDrawCmd::Circle(Circle {
-                        x: center.x as f64,
-                        y: center.y as f64,
-                        radius: *radius as f64,
+                        x: f64::from(center.x),
+                        y: f64::from(center.y),
+                        radius: f64::from(*radius),
                         color: color.into(),
                     }));
                 }
@@ -168,7 +179,7 @@ impl IndividualTurtle {
                         line_list,
                         position,
                         angle,
-                    } = Self::circle_path(last_element, pct, points);
+                    } = Self::circle_path(last_element, pct.clamp_to(), points);
                     tpos = [position[0] as f64, position[1] as f64];
                     trot = angle;
                     for line in line_list {
@@ -269,7 +280,9 @@ struct RatatuiInternal {
     terminal: RefCell<Terminal<CrosstermBackend<Stdout>>>,
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
-    title: String, // TODO: implement popups
+    title: String,
+    popups: HashMap<PopupID, PopupData>,
+    next_id: PopupID,
     bgcolor: Color,
     size: [f32; 2],
 }
@@ -281,6 +294,8 @@ impl RatatuiInternal {
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
             title: format!(" {} ", flags.title),
+            popups: HashMap::new(),
+            next_id: PopupID::new(0),
             bgcolor: Color::White,
             size: flags.size,
         };
@@ -299,6 +314,11 @@ impl RatatuiInternal {
             },
         );
         id
+    }
+
+    fn generate_popup(&mut self, popupdata: PopupData) {
+        let id = self.next_id.get();
+        self.popups.insert(id, popupdata);
     }
 }
 
@@ -344,7 +364,21 @@ impl RatatuiFramework {
                 Err(e) => break Err(e),
                 Ok(true) => {
                     let event = event::read().expect("should not have failed");
-                    break Ok(event);
+                    match event {
+                        Event::Key(key) => match key.code {
+                            KeyCode::Char(ch) => {
+                                for popup in self.tui.popups.values_mut() {
+                                    popup.set_message(format!("char: {ch}"));
+                                }
+                            }
+                            _ => break Ok(event),
+                        },
+                        Event::FocusGained
+                        | Event::FocusLost
+                        | Event::Mouse(_)
+                        | Event::Paste(_)
+                        | Event::Resize(_, _) => break Ok(event),
+                    }
                 }
                 Ok(false) => {}
             }
@@ -399,6 +433,33 @@ impl RatatuiFramework {
                 .style(Style::new().fg(cref));
             let text_rect = Rect::new(*x as u16, *y as u16, sref.len() as u16, 1);
             frame.render_widget(block, text_rect);
+        }
+
+        for popup in self.tui.popups.values() {
+            // /- TITLE -------------\
+            // | <prompt>            |
+            // | [<input-text>      ]|
+            // \---------------------/
+
+            let prompt_len = popup.prompt().len();
+            let title_len = popup.title().len();
+            let msg_len = popup.get_text().len();
+
+            let width = prompt_len.max(title_len.max(msg_len)) + 2;
+
+            let block = Block::new()
+                .borders(Borders::ALL)
+                .title(popup.title())
+                .style(Style::new().fg(Color::Black).bg(Color::White));
+            let popup_rect = Rect::new(10, 4, width.clamp_to(), 4);
+            frame.render_widget(block, popup_rect);
+            let text = Text::from(TextLine::from(popup.prompt()));
+            let text_rect = Rect::new(11, 5, prompt_len.clamp_to(), 1);
+            frame.render_widget(text, text_rect);
+
+            let msg = Text::from(TextLine::from(popup.get_text()));
+            let msg_rect = Rect::new(11, 6, popup.get_text().len().clamp_to(), 1);
+            frame.render_widget(msg, msg_rect);
         }
     }
 }
@@ -520,22 +581,22 @@ impl TurtleGui for RatatuiInternal {
 
     fn numinput(
         &mut self,
-        _turtle: TurtleID,
-        _thread: crate::turtle::types::TurtleThread,
-        _title: &str,
-        _prompt: &str,
+        turtle: TurtleID,
+        thread: crate::turtle::types::TurtleThread,
+        title: &str,
+        prompt: &str,
     ) {
-        todo!()
+        self.generate_popup(PopupData::num_input(title, prompt, turtle, thread));
     }
 
     fn textinput(
         &mut self,
-        _turtle: TurtleID,
-        _thread: crate::turtle::types::TurtleThread,
-        _title: &str,
-        _prompt: &str,
+        turtle: TurtleID,
+        thread: crate::turtle::types::TurtleThread,
+        title: &str,
+        prompt: &str,
     ) {
-        todo!()
+        self.generate_popup(PopupData::text_input(title, prompt, turtle, thread));
     }
 
     fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
@@ -573,7 +634,11 @@ impl TurtleGui for RatatuiInternal {
 impl From<&TurtleColor> for Color {
     fn from(value: &TurtleColor) -> Self {
         if let TurtleColor::Color(r, g, b) = value {
-            Color::Rgb((*r * 255.) as u8, (*g * 255.) as u8, (*b * 255.) as u8)
+            Color::Rgb(
+                (*r * 255.).clamp_to(),
+                (*g * 255.).clamp_to(),
+                (*b * 255.).clamp_to(),
+            )
         } else {
             todo!()
         }

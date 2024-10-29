@@ -3,10 +3,10 @@ use slowpoke::Slowpoke;
 fn main() {
     Slowpoke::default()
         .with_size(400, 400)
-        .with_title("a line")
+        .with_title("Input a number")
         .run(|turtle| {
+            turtle.bgcolor("grey");
             let num = turtle.numinput("This is a request...", "Gimmie a floating point number");
-            turtle.forward(100);
             if let Some(num) = num {
                 println!("double your number is {}", num * 2.);
             } else {

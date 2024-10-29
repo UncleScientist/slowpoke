@@ -9,6 +9,7 @@ either = "1.10.0"
 lyon_tessellation = "1.0.13"
 iced = { version = "0.12.1", features = ["canvas", "smol", "multi-window"], optional = true }
 ratatui = { version = "0.28.1", optional = true }
+clamp_to = "0.2.2"
 
 [dev-dependencies]
 rand = "0.8.5"
@@ -20,3 +21,7 @@ debug = true
 default = ["iced"]
 iced = ["dep:iced"]
 ratatui = ["dep:ratatui"]
+
+[lints.clippy]
+all = "warn"
+# pedantic = "warn"

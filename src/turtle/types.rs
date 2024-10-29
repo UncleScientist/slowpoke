@@ -1,13 +1,30 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Deref, Index, IndexMut};
 
 use super::TurtleData;
 
+macro_rules! gen_generator {
+    ($name:ident) => {
+        #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
+        pub(crate) struct $name(IDGenerator);
+
+        impl $name {
+            pub(crate) fn new(id: usize) -> Self {
+                Self(IDGenerator::new(id))
+            }
+
+            pub(crate) fn get(&mut self) -> Self {
+                Self(self.0.get())
+            }
+        }
+    };
+}
+
 #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
-pub(crate) struct TurtleID {
+pub(crate) struct IDGenerator {
     id: usize,
 }
 
-impl TurtleID {
+impl IDGenerator {
     pub(crate) fn get(&mut self) -> Self {
         self.id += 1;
         Self { id: self.id - 1 }
@@ -18,27 +35,23 @@ impl TurtleID {
     }
 }
 
+gen_generator!(TurtleID);
+gen_generator!(TurtleThread);
+
+#[cfg(feature = "ratatui")]
+gen_generator!(PopupID);
+
 impl From<usize> for TurtleID {
     fn from(id: usize) -> Self {
-        Self { id }
+        Self(IDGenerator::new(id))
     }
 }
 
-#[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
-pub(crate) struct TurtleThread {
-    thread: usize,
-}
+impl Deref for TurtleID {
+    type Target = IDGenerator;
 
-impl TurtleThread {
-    pub(crate) fn new(thread: usize) -> Self {
-        Self { thread }
-    }
-
-    pub(crate) fn get(&mut self) -> Self {
-        self.thread += 1;
-        Self {
-            thread: self.thread,
-        }
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
