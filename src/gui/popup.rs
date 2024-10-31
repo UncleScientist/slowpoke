@@ -48,6 +48,18 @@ impl PopupType {
         }
     }
 
+    fn text_input_field_mut(&mut self) -> &mut String {
+        match self {
+            PopupType::TextInput {
+                text_input_field, ..
+            }
+            | PopupType::NumericalInput {
+                text_input_field, ..
+            } => text_input_field,
+            PopupType::Null => panic!("invalid popup for turtle id"),
+        }
+    }
+
     fn text_input_field(&self) -> &str {
         match self {
             PopupType::TextInput {
@@ -136,6 +148,10 @@ impl PopupData {
 
     pub(crate) fn get_text(&self) -> &str {
         self.popup.text_input_field()
+    }
+
+    pub(crate) fn get_text_mut(&mut self) -> &mut String {
+        self.popup.text_input_field_mut()
     }
 
     pub(crate) fn get_response(&self) -> Result<Response, String> {

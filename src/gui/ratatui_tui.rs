@@ -15,14 +15,14 @@ use lyon_tessellation::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::event::{self, Event, KeyCode},
-    layout::Rect,
+    crossterm::event::{self, Event, KeyCode, KeyModifiers},
+    layout::{Position, Rect},
     style::{Color, Style},
     symbols::Marker,
-    text::{Line as TextLine, Text},
+    text::Line as TextLine,
     widgets::{
         canvas::{Canvas, Circle, Context, Line, Painter},
-        Block, Borders,
+        Block, Borders, Paragraph,
     },
     Frame, Terminal,
 };
@@ -367,9 +367,53 @@ impl RatatuiFramework {
                     match event {
                         Event::Key(key) => match key.code {
                             KeyCode::Char(ch) => {
-                                for popup in self.tui.popups.values_mut() {
-                                    popup.set_message(format!("char: {ch}"));
+                                if ch == 'q'
+                                    && (key.modifiers & KeyModifiers::CONTROL)
+                                        == KeyModifiers::CONTROL
+                                {
+                                    break Ok(event);
                                 }
+                                for popup in self.tui.popups.values_mut() {
+                                    if popup.get_error().is_none() {
+                                        popup.get_text_mut().push(ch);
+                                    }
+                                }
+                            }
+                            KeyCode::Backspace => {
+                                for popup in self.tui.popups.values_mut() {
+                                    popup.get_text_mut().pop();
+                                }
+                            }
+                            KeyCode::Esc => {
+                                for (_, popup) in self.tui.popups.drain() {
+                                    self.tt.popup_cancelled(popup.turtle(), popup.thread());
+                                }
+                            }
+                            KeyCode::Enter => {
+                                let mut new_popups = HashMap::new();
+                                for (key, mut popup) in self.tui.popups.drain() {
+                                    // Is there an error state we need to deal with?
+                                    if popup.get_error().is_some() {
+                                        popup.clear_error();
+                                        new_popups.insert(key, popup);
+                                    } else {
+                                        match popup.get_response() {
+                                            Ok(response) => {
+                                                self.tt.popup_result(
+                                                    popup.turtle(),
+                                                    popup.thread(),
+                                                    response,
+                                                );
+                                            }
+                                            Err(message) => {
+                                                popup.set_error(message);
+                                                popup.get_text_mut().clear();
+                                                new_popups.insert(key, popup);
+                                            }
+                                        }
+                                    }
+                                }
+                                self.tui.popups = new_popups;
                             }
                             _ => break Ok(event),
                         },
@@ -441,25 +485,37 @@ impl RatatuiFramework {
             // | [<input-text>      ]|
             // \---------------------/
 
-            let prompt_len = popup.prompt().len();
-            let title_len = popup.title().len();
-            let msg_len = popup.get_text().len();
+            let (has_err, prompt) = if let Some(err) = popup.get_error() {
+                (true, err.as_str())
+            } else {
+                (false, popup.prompt())
+            };
+            let text = popup.get_text().to_string();
+            let width = 25.max(popup.title().len().max(prompt.len().max(text.len()))) + 2;
+            let popup_area = Rect::new(10, 4, width.clamp_to(), 4);
+            let entry_width = width - 4;
+            let entry = format!("[{:entry_width$}]", text);
 
-            let width = prompt_len.max(title_len.max(msg_len)) + 2;
+            let popup = if has_err {
+                Paragraph::new(vec![prompt.into(), TextLine::from("[ OK ]").centered()])
+                    .block(Block::bordered().title(popup.title()))
+                    .style(Style::new().fg(Color::Black).bg(Color::White))
+            } else {
+                frame.set_cursor_position(Position::new(
+                    popup_area.x + 2 + text.len().clamp_to_u16(),
+                    popup_area.y + 2,
+                ));
+                Paragraph::new(vec![prompt.into(), entry.into()])
+                    .block(
+                        Block::bordered()
+                            .title(popup.title())
+                            .title_bottom(TextLine::from("Enter=OK").left_aligned())
+                            .title_bottom(TextLine::from("Esc=Cancel").right_aligned()),
+                    )
+                    .style(Style::new().fg(Color::Black).bg(Color::White))
+            };
 
-            let block = Block::new()
-                .borders(Borders::ALL)
-                .title(popup.title())
-                .style(Style::new().fg(Color::Black).bg(Color::White));
-            let popup_rect = Rect::new(10, 4, width.clamp_to(), 4);
-            frame.render_widget(block, popup_rect);
-            let text = Text::from(TextLine::from(popup.prompt()));
-            let text_rect = Rect::new(11, 5, prompt_len.clamp_to(), 1);
-            frame.render_widget(text, text_rect);
-
-            let msg = Text::from(TextLine::from(popup.get_text()));
-            let msg_rect = Rect::new(11, 6, popup.get_text().len().clamp_to(), 1);
-            frame.render_widget(msg, msg_rect);
+            frame.render_widget(popup, popup_area);
         }
     }
 }
