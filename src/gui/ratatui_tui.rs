@@ -374,7 +374,11 @@ impl RatatuiFramework {
                         | Event::FocusLost
                         | Event::Mouse(_)
                         | Event::Paste(_)
-                        | Event::Resize(_, _) => break Ok(event),
+                        | Event::Resize(_, _) => {
+                            // We "resize" the window by scaling the drawing to the current
+                            // physical window size. So if the user changes the size of the
+                            // window, we scale things up or down as appropriate.
+                        }
                     }
                 }
                 Ok(false) => {}
@@ -679,10 +683,10 @@ impl TurtleGui for RatatuiInternal {
         &mut self,
         _turtle: TurtleID,
         _thread: crate::turtle::types::TurtleThread,
-        _width: isize,
-        _height: isize,
+        width: isize,
+        height: isize,
     ) {
-        todo!()
+        self.size = [width as f32, height as f32];
     }
 
     fn set_visible(&mut self, _turtle: TurtleID, _visible: bool) {
