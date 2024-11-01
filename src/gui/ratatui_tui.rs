@@ -6,6 +6,7 @@ use std::{
 };
 
 use clamp_to::{Clamp, ClampTo};
+use crossterm::{event::KeyboardEnhancementFlags, execute};
 use either::Either;
 use lyon_tessellation::{
     geom::{euclid::default::Transform2D, point, Angle, Point},
@@ -15,7 +16,7 @@ use lyon_tessellation::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Position, Rect},
     style::{Color, Style},
     symbols::Marker,
@@ -289,6 +290,13 @@ struct RatatuiInternal {
 
 impl RatatuiInternal {
     fn new(flags: &TurtleFlags) -> Self {
+        let mut stdout = std::io::stdout();
+        let _ = execute!(
+            stdout,
+            crossterm::event::PushKeyboardEnhancementFlags(
+                KeyboardEnhancementFlags::REPORT_EVENT_TYPES
+            )
+        );
         let mut this = Self {
             terminal: RefCell::new(ratatui::init()),
             last_id: TurtleID::default(),
@@ -411,7 +419,13 @@ impl RatatuiFramework {
                     return true;
                 }
                 if self.tui.popups.is_empty() {
-                    self.tt.handle_event(None, None, &TurtleEvent::KeyPress(ch));
+                    let e = if matches!(key.kind, KeyEventKind::Press) {
+                        TurtleEvent::KeyPress(ch)
+                    } else {
+                        println!("YYYY");
+                        TurtleEvent::KeyRelease(ch)
+                    };
+                    self.tt.handle_event(None, None, &e);
                 } else {
                     for popup in self.tui.popups.values_mut() {
                         if popup.get_error().is_none() {
