@@ -22,12 +22,12 @@ impl Turtle {
 }
 
 impl<'a> TurtleCircleProps<'a> {
-    pub fn with_steps<S: Into<usize>>(mut self, steps: S) -> TurtleCircleProps<'a> {
+    pub fn with_steps<S: Into<usize>>(mut self, steps: S) -> Self {
         self.steps = steps.into();
         self
     }
 
-    pub fn with_extent<E: Into<f64>>(mut self, extent: E) -> TurtleCircleProps<'a> {
+    pub fn with_extent<E: Into<f64>>(mut self, extent: E) -> Self {
         self.extent = extent.into();
         self
     }

@@ -104,7 +104,7 @@ pub enum DataCmd {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum Command {
+pub enum Command {
     Draw(DrawRequest),
     Screen(ScreenCmd),
     Input(InputCmd),
@@ -114,21 +114,21 @@ pub(crate) enum Command {
 }
 
 impl DrawRequest {
-    pub(crate) fn is_stamp(&self) -> bool {
+    pub(crate) const fn is_stamp(&self) -> bool {
         matches!(self, Self::InstantaneousDraw(InstantaneousDrawCmd::Stamp))
     }
 
-    pub(crate) fn tracer_true(&self) -> bool {
+    pub(crate) const fn tracer_true(&self) -> bool {
         matches!(
             self,
-            DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(true))
+            Self::InstantaneousDraw(InstantaneousDrawCmd::Tracer(true))
         )
     }
 
-    pub(crate) fn tracer_false(&self) -> bool {
+    pub(crate) const fn tracer_false(&self) -> bool {
         matches!(
             self,
-            DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Tracer(false))
+            Self::InstantaneousDraw(InstantaneousDrawCmd::Tracer(false))
         )
     }
 }

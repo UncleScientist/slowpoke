@@ -22,12 +22,12 @@ impl Turtle {
 
 impl<'a> TurtleDotProps<'a> {
     #[allow(clippy::cast_possible_truncation)]
-    pub fn with_size<S: Into<f64>>(mut self, size: S) -> TurtleDotProps<'a> {
+    pub fn with_size<S: Into<f64>>(mut self, size: S) -> Self {
         self.width = Some(size.into() as f32);
         self
     }
 
-    pub fn with_color<C: Into<TurtleColor>>(mut self, color: C) -> TurtleDotProps<'a> {
+    pub fn with_color<C: Into<TurtleColor>>(mut self, color: C) -> Self {
         self.color = color.into();
         self
     }

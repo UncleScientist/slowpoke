@@ -5,7 +5,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) enum Response {
+pub enum Response {
     Done,
     Cancel,
     Heading(f32),
@@ -26,14 +26,14 @@ pub(crate) enum Response {
 }
 
 #[derive(Debug)]
-pub(crate) struct Request {
-    pub(crate) turtle: TurtleID,
-    pub(crate) thread: TurtleThread,
-    pub(crate) cmd: Command,
+pub struct Request {
+    pub turtle: TurtleID,
+    pub thread: TurtleThread,
+    pub cmd: Command,
 }
 
 impl Request {
-    pub(crate) fn shut_down(turtle: TurtleID, thread: TurtleThread) -> Request {
+    pub(crate) const fn shut_down(turtle: TurtleID, thread: TurtleThread) -> Self {
         Self {
             turtle,
             thread,

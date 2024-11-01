@@ -7,8 +7,8 @@ pub enum TurtleColor {
 }
 
 impl TurtleColor {
-    pub(crate) fn color_or(self, or: &TurtleColor) -> TurtleColor {
-        if matches!(self, TurtleColor::CurrentColor) {
+    pub(crate) const fn color_or(self, or: &Self) -> Self {
+        if matches!(self, Self::CurrentColor) {
             *or
         } else {
             self
@@ -23,8 +23,8 @@ impl Default for TurtleColor {
 }
 
 impl From<[f32; 4]> for TurtleColor {
-    fn from(color: [f32; 4]) -> TurtleColor {
-        TurtleColor::Color(color[0], color[1], color[2])
+    fn from(color: [f32; 4]) -> Self {
+        Self::Color(color[0], color[1], color[2])
     }
 }
 
@@ -46,18 +46,18 @@ impl From<&str> for TurtleColor {
             let r = f32::from(((value >> 16) & 0xff) as u8) / 255.;
             let g = f32::from(((value >> 8) & 0xff) as u8) / 255.;
             let b = f32::from((value & 0xff) as u8) / 255.;
-            return TurtleColor::Color(r, g, b);
+            return Self::Color(r, g, b);
         }
         for c in &COLOR {
             if color_name == c.0 {
                 let r = f32::from(c.1) / 255.;
                 let g = f32::from(c.2) / 255.;
                 let b = f32::from(c.3) / 255.;
-                return TurtleColor::Color(r, g, b);
+                return Self::Color(r, g, b);
             }
         }
 
-        TurtleColor::CurrentColor
+        Self::CurrentColor
     }
 }
 
@@ -69,9 +69,9 @@ impl From<(f64, f64, f64)> for TurtleColor {
 
         if in_range(r) && in_range(g) && in_range(b) {
             #[allow(clippy::cast_possible_truncation)]
-            TurtleColor::Color(r as f32, g as f32, b as f32)
+            Self::Color(r as f32, g as f32, b as f32)
         } else {
-            TurtleColor::CurrentColor
+            Self::CurrentColor
         }
     }
 }
@@ -83,9 +83,9 @@ impl From<(f32, f32, f32)> for TurtleColor {
         }
 
         if in_range(r) && in_range(g) && in_range(b) {
-            TurtleColor::Color(r, g, b)
+            Self::Color(r, g, b)
         } else {
-            TurtleColor::CurrentColor
+            Self::CurrentColor
         }
     }
 }
@@ -95,7 +95,7 @@ impl From<(u8, u8, u8)> for TurtleColor {
         let r = f32::from(r) / 255.;
         let g = f32::from(g) / 255.;
         let b = f32::from(b) / 255.;
-        TurtleColor::Color(r, g, b)
+        Self::Color(r, g, b)
     }
 }
 
