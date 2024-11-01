@@ -491,10 +491,18 @@ impl RatatuiFramework {
                 (false, popup.prompt())
             };
             let text = popup.get_text().to_string();
-            let width = 25.max(popup.title().len().max(prompt.len().max(text.len()))) + 2;
+            let width = 25.max(popup.title().len().max(prompt.len())) + 2;
             let popup_area = Rect::new(10, 4, width.clamp_to(), 4);
             let entry_width = width - 4;
-            let entry = format!("[{:entry_width$}]", text);
+            let (entry, entry_len) = if text.len() < entry_width {
+                (format!("[{:entry_width$}]", text.as_str()), text.len())
+            } else {
+                let shrink = entry_width - 2;
+                (
+                    format!("[..{:shrink$}]", &text[(text.len() - entry_width + 3)..]),
+                    entry_width - 1,
+                )
+            };
 
             let popup = if has_err {
                 Paragraph::new(vec![prompt.into(), TextLine::from("[ OK ]").centered()])
@@ -502,7 +510,7 @@ impl RatatuiFramework {
                     .style(Style::new().fg(Color::Black).bg(Color::White))
             } else {
                 frame.set_cursor_position(Position::new(
-                    popup_area.x + 2 + text.len().clamp_to_u16(),
+                    popup_area.x + 2 + entry_len.clamp_to_u16(),
                     popup_area.y + 2,
                 ));
                 Paragraph::new(vec![prompt.into(), entry.into()])
