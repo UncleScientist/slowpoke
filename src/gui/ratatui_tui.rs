@@ -15,7 +15,7 @@ use lyon_tessellation::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    crossterm::event::{self, Event, KeyCode, KeyModifiers},
+    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     layout::{Position, Rect},
     style::{Color, Style},
     symbols::Marker,
@@ -365,63 +365,11 @@ impl RatatuiFramework {
                 Ok(true) => {
                     let event = event::read().expect("should not have failed");
                     match event {
-                        Event::Key(key) => match key.code {
-                            KeyCode::Char(ch) => {
-                                // Ctrl-Q will exit the program no matter what
-                                if ch == 'q'
-                                    && (key.modifiers & KeyModifiers::CONTROL)
-                                        == KeyModifiers::CONTROL
-                                {
-                                    break Ok(event);
-                                }
-                                if self.tui.popups.is_empty() {
-                                    self.tt.handle_event(None, None, &TurtleEvent::KeyPress(ch));
-                                } else {
-                                    for popup in self.tui.popups.values_mut() {
-                                        if popup.get_error().is_none() {
-                                            popup.get_text_mut().push(ch);
-                                        }
-                                    }
-                                }
+                        Event::Key(key) => {
+                            if self.handle_key_event(key) {
+                                break Ok(event);
                             }
-                            KeyCode::Backspace => {
-                                for popup in self.tui.popups.values_mut() {
-                                    popup.get_text_mut().pop();
-                                }
-                            }
-                            KeyCode::Esc => {
-                                for (_, popup) in self.tui.popups.drain() {
-                                    self.tt.popup_cancelled(popup.turtle(), popup.thread());
-                                }
-                            }
-                            KeyCode::Enter => {
-                                let mut new_popups = HashMap::new();
-                                for (key, mut popup) in self.tui.popups.drain() {
-                                    // Is there an error state we need to deal with?
-                                    if popup.get_error().is_some() {
-                                        popup.clear_error();
-                                        new_popups.insert(key, popup);
-                                    } else {
-                                        match popup.get_response() {
-                                            Ok(response) => {
-                                                self.tt.popup_result(
-                                                    popup.turtle(),
-                                                    popup.thread(),
-                                                    response,
-                                                );
-                                            }
-                                            Err(message) => {
-                                                popup.set_error(message);
-                                                popup.get_text_mut().clear();
-                                                new_popups.insert(key, popup);
-                                            }
-                                        }
-                                    }
-                                }
-                                self.tui.popups = new_popups;
-                            }
-                            _ => break Ok(event),
-                        },
+                        }
                         Event::FocusGained
                         | Event::FocusLost
                         | Event::Mouse(_)
@@ -449,6 +397,61 @@ impl RatatuiFramework {
             }
             last_tick = Instant::now();
         }
+    }
+
+    fn handle_key_event(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Char(ch) => {
+                // Ctrl-Q will exit the program no matter what
+                if ch == 'q' && (key.modifiers & KeyModifiers::CONTROL) == KeyModifiers::CONTROL {
+                    return true;
+                }
+                if self.tui.popups.is_empty() {
+                    self.tt.handle_event(None, None, &TurtleEvent::KeyPress(ch));
+                } else {
+                    for popup in self.tui.popups.values_mut() {
+                        if popup.get_error().is_none() {
+                            popup.get_text_mut().push(ch);
+                        }
+                    }
+                }
+            }
+            KeyCode::Backspace => {
+                for popup in self.tui.popups.values_mut() {
+                    popup.get_text_mut().pop();
+                }
+            }
+            KeyCode::Esc => {
+                for (_, popup) in self.tui.popups.drain() {
+                    self.tt.popup_cancelled(popup.turtle(), popup.thread());
+                }
+            }
+            KeyCode::Enter => {
+                let mut new_popups = HashMap::new();
+                for (key, mut popup) in self.tui.popups.drain() {
+                    // Is there an error state we need to deal with?
+                    if popup.get_error().is_some() {
+                        popup.clear_error();
+                        new_popups.insert(key, popup);
+                    } else {
+                        match popup.get_response() {
+                            Ok(response) => {
+                                self.tt
+                                    .popup_result(popup.turtle(), popup.thread(), response);
+                            }
+                            Err(message) => {
+                                popup.set_error(message);
+                                popup.get_text_mut().clear();
+                                new_popups.insert(key, popup);
+                            }
+                        }
+                    }
+                }
+                self.tui.popups = new_popups;
+            }
+            _ => return true,
+        }
+        false
     }
 
     fn draw(&self, frame: &mut Frame) {
