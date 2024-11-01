@@ -48,6 +48,7 @@ impl PopupType {
         }
     }
 
+    #[cfg(feature = "ratatui")]
     fn text_input_field_mut(&mut self) -> &mut String {
         match self {
             PopupType::TextInput {
@@ -122,6 +123,7 @@ impl PopupData {
         self.title.clone()
     }
 
+    #[cfg(feature = "iced")]
     pub fn set_message<T: Into<String>>(&mut self, message: T) {
         match &mut self.popup {
             PopupType::TextInput {
@@ -150,6 +152,7 @@ impl PopupData {
         self.popup.text_input_field()
     }
 
+    #[cfg(feature = "ratatui")]
     pub(crate) fn get_text_mut(&mut self) -> &mut String {
         self.popup.text_input_field_mut()
     }

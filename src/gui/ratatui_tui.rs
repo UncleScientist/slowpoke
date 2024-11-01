@@ -38,7 +38,7 @@ use crate::{
     },
 };
 
-use super::{popup::PopupData, StampCount, TurtleGui};
+use super::{events::TurtleEvent, popup::PopupData, StampCount, TurtleGui};
 
 pub(crate) struct RatatuiFramework {
     tt: TurtleTask,
@@ -367,15 +367,20 @@ impl RatatuiFramework {
                     match event {
                         Event::Key(key) => match key.code {
                             KeyCode::Char(ch) => {
+                                // Ctrl-Q will exit the program no matter what
                                 if ch == 'q'
                                     && (key.modifiers & KeyModifiers::CONTROL)
                                         == KeyModifiers::CONTROL
                                 {
                                     break Ok(event);
                                 }
-                                for popup in self.tui.popups.values_mut() {
-                                    if popup.get_error().is_none() {
-                                        popup.get_text_mut().push(ch);
+                                if self.tui.popups.is_empty() {
+                                    self.tt.handle_event(None, None, &TurtleEvent::KeyPress(ch));
+                                } else {
+                                    for popup in self.tui.popups.values_mut() {
+                                        if popup.get_error().is_none() {
+                                            popup.get_text_mut().push(ch);
+                                        }
                                     }
                                 }
                             }
