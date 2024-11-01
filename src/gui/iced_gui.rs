@@ -329,6 +329,7 @@ struct IcedGuiInternal {
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
     popups: HashMap<WindowID, PopupData>,
+    title: String,
     wcmds: Vec<IcedCommand<Message>>,
     bgcolor: TurtleColor,
     resize_request: Option<(TurtleID, TurtleThread)>,
@@ -336,11 +337,7 @@ struct IcedGuiInternal {
 
 impl TurtleGui for IcedGuiInternal {
     fn set_title(&mut self, title: String) {
-        let popup = self
-            .popups
-            .get_mut(&WindowID::MAIN)
-            .expect("missing window");
-        popup.set_title(title);
+        self.title = title;
     }
 
     fn clearscreen(&mut self) {
@@ -518,7 +515,7 @@ impl Application for IcedGuiFramework {
             cache: Cache::default(),
             tt,
             clear_cache: true,
-            gui: IcedGuiInternal::new(WindowID::MAIN, PopupData::mainwin(&title)),
+            gui: IcedGuiInternal::new(title),
             winsize: (0., 0.),
             mouse_pos: (0., 0.),
             mouse_down: false,
@@ -528,11 +525,15 @@ impl Application for IcedGuiFramework {
     }
 
     fn title(&self, win_id: iced::window::Id) -> String {
-        self.gui
-            .popups
-            .get(&win_id)
-            .expect("lookup popup data")
-            .title()
+        if win_id == WindowID::MAIN {
+            self.gui.title.clone()
+        } else {
+            self.gui
+                .popups
+                .get(&win_id)
+                .expect("lookup popup data")
+                .title()
+        }
     }
 
     fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
@@ -775,9 +776,10 @@ impl IcedGuiFramework {
 }
 
 impl IcedGuiInternal {
-    fn new(window_id: WindowID, popup_data: PopupData) -> Self {
+    fn new(title: String) -> Self {
         let mut this = Self {
-            popups: HashMap::from([(window_id, popup_data)]),
+            popups: HashMap::new(),
+            title,
             bgcolor: TurtleColor::from("white"),
             ..Self::default()
         };
