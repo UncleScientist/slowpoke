@@ -20,7 +20,7 @@ impl Turtle {
     }
 }
 
-impl<'a> TurtleDotProps<'a> {
+impl TurtleDotProps<'_> {
     #[allow(clippy::cast_possible_truncation)]
     pub fn with_size<S: Into<f64>>(mut self, size: S) -> Self {
         self.width = Some(size.into() as f32);
@@ -33,7 +33,7 @@ impl<'a> TurtleDotProps<'a> {
     }
 }
 
-impl<'a> Drop for TurtleDotProps<'a> {
+impl Drop for TurtleDotProps<'_> {
     fn drop(&mut self) {
         self.turtle
             .do_draw(DrawRequest::InstantaneousDraw(InstantaneousDrawCmd::Dot(

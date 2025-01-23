@@ -21,7 +21,7 @@ impl Turtle {
     }
 }
 
-impl<'a> TurtleCircleProps<'a> {
+impl TurtleCircleProps<'_> {
     pub fn with_steps<S: Into<usize>>(mut self, steps: S) -> Self {
         self.steps = steps.into();
         self
@@ -33,7 +33,7 @@ impl<'a> TurtleCircleProps<'a> {
     }
 }
 
-impl<'a> Drop for TurtleCircleProps<'a> {
+impl Drop for TurtleCircleProps<'_> {
     #[allow(clippy::cast_possible_truncation)]
     fn drop(&mut self) {
         self.turtle
