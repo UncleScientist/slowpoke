@@ -6,12 +6,13 @@ fn main() {
         .with_title("a parallelogram")
         .run(|turtle| {
             println!("start: {:?}", turtle.pos());
+            turtle.bgcolor("grey");
             turtle.speed(6);
 
             turtle.begin_poly();
 
             turtle.pencolor((0.4, 0.8, 0.5));
-            turtle.fillcolor((1., 1., 0.));
+            turtle.fillcolor((1., 1., 0.0));
             turtle.begin_fill();
 
             turtle.right(30);

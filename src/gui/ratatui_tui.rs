@@ -129,15 +129,18 @@ impl IndividualTurtle {
                     tpos = [pos.x.clamp_to(), pos.y.clamp_to()];
                 }
                 DrawCommand::DrawPolygon(p) => {
-                    let lines = p.get_path();
-                    for line in lines {
-                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                            line.0.x.into(),
-                            line.0.y.into(),
-                            line.1.x.into(),
-                            line.1.y.into(),
-                            (&fillcolor).into(),
-                        )));
+                    let path = p.get_path();
+                    for triangle in path.as_slice().windows(3) {
+                        let lines = get_fill_lines(triangle);
+                        for line in lines {
+                            self.drawing.push(RatatuiDrawCmd::Line(Line::new(
+                                line.0.x.into(),
+                                line.0.y.into(),
+                                line.1.x.into(),
+                                line.1.y.into(),
+                                (&fillcolor).into(),
+                            )));
+                        }
                     }
                 }
                 DrawCommand::SetHeading(start, end) => {
@@ -160,19 +163,23 @@ impl IndividualTurtle {
                     let angle = Angle::degrees(*angle);
                     let pos = [pos.x, pos.y];
                     let transform = Transform2D::rotation(angle).then_translate(pos.into());
+                    let path = polygon.get_path();
 
-                    for pair in polygon.path.as_slice().windows(2) {
-                        let p1 = pair[0];
-                        let p2 = pair[1];
-                        let start = transform.transform_point(p1.into());
-                        let end = transform.transform_point(p2.into());
-                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                            start.x as f64,
-                            start.y as f64,
-                            end.x as f64,
-                            end.y as f64,
-                            (&pencolor).into(),
-                        )));
+                    for triangle in path.as_slice().windows(3) {
+                        let lines = get_fill_lines(&triangle);
+                        for pair in lines {
+                            let p1 = pair.0;
+                            let p2 = pair.1;
+                            let start = transform.transform_point(p1.into());
+                            let end = transform.transform_point(p2.into());
+                            self.drawing.push(RatatuiDrawCmd::Line(Line::new(
+                                start.x as f64,
+                                start.y as f64,
+                                end.x as f64,
+                                end.y as f64,
+                                (&pencolor).into(),
+                            )));
+                        }
                     }
                 }
                 DrawCommand::Circle(points) => {
@@ -784,4 +791,61 @@ impl PolygonPath {
 
         result
     }
+}
+
+/*
+ * This is a Rust interpretation of the triangle fill algorithm taken from
+ * Gabriel Gambetta: https://gabrielgambetta.com/computer-graphics-from-scratch/07-filled-triangles.html
+ */
+fn get_fill_lines(points: &[(Point<f32>, Point<f32>)]) -> Vec<(Point<f32>, Point<f32>)> {
+    let mut triangle = [points[0].0, points[1].0, points[2].0];
+    if triangle[1].y < triangle[0].y {
+        triangle.swap(0, 1);
+    }
+    if triangle[2].y < triangle[0].y {
+        triangle.swap(0, 2);
+    }
+    if triangle[2].y < triangle[1].y {
+        triangle.swap(2, 1);
+    }
+
+    let mut x01 = interpolate(triangle[0].y, triangle[0].x, triangle[1].y, triangle[1].x);
+    let x12 = interpolate(triangle[1].y, triangle[1].x, triangle[2].y, triangle[2].x);
+    let x02 = interpolate(triangle[0].y, triangle[0].x, triangle[2].y, triangle[2].x);
+    x01.pop();
+    x01.extend(x12);
+
+    let m = x01.len() / 2;
+    let (x_left, x_right) = if x02[m] < x01[m] {
+        (x02, x01)
+    } else {
+        (x01, x02)
+    };
+
+    let y0 = triangle[0].y as isize;
+
+    (0..x_left.len())
+        .map(|idx| {
+            (
+                Point::new(x_left[idx], (y0 + idx as isize) as f32),
+                Point::new(x_right[idx], (y0 + idx as isize) as f32),
+            )
+        })
+        .collect()
+}
+
+fn interpolate(i0: f32, d0: f32, i1: f32, d1: f32) -> Vec<f32> {
+    if i0 == i1 {
+        return vec![d0];
+    }
+    let mut values = Vec::new();
+    let a = (d1 - d0) / (i1 - i0);
+    let mut d = d0;
+    let mut i = i0;
+    while i <= i1 {
+        values.push(d);
+        d += a;
+        i += 1.;
+    }
+    values
 }
