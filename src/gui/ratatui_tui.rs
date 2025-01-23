@@ -288,6 +288,13 @@ struct RatatuiInternal {
     size: [f32; 2],
 }
 
+impl Drop for RatatuiInternal {
+    fn drop(&mut self) {
+        let mut stdout = std::io::stdout();
+        let _ = execute!(stdout, crossterm::event::PopKeyboardEnhancementFlags);
+    }
+}
+
 impl RatatuiInternal {
     fn new(flags: &TurtleFlags) -> Self {
         let mut stdout = std::io::stdout();
