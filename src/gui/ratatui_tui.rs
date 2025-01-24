@@ -166,12 +166,12 @@ impl IndividualTurtle {
                     let path = polygon.get_path();
 
                     for triangle in path.as_slice().windows(3) {
-                        let lines = get_fill_lines(&triangle);
+                        let lines = get_fill_lines(triangle);
                         for pair in lines {
                             let p1 = pair.0;
                             let p2 = pair.1;
-                            let start = transform.transform_point(p1.into());
-                            let end = transform.transform_point(p2.into());
+                            let start = transform.transform_point(p1);
+                            let end = transform.transform_point(p2);
                             self.drawing.push(RatatuiDrawCmd::Line(Line::new(
                                 start.x as f64,
                                 start.y as f64,
