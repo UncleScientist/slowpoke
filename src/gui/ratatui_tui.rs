@@ -6,7 +6,10 @@ use std::{
 };
 
 use clamp_to::{Clamp, ClampTo};
-use crossterm::{event::KeyboardEnhancementFlags, execute};
+use crossterm::{
+    event::{KeyboardEnhancementFlags, MouseEventKind},
+    execute,
+};
 use either::Either;
 use lyon_tessellation::{
     geom::{euclid::default::Transform2D, point, Angle, Point},
@@ -283,7 +286,11 @@ struct RatatuiInternal {
 impl Drop for RatatuiInternal {
     fn drop(&mut self) {
         let mut stdout = std::io::stdout();
-        let _ = execute!(stdout, crossterm::event::PopKeyboardEnhancementFlags);
+        let _ = execute!(
+            stdout,
+            crossterm::event::PopKeyboardEnhancementFlags,
+            crossterm::event::DisableMouseCapture
+        );
     }
 }
 
@@ -294,7 +301,8 @@ impl RatatuiInternal {
             stdout,
             crossterm::event::PushKeyboardEnhancementFlags(
                 KeyboardEnhancementFlags::REPORT_EVENT_TYPES
-            )
+            ),
+            crossterm::event::EnableMouseCapture,
         );
         let mut this = Self {
             terminal: RefCell::new(ratatui::init()),
@@ -401,9 +409,26 @@ impl RatatuiFramework {
                                 break Ok(event);
                             }
                         }
+                        Event::Mouse(me) => match me.kind {
+                            MouseEventKind::Down(_button) => {
+                                let size = crossterm::terminal::window_size().expect("size");
+                                let x = 2. * (me.column as f32) - size.columns as f32 / 2.;
+                                let y = 4. * (me.row as f32) - size.rows as f32 / 2.;
+
+                                println!("{} - {}", self.tui.size[1], me.row);
+                                let _ = self.tt.handle_event(
+                                    None,
+                                    None,
+                                    &TurtleEvent::MousePress(x, -y),
+                                );
+                            }
+                            MouseEventKind::Up(_button) => {}
+                            MouseEventKind::Drag(_button) => {}
+                            MouseEventKind::Moved => {}
+                            _ => {}
+                        },
                         Event::FocusGained
                         | Event::FocusLost
-                        | Event::Mouse(_)
                         | Event::Paste(_)
                         | Event::Resize(_, _) => {
                             // We "resize" the window by scaling the drawing to the current

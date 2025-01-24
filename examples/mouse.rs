@@ -6,8 +6,8 @@ fn main() {
         .with_title("a line")
         .run(|turtle| {
             turtle.onclick(draw_line_to);
-            turtle.ondrag(|_turtle, x, y| println!("drag: {x},{y}"));
-            turtle.onrelease(|_turtle, x, y| println!("release: {x},{y}"));
+            turtle.ondrag(|_turtle, _x, _y| {} /*println!("drag: {x},{y}")*/);
+            turtle.onrelease(|_turtle, _x, _y| {} /*println!("release: {x},{y}")*/);
         });
 }
 
