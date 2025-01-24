@@ -175,7 +175,7 @@ impl IndividualTurtle {
                     };
                     trot = rotation;
                 }
-                DrawCommand::DrawDot(center, radius, color) => {
+                DrawCommand::Dot(center, radius, color) => {
                     let center: Point = Point::new(center.x, center.y);
                     let circle = Path::circle(center, *radius);
                     self.drawing.push(IcedDrawCmd::Fill(circle, color.into()));

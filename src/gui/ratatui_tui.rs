@@ -151,7 +151,7 @@ impl IndividualTurtle {
                     };
                     trot = rotation;
                 }
-                DrawCommand::DrawDot(center, radius, color) => {
+                DrawCommand::Dot(center, radius, color) => {
                     self.drawing.push(RatatuiDrawCmd::Circle(Circle {
                         x: f64::from(center.x),
                         y: f64::from(center.y),

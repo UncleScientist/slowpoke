@@ -54,7 +54,7 @@ pub(crate) enum DrawCommand {
     SetPosition(ScreenPosition<i32>),
     DrawPolygon(PolygonPath),
     SetHeading(f32, f32),
-    DrawDot(Point2D<f32>, f32, TurtleColor), // center, radius, color
+    Dot(Point2D<f32>, f32, TurtleColor), // center, radius, color
     DrawPolyAt(PolygonPath, ScreenPosition<f32>, f32), // poly, pos, angle
     Circle(Vec<CirclePos>),
     Text(Point2D<f32>, String),
@@ -217,7 +217,7 @@ impl CurrentTurtleState {
                     } else {
                         *color
                     };
-                    return Some(DrawCommand::DrawDot(point, size, color));
+                    return Some(DrawCommand::Dot(point, size, color));
                 }
                 InstantaneousDrawCmd::Stamp => {
                     return Some(DrawCommand::StampTurtle);
