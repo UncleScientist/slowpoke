@@ -112,13 +112,11 @@ impl IndividualTurtle {
                         (tpos[0], tpos[1])
                     };
                     if l.pen_down {
-                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                            begin_x,
-                            begin_y,
-                            end_x,
-                            end_y,
+                        self.drawing.push(RatatuiDrawCmd::line(
+                            (begin_x, begin_y),
+                            (end_x, end_y),
                             (&pencolor).into(),
-                        )));
+                        ));
                     }
                 }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
@@ -133,13 +131,11 @@ impl IndividualTurtle {
                     for triangle in path.as_slice().windows(3) {
                         let lines = get_fill_lines(triangle);
                         for line in lines {
-                            self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                                line.0.x.into(),
-                                line.0.y.into(),
-                                line.1.x.into(),
-                                line.1.y.into(),
+                            self.drawing.push(RatatuiDrawCmd::line(
+                                (line.0.x.into(), line.0.y.into()),
+                                (line.1.x.into(), line.1.y.into()),
                                 (&fillcolor).into(),
-                            )));
+                            ));
                         }
                     }
                 }
@@ -152,12 +148,11 @@ impl IndividualTurtle {
                     trot = rotation;
                 }
                 DrawCommand::Dot(center, radius, color) => {
-                    self.drawing.push(RatatuiDrawCmd::Circle(Circle {
-                        x: f64::from(center.x),
-                        y: f64::from(center.y),
-                        radius: f64::from(*radius),
-                        color: color.into(),
-                    }));
+                    self.drawing.push(RatatuiDrawCmd::circle(
+                        (f64::from(center.x), f64::from(center.y)),
+                        f64::from(*radius),
+                        color.into(),
+                    ));
                 }
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let angle = Angle::degrees(*angle);
@@ -172,13 +167,11 @@ impl IndividualTurtle {
                             let p2 = pair.1;
                             let start = transform.transform_point(p1);
                             let end = transform.transform_point(p2);
-                            self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                                start.x as f64,
-                                start.y as f64,
-                                end.x as f64,
-                                end.y as f64,
+                            self.drawing.push(RatatuiDrawCmd::line(
+                                (start.x as f64, start.y as f64),
+                                (end.x as f64, end.y as f64),
                                 (&pencolor).into(),
-                            )));
+                            ));
                         }
                     }
                 }
@@ -191,22 +184,16 @@ impl IndividualTurtle {
                     tpos = [position[0] as f64, position[1] as f64];
                     trot = angle;
                     for line in line_list {
-                        self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                            line.0[0] as f64,
-                            line.0[1] as f64,
-                            line.1[0] as f64,
-                            line.1[1] as f64,
+                        self.drawing.push(RatatuiDrawCmd::line(
+                            (line.0[0] as f64, line.0[1] as f64),
+                            (line.1[0] as f64, line.1[1] as f64),
                             (&pencolor).into(),
-                        )));
+                        ));
                     }
                 }
                 DrawCommand::Text(pos, text) => {
-                    self.drawing.push(RatatuiDrawCmd::Text {
-                        x: pos.x,
-                        y: pos.y,
-                        text: text.to_string(),
-                        color: pencolor.into(),
-                    });
+                    self.drawing
+                        .push(RatatuiDrawCmd::text(pos, text, pencolor.into()));
                 }
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
@@ -232,13 +219,11 @@ impl IndividualTurtle {
                     let pencolor = pencolor.color_or(&poly.outline);
                     let _fillcolor = fillcolor.color_or(&poly.fill);
 
-                    self.drawing.push(RatatuiDrawCmd::Line(Line::new(
-                        start.x as f64,
-                        start.y as f64,
-                        end.x as f64,
-                        end.y as f64,
+                    self.drawing.push(RatatuiDrawCmd::line(
+                        (start.x as f64, start.y as f64),
+                        (end.x as f64, end.y as f64),
                         (&pencolor).into(),
-                    )));
+                    ));
                 }
             }
         }
@@ -354,6 +339,30 @@ enum RatatuiDrawCmd {
         text: String,
         color: Color,
     },
+}
+
+impl RatatuiDrawCmd {
+    fn line(start: (f64, f64), end: (f64, f64), color: Color) -> Self {
+        Self::Line(Line::new(start.0, -start.1, end.0, -end.1, color))
+    }
+
+    fn circle(center: (f64, f64), radius: f64, color: Color) -> Self {
+        Self::Circle(Circle {
+            x: center.0,
+            y: -center.1,
+            radius,
+            color,
+        })
+    }
+
+    fn text<S: ToString>(pos: &Point<f32>, text: S, color: Color) -> Self {
+        Self::Text {
+            x: pos.x,
+            y: -pos.y,
+            text: text.to_string(),
+            color,
+        }
+    }
 }
 
 impl RatatuiFramework {
