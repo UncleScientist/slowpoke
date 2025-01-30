@@ -454,7 +454,10 @@ impl RatatuiFramework {
                                     );
                                 }
                                 MouseEventKind::Moved => {}
-                                _ => {}
+                                _ => {
+                                    let _ =
+                                        self.tt.handle_event(None, None, &TurtleEvent::Unhandled);
+                                }
                             }
                         }
                         Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
