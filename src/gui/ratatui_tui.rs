@@ -446,7 +446,13 @@ impl RatatuiFramework {
                                         &TurtleEvent::MouseRelease(x, -y),
                                     );
                                 }
-                                MouseEventKind::Drag(_button) => {}
+                                MouseEventKind::Drag(_button) => {
+                                    let _ = self.tt.handle_event(
+                                        None,
+                                        None,
+                                        &TurtleEvent::MouseDrag(x, -y),
+                                    );
+                                }
                                 MouseEventKind::Moved => {}
                                 _ => {}
                             }

@@ -3,10 +3,10 @@ use slowpoke::{Slowpoke, Turtle};
 fn main() {
     Slowpoke::default()
         .with_size(400, 400)
-        .with_title("a line")
+        .with_title("mouse event testing")
         .run(|turtle| {
             turtle.onclick(draw_line_to);
-            turtle.ondrag(|_turtle, _x, _y| {} /*println!("drag: {x},{y}")*/);
+            turtle.ondrag(set_title);
             turtle.onrelease(change_bg_color);
         });
 }
@@ -24,4 +24,8 @@ fn change_bg_color(turtle: &mut Turtle, x: f32, y: f32) {
         size[0], size[1]
     ));
     turtle.bgcolor((red, blue, 0.5));
+}
+
+fn set_title(turtle: &mut Turtle, x: f32, y: f32) {
+    turtle.title(format!(" x= {x:.1}, y = {y:.1} "));
 }
