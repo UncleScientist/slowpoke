@@ -137,7 +137,8 @@ impl TurtleTask {
                     }
                 }
             }
-            TurtleEvent::MousePosition(_, _) => todo!(),
+            #[cfg(feature = "iced")]
+            TurtleEvent::MousePosition(_, _) => unreachable!(),
             TurtleEvent::MouseDrag(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
                     if let Some(func) = turtle.event.onmousedrag {
