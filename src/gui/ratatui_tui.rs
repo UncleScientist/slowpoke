@@ -391,12 +391,13 @@ impl RatatuiFramework {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
         loop {
-            {
+            let size = {
                 let mut term = self.tui.terminal.borrow_mut();
                 if let Err(e) = term.draw(|frame| self.draw(frame)) {
                     break Err(e);
                 }
-            }
+                term.size().expect("could not get screen size")
+            };
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
 
             match event::poll(timeout) {
@@ -411,11 +412,17 @@ impl RatatuiFramework {
                         }
                         Event::Mouse(me) => match me.kind {
                             MouseEventKind::Down(_button) => {
-                                let size = crossterm::terminal::window_size().expect("size");
-                                let x = 2. * (me.column as f32) - size.columns as f32 / 2.;
-                                let y = 4. * (me.row as f32) - size.rows as f32 / 2.;
+                                // actual display: self.tui.size[0] and [1]
+                                // mouse coordinates: me/size .row and .column
+                                //
+                                // coords = ((actual display) / (size coords)) * (mevent coords)
 
-                                println!("{} - {}", self.tui.size[1], me.row);
+                                let mouse_x = me.column as f32 - size.width as f32 / 2.;
+                                let mouse_y = me.row as f32 - size.height as f32 / 2.;
+
+                                let x = (self.tui.size[0] * mouse_x) / size.width as f32;
+                                let y = (self.tui.size[1] * mouse_y) / size.height as f32;
+
                                 let _ = self.tt.handle_event(
                                     None,
                                     None,
