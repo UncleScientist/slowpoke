@@ -281,6 +281,7 @@ struct RatatuiInternal {
     next_id: PopupID,
     bgcolor: Color,
     size: [f32; 2],
+    do_redraw: bool,
 }
 
 impl Drop for RatatuiInternal {
@@ -313,6 +314,7 @@ impl RatatuiInternal {
             next_id: PopupID::new(0),
             bgcolor: Color::White,
             size: flags.size,
+            do_redraw: false,
         };
         let _turtle = this.new_turtle();
         this
@@ -399,14 +401,23 @@ impl RatatuiFramework {
             &TurtleEvent::WindowResize(self.tui.size[0] as isize, self.tui.size[1] as isize),
         );
 
+        let mut size = self
+            .tui
+            .terminal
+            .borrow()
+            .size()
+            .expect("could not get screen size");
+        let mut needs_redraw = true;
         loop {
-            let size = {
+            if needs_redraw || self.tui.do_redraw {
                 let mut term = self.tui.terminal.borrow_mut();
                 if let Err(e) = term.draw(|frame| self.draw(frame)) {
                     break Err(e);
                 }
-                term.size().expect("could not get screen size")
-            };
+                size = term.size().expect("could not update screen size");
+                needs_redraw = false;
+                self.tui.do_redraw = false;
+            }
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
 
             match event::poll(timeout) {
@@ -420,6 +431,7 @@ impl RatatuiFramework {
                             }
                         }
                         Event::Mouse(me) => {
+                            needs_redraw = true;
                             // actual display: self.tui.size[0] and [1]
                             // mouse coordinates: me/size .row and .column
                             //
@@ -473,6 +485,7 @@ impl RatatuiFramework {
                                     self.tui.size[1] as isize,
                                 ),
                             );
+                            needs_redraw = true;
                         }
                     }
                 }
@@ -486,7 +499,7 @@ impl RatatuiFramework {
                 for (tid, turtle) in &mut self.tui.turtle {
                     let (pct, prog) = self.tt.progress(*tid);
                     if turtle.has_new_cmd {
-                        // done = false;
+                        needs_redraw = true;
                         turtle.convert(pct);
                         if prog.is_done(pct) {
                             turtle.has_new_cmd = false;
@@ -778,6 +791,7 @@ impl TurtleGui for RatatuiInternal {
 
     fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
         self.bgcolor = color.into();
+        self.do_redraw = true;
     }
 
     fn resize(
@@ -804,6 +818,7 @@ impl TurtleGui for RatatuiInternal {
 
     fn set_title(&mut self, title: String) {
         self.title = title;
+        self.do_redraw = true;
     }
 }
 //
