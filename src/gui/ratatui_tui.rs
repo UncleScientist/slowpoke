@@ -390,6 +390,15 @@ impl RatatuiFramework {
     fn run(&mut self) -> Result<Event, std::io::Error> {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
+
+        // ratatui/crossterm does not generate an initial resize event,
+        // so make a fake one here
+        let _ = self.tt.handle_event(
+            None,
+            None,
+            &TurtleEvent::WindowResize(self.tui.size[0] as isize, self.tui.size[1] as isize),
+        );
+
         loop {
             let size = {
                 let mut term = self.tui.terminal.borrow_mut();
@@ -410,37 +419,51 @@ impl RatatuiFramework {
                                 break Ok(event);
                             }
                         }
-                        Event::Mouse(me) => match me.kind {
-                            MouseEventKind::Down(_button) => {
-                                // actual display: self.tui.size[0] and [1]
-                                // mouse coordinates: me/size .row and .column
-                                //
-                                // coords = ((actual display) / (size coords)) * (mevent coords)
+                        Event::Mouse(me) => {
+                            // actual display: self.tui.size[0] and [1]
+                            // mouse coordinates: me/size .row and .column
+                            //
+                            // coords = ((actual display) / (size coords)) * (mevent coords)
 
-                                let mouse_x = me.column as f32 - size.width as f32 / 2.;
-                                let mouse_y = me.row as f32 - size.height as f32 / 2.;
+                            let mouse_x = me.column as f32 - size.width as f32 / 2.;
+                            let mouse_y = me.row as f32 - size.height as f32 / 2.;
 
-                                let x = (self.tui.size[0] * mouse_x) / size.width as f32;
-                                let y = (self.tui.size[1] * mouse_y) / size.height as f32;
+                            let x = (self.tui.size[0] * mouse_x) / size.width as f32;
+                            let y = (self.tui.size[1] * mouse_y) / size.height as f32;
 
-                                let _ = self.tt.handle_event(
-                                    None,
-                                    None,
-                                    &TurtleEvent::MousePress(x, -y),
-                                );
+                            match me.kind {
+                                MouseEventKind::Down(_button) => {
+                                    let _ = self.tt.handle_event(
+                                        None,
+                                        None,
+                                        &TurtleEvent::MousePress(x, -y),
+                                    );
+                                }
+                                MouseEventKind::Up(_button) => {
+                                    let _ = self.tt.handle_event(
+                                        None,
+                                        None,
+                                        &TurtleEvent::MouseRelease(x, -y),
+                                    );
+                                }
+                                MouseEventKind::Drag(_button) => {}
+                                MouseEventKind::Moved => {}
+                                _ => {}
                             }
-                            MouseEventKind::Up(_button) => {}
-                            MouseEventKind::Drag(_button) => {}
-                            MouseEventKind::Moved => {}
-                            _ => {}
-                        },
-                        Event::FocusGained
-                        | Event::FocusLost
-                        | Event::Paste(_)
-                        | Event::Resize(_, _) => {
+                        }
+                        Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
+                        Event::Resize(_columns, _rows) => {
                             // We "resize" the window by scaling the drawing to the current
                             // physical window size. So if the user changes the size of the
                             // window, we scale things up or down as appropriate.
+                            let _ = self.tt.handle_event(
+                                None,
+                                None,
+                                &TurtleEvent::WindowResize(
+                                    self.tui.size[0] as isize,
+                                    self.tui.size[1] as isize,
+                                ),
+                            );
                         }
                     }
                 }
