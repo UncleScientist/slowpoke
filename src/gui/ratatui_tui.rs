@@ -273,11 +273,10 @@ impl IndividualTurtle {
 }
 
 struct RatatuiInternal {
-    terminal: RefCell<Terminal<CrosstermBackend<Stdout>>>,
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
-    title: String,
     popups: HashMap<PopupID, PopupData>,
+    title: String,
     next_id: PopupID,
     bgcolor: Color,
     size: [f32; 2],
@@ -306,7 +305,6 @@ impl RatatuiInternal {
             crossterm::event::EnableMouseCapture,
         );
         let mut this = Self {
-            terminal: RefCell::new(ratatui::init()),
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
             title: format!(" {} ", flags.title),
@@ -392,6 +390,7 @@ impl RatatuiFramework {
     fn run(&mut self) -> Result<Event, std::io::Error> {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
+        let mut terminal = ratatui::init();
 
         // ratatui/crossterm does not generate an initial resize event,
         // so make a fake one here
@@ -401,20 +400,14 @@ impl RatatuiFramework {
             &TurtleEvent::WindowResize(self.tui.size[0] as isize, self.tui.size[1] as isize),
         );
 
-        let mut size = self
-            .tui
-            .terminal
-            .borrow()
-            .size()
-            .expect("could not get screen size");
         let mut needs_redraw = true;
         loop {
+            let size = terminal.size().expect("could not get screen size");
+
             if needs_redraw || self.tui.do_redraw {
-                let mut term = self.tui.terminal.borrow_mut();
-                if let Err(e) = term.draw(|frame| self.draw(frame)) {
+                if let Err(e) = terminal.draw(|frame| self.draw(frame)) {
                     break Err(e);
                 }
-                size = term.size().expect("could not update screen size");
                 needs_redraw = false;
                 self.tui.do_redraw = false;
             }
