@@ -1,7 +1,6 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::Stdout,
     time::{Duration, Instant},
 };
 
@@ -18,7 +17,6 @@ use lyon_tessellation::{
     FillOptions, FillTessellator, VertexBuffers,
 };
 use ratatui::{
-    backend::CrosstermBackend,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Position, Rect},
     style::{Color, Style},
@@ -28,7 +26,7 @@ use ratatui::{
         canvas::{Canvas, Circle, Context, Line, Painter},
         Block, Borders, Paragraph,
     },
-    Frame, Terminal,
+    Frame,
 };
 
 use crate::{
