@@ -30,6 +30,7 @@ use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 use super::{events::TurtleEvent, StampCount};
 use crate::generate::{CirclePos, LineInfo};
 use crate::polygon::PolygonPath;
+use crate::turtle::types::PopupID;
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
@@ -313,6 +314,7 @@ impl IndividualTurtle {
 }
 
 type IcedCommand<T> = iced::Command<T>;
+type IcedWinId = iced::window::Id;
 
 pub(crate) struct IcedGuiFramework {
     cache: Cache,
@@ -328,11 +330,13 @@ pub(crate) struct IcedGuiFramework {
 struct IcedGuiInternal {
     last_id: TurtleID,
     turtle: HashMap<TurtleID, IndividualTurtle>,
-    popups: HashMap<WindowID, PopupData>,
+    popups: HashMap<PopupID, PopupData>,
     title: String,
     wcmds: Vec<IcedCommand<Message>>,
     bgcolor: TurtleColor,
     resize_request: Option<(TurtleID, TurtleThread)>,
+    next_id: PopupID,
+    winid_to_popupid: HashMap<IcedWinId, PopupID>,
 }
 
 impl TurtleGui for IcedGuiInternal {
@@ -468,11 +472,15 @@ impl TurtleGui for IcedGuiInternal {
     }
 
     fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
-        self.generate_popup(PopupData::num_input(title, prompt, turtle, thread));
+        let popupdata = PopupData::num_input(title, prompt, turtle, thread);
+        let id = self.generate_popup(&popupdata);
+        self.popups.insert(id, popupdata);
     }
 
     fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
-        self.generate_popup(PopupData::text_input(title, prompt, turtle, thread));
+        let popupdata = PopupData::text_input(title, prompt, turtle, thread);
+        let id = self.generate_popup(&popupdata);
+        self.popups.insert(id, popupdata);
     }
 
     fn bgcolor(&mut self, color: TurtleColor) {
@@ -528,9 +536,10 @@ impl Application for IcedGuiFramework {
         if win_id == WindowID::MAIN {
             self.gui.title.clone()
         } else {
+            let popid = self.gui.winid_to_popupid.get(&win_id).unwrap();
             self.gui
                 .popups
-                .get(&win_id)
+                .get(popid)
                 .expect("lookup popup data")
                 .title()
         }
@@ -548,8 +557,13 @@ impl Application for IcedGuiFramework {
                     self.clear_cache = true;
                 }
             }
-            Message::AckError(id) => {
-                let popup = self.gui.popups.get_mut(&id).expect("looking up popup data");
+            Message::AckError(win_id) => {
+                let popid = self.gui.winid_to_popupid.get(&win_id).unwrap();
+                let popup = self
+                    .gui
+                    .popups
+                    .get_mut(popid)
+                    .expect("looking up popup data");
                 popup.clear_error();
             }
             Message::Event(event) => {
@@ -604,28 +618,31 @@ impl Application for IcedGuiFramework {
                 }
             }
             Message::TextInputChanged(id, msg) => {
-                let popup = self.gui.popups.get_mut(&id).expect("looking up popup data");
+                let id = self.gui.winid_to_popupid.get(&id).unwrap();
+                let popup = self.gui.popups.get_mut(id).expect("looking up popup data");
                 popup.set_message(&msg);
             }
-            Message::TextInputSubmit(id) => {
-                let mut popup = self.gui.popups.remove(&id).expect("looking up popup data");
+            Message::TextInputSubmit(win_id) => {
+                let id = self.gui.winid_to_popupid.get(&win_id).unwrap();
+                let mut popup = self.gui.popups.remove(id).expect("looking up popup data");
                 match popup.get_response() {
                     Ok(response) => {
                         let turtle = popup.turtle();
                         let thread = popup.thread();
                         self.tt.popup_result(turtle, thread, response);
-                        self.gui.wcmds.push(window::close(id));
+                        self.gui.wcmds.push(window::close(win_id));
                     }
                     Err(message) => {
                         popup.set_error(message);
-                        self.gui.popups.insert(id, popup);
+                        self.gui.popups.insert(*id, popup);
                     }
                 }
             }
-            Message::Cancel(id) => {
-                let popup = self.gui.popups.remove(&id).expect("looking up popup data");
+            Message::Cancel(winid) => {
+                let id = self.gui.winid_to_popupid.get(&winid).unwrap();
+                let popup = self.gui.popups.remove(id).expect("looking up popup data");
                 self.tt.popup_cancelled(popup.turtle(), popup.thread());
-                self.gui.wcmds.push(window::close(id));
+                self.gui.wcmds.push(window::close(winid));
             }
         }
         IcedCommand::batch(self.gui.wcmds.drain(..).collect::<Vec<_>>())
@@ -641,11 +658,8 @@ impl Application for IcedGuiFramework {
                 .height(Length::Fill)
                 .into()
         } else {
-            let popup = self
-                .gui
-                .popups
-                .get(&win_id)
-                .expect("looking up window data");
+            let id = self.gui.winid_to_popupid.get(&win_id).unwrap();
+            let popup = self.gui.popups.get(id).expect("looking up window data");
             if let Some(error) = popup.get_error() {
                 container(
                     column![
@@ -787,7 +801,7 @@ impl IcedGuiInternal {
         this
     }
 
-    fn generate_popup(&mut self, popupdata: PopupData) {
+    fn generate_popup(&mut self, _popupdatata: &PopupData) -> PopupID {
         let (id, wcmd) = window::spawn(window::Settings {
             size: [250f32, 150f32].into(),
             resizable: false,
@@ -795,7 +809,9 @@ impl IcedGuiInternal {
             ..window::Settings::default()
         });
         self.wcmds.push(wcmd);
-        self.popups.insert(id, popupdata);
+        let popup_id = self.next_id.get();
+        self.winid_to_popupid.insert(id, popup_id);
+        popup_id
     }
 }
 

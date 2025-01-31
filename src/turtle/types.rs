@@ -37,8 +37,6 @@ impl IDGenerator {
 
 gen_generator!(TurtleID);
 gen_generator!(TurtleThread);
-
-#[cfg(feature = "ratatui")]
 gen_generator!(PopupID);
 
 impl From<usize> for TurtleID {
