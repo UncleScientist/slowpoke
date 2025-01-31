@@ -1,3 +1,4 @@
+pub(crate) mod handler;
 pub(crate) mod task;
 pub(crate) mod types;
 

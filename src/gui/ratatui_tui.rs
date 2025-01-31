@@ -34,6 +34,7 @@ use crate::{
     generate::{CirclePos, DrawCommand},
     polygon::{PolygonPath, TurtleShape},
     turtle::{
+        handler::{Handler, Resize, SetBackgroundColor},
         task::TurtleTask,
         types::{PopupID, TurtleID},
         TurtleFlags,
@@ -44,7 +45,7 @@ use super::{events::TurtleEvent, popup::PopupData, StampCount, TurtleGui};
 
 pub(crate) struct RatatuiFramework {
     tt: TurtleTask,
-    tui: RatatuiInternal,
+    handler: Handler<IndividualTurtle, RatatuiInternal>,
 }
 
 #[derive(Default)]
@@ -271,10 +272,6 @@ impl IndividualTurtle {
 }
 
 struct RatatuiInternal {
-    last_id: TurtleID,
-    turtle: HashMap<TurtleID, IndividualTurtle>,
-    popups: HashMap<PopupID, PopupData>,
-    title: String,
     next_id: PopupID,
     bgcolor: Color,
     size: [f32; 2],
@@ -292,7 +289,10 @@ impl Drop for RatatuiInternal {
     }
 }
 
-impl RatatuiInternal {
+impl Resize for RatatuiInternal {}
+impl SetBackgroundColor for RatatuiInternal {}
+
+impl Handler<IndividualTurtle, RatatuiInternal> {
     fn new(flags: &TurtleFlags) -> Self {
         let mut stdout = std::io::stdout();
         let _ = execute!(
@@ -307,10 +307,12 @@ impl RatatuiInternal {
             turtle: HashMap::new(),
             title: format!(" {} ", flags.title),
             popups: HashMap::new(),
-            next_id: PopupID::new(0),
-            bgcolor: Color::White,
-            size: flags.size,
-            do_redraw: false,
+            internal: RatatuiInternal {
+                next_id: PopupID::new(0),
+                bgcolor: Color::White,
+                size: flags.size,
+                do_redraw: false,
+            },
         };
         let _turtle = this.new_turtle();
         this
@@ -330,7 +332,7 @@ impl RatatuiInternal {
     }
 
     fn generate_popup(&mut self, popupdata: PopupData) {
-        let id = self.next_id.get();
+        let id = self.internal.next_id.get();
         self.popups.insert(id, popupdata);
     }
 }
@@ -378,8 +380,8 @@ impl RatatuiFramework {
         let mut tt = TurtleTask::new(&mut flags);
         tt.run_turtle(func.unwrap());
 
-        let tui = RatatuiInternal::new(&flags);
-        let mut rata = Self { tt, tui };
+        let tui = Handler::<IndividualTurtle, RatatuiInternal>::new(&flags);
+        let mut rata = Self { tt, handler: tui };
         let _ = rata.run();
 
         ratatui::restore();
@@ -395,19 +397,22 @@ impl RatatuiFramework {
         let _ = self.tt.handle_event(
             None,
             None,
-            &TurtleEvent::WindowResize(self.tui.size[0] as isize, self.tui.size[1] as isize),
+            &TurtleEvent::WindowResize(
+                self.handler.internal.size[0] as isize,
+                self.handler.internal.size[1] as isize,
+            ),
         );
 
         let mut needs_redraw = true;
         loop {
             let size = terminal.size().expect("could not get screen size");
 
-            if needs_redraw || self.tui.do_redraw {
+            if needs_redraw || self.handler.internal.do_redraw {
                 if let Err(e) = terminal.draw(|frame| self.draw(frame)) {
                     break Err(e);
                 }
                 needs_redraw = false;
-                self.tui.do_redraw = false;
+                self.handler.internal.do_redraw = false;
             }
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
 
@@ -431,8 +436,8 @@ impl RatatuiFramework {
                             let mouse_x = me.column as f32 - size.width as f32 / 2.;
                             let mouse_y = me.row as f32 - size.height as f32 / 2.;
 
-                            let x = (self.tui.size[0] * mouse_x) / size.width as f32;
-                            let y = (self.tui.size[1] * mouse_y) / size.height as f32;
+                            let x = (self.handler.internal.size[0] * mouse_x) / size.width as f32;
+                            let y = (self.handler.internal.size[1] * mouse_y) / size.height as f32;
 
                             match me.kind {
                                 MouseEventKind::Down(_button) => {
@@ -472,8 +477,8 @@ impl RatatuiFramework {
                                 None,
                                 None,
                                 &TurtleEvent::WindowResize(
-                                    self.tui.size[0] as isize,
-                                    self.tui.size[1] as isize,
+                                    self.handler.internal.size[0] as isize,
+                                    self.handler.internal.size[1] as isize,
                                 ),
                             );
                             needs_redraw = true;
@@ -484,10 +489,10 @@ impl RatatuiFramework {
             }
 
             if last_tick.elapsed() >= tick_rate {
-                self.tt.tick(&mut self.tui);
+                self.tt.tick(&mut self.handler);
 
                 // let mut done = true;
-                for (tid, turtle) in &mut self.tui.turtle {
+                for (tid, turtle) in &mut self.handler.turtle {
                     let (pct, prog) = self.tt.progress(*tid);
                     if turtle.has_new_cmd {
                         needs_redraw = true;
@@ -509,7 +514,7 @@ impl RatatuiFramework {
                 if ch == 'q' && (key.modifiers & KeyModifiers::CONTROL) == KeyModifiers::CONTROL {
                     return true;
                 }
-                if self.tui.popups.is_empty() {
+                if self.handler.popups.is_empty() {
                     let e = if matches!(key.kind, KeyEventKind::Press) {
                         TurtleEvent::KeyPress(ch)
                     } else {
@@ -518,7 +523,7 @@ impl RatatuiFramework {
                     };
                     self.tt.handle_event(None, None, &e);
                 } else {
-                    for popup in self.tui.popups.values_mut() {
+                    for popup in self.handler.popups.values_mut() {
                         if popup.get_error().is_none() {
                             popup.get_text_mut().push(ch);
                         }
@@ -526,18 +531,18 @@ impl RatatuiFramework {
                 }
             }
             KeyCode::Backspace => {
-                for popup in self.tui.popups.values_mut() {
+                for popup in self.handler.popups.values_mut() {
                     popup.get_text_mut().pop();
                 }
             }
             KeyCode::Esc => {
-                for (_, popup) in self.tui.popups.drain() {
+                for (_, popup) in self.handler.popups.drain() {
                     self.tt.popup_cancelled(popup.turtle(), popup.thread());
                 }
             }
             KeyCode::Enter => {
                 let mut new_popups = HashMap::new();
-                for (key, mut popup) in self.tui.popups.drain() {
+                for (key, mut popup) in self.handler.popups.drain() {
                     // Is there an error state we need to deal with?
                     if popup.get_error().is_some() {
                         popup.clear_error();
@@ -556,7 +561,7 @@ impl RatatuiFramework {
                         }
                     }
                 }
-                self.tui.popups = new_popups;
+                self.handler.popups = new_popups;
             }
             _ => return true,
         }
@@ -565,19 +570,19 @@ impl RatatuiFramework {
 
     fn draw(&self, frame: &mut Frame) {
         let text_list_cmds = RefCell::new(Vec::new()); // TODO: can we do this without a RefCell?
-        let width = self.tui.size[0];
-        let height = self.tui.size[1];
+        let width = self.handler.internal.size[0];
+        let height = self.handler.internal.size[1];
 
         let x_bounds = [-(width / 2.) as f64, (width / 2.) as f64];
         let y_bounds = [-(height / 2.) as f64, (height / 2.) as f64];
 
         let area = frame.area();
         let widget = Canvas::default()
-            .background_color(self.tui.bgcolor)
-            .block(Block::bordered().title(self.tui.title.clone()))
+            .background_color(self.handler.internal.bgcolor)
+            .block(Block::bordered().title(self.handler.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
-                for turtle in self.tui.turtle.values() {
+                for turtle in self.handler.turtle.values() {
                     let text_list = turtle.draw(ctx);
                     text_list_cmds.borrow_mut().extend(text_list);
                 }
@@ -596,7 +601,7 @@ impl RatatuiFramework {
             frame.render_widget(block, text_rect);
         }
 
-        for popup in self.tui.popups.values() {
+        for popup in self.handler.popups.values() {
             // /- TITLE -------------\
             // | <prompt>            |
             // | [<input-text>      ]|
@@ -645,7 +650,7 @@ impl RatatuiFramework {
     }
 }
 
-impl TurtleGui for RatatuiInternal {
+impl TurtleGui for Handler<IndividualTurtle, RatatuiInternal> {
     fn new_turtle(&mut self) -> TurtleID {
         let id = self.last_id.get();
 
@@ -781,8 +786,8 @@ impl TurtleGui for RatatuiInternal {
     }
 
     fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
-        self.bgcolor = color.into();
-        self.do_redraw = true;
+        self.internal.bgcolor = color.into();
+        self.internal.do_redraw = true;
     }
 
     fn resize(
@@ -792,7 +797,7 @@ impl TurtleGui for RatatuiInternal {
         width: isize,
         height: isize,
     ) {
-        self.size = [width as f32, height as f32];
+        self.internal.size = [width as f32, height as f32];
     }
 
     fn set_visible(&mut self, _turtle: TurtleID, _visible: bool) {
@@ -809,7 +814,7 @@ impl TurtleGui for RatatuiInternal {
 
     fn set_title(&mut self, title: String) {
         self.title = title;
-        self.do_redraw = true;
+        self.internal.do_redraw = true;
     }
 }
 //
