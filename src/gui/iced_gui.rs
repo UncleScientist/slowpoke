@@ -24,25 +24,22 @@ use iced::{
 use iced::keyboard::{Event::KeyPressed, Event::KeyReleased, Key};
 use iced::window::Event::Resized;
 
-use either::Either;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
-use super::{events::TurtleEvent, StampCount};
+use super::events::TurtleEvent;
 use crate::generate::{CirclePos, LineInfo};
 use crate::polygon::PolygonPath;
-use crate::turtle::handler::{GeneratePopup, Handler, Resize, SetBackgroundColor};
+use crate::turtle::handler::{Handler, IndividualTurtle, TurtleUI};
 use crate::turtle::types::PopupID;
 use crate::{
     color_names::TurtleColor,
     generate::DrawCommand,
     gui::{popup::PopupData, TurtleGui},
-    polygon::TurtleShape,
     turtle::{
         task::{EventResult, TurtleTask},
         types::{TurtleID, TurtleThread},
         TurtleFlags,
     },
-    ScreenPosition,
 };
 
 #[derive(Debug, Clone)]
@@ -62,7 +59,12 @@ pub(crate) enum IcedDrawCmd {
     Text(Point, String),
 }
 
-impl IndividualTurtle {
+#[derive(Default)]
+struct IcedUI {
+    drawing: Vec<IcedDrawCmd>,
+}
+
+impl IcedUI {
     fn draw(&self, frame: &mut Frame) {
         for draw_iced_cmd in &self.drawing {
             match draw_iced_cmd {
@@ -100,7 +102,7 @@ impl IndividualTurtle {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn convert(&mut self, pct: f32) {
+    fn convert(&mut self, pct: f32, cmds: &[DrawCommand], turtle: &IndividualTurtle<IcedUI>) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Path {
             Path::new(|b| {
                 b.move_to(path[0].1);
@@ -124,7 +126,7 @@ impl IndividualTurtle {
 
         self.drawing.clear();
 
-        let mut iter = self.cmds.iter().peekable();
+        let mut iter = cmds.iter().peekable();
         let mut cur_path: Vec<(bool, Point)> = Vec::new();
 
         while let Some(element) = iter.next() {
@@ -217,9 +219,9 @@ impl IndividualTurtle {
             ));
         }
 
-        if !self.hide_turtle {
+        if !turtle.hide_turtle {
             for (path, fillcolor, pencolor) in
-                self.calculate_turtle(tpos, trot, (&fillcolor).into(), (&pencolor).into())
+                self.calculate_turtle(tpos, trot, (&fillcolor).into(), (&pencolor).into(), turtle)
             {
                 self.drawing
                     .push(IcedDrawCmd::Fill(path.clone(), (&fillcolor).into()));
@@ -235,12 +237,13 @@ impl IndividualTurtle {
         trot: f32,
         fillcolor: TurtleColor,
         pencolor: TurtleColor,
+        turtle: &IndividualTurtle<IcedUI>,
     ) -> Vec<(Path, TurtleColor, TurtleColor)> {
         let angle = Angle::degrees(trot);
         let transform = Transform2D::rotation(angle).then_translate(tpos.into());
         let mut result = Vec::new();
 
-        for poly in &self.turtle_shape.poly {
+        for poly in &turtle.turtle_shape.poly {
             let path = poly.polygon.get_path();
             let path = path.transform(&transform);
 
@@ -308,10 +311,7 @@ impl IndividualTurtle {
 type IcedCommand<T> = iced::Command<T>;
 type IcedWinId = iced::window::Id;
 
-impl Resize for IcedGuiInternal {}
-impl SetBackgroundColor for IcedGuiInternal {}
-
-impl GeneratePopup for IcedGuiInternal {
+impl TurtleUI for IcedGuiInternal {
     fn generate_popup(&mut self, _popupdatata: &PopupData) -> PopupID {
         let (id, wcmd) = window::spawn(window::Settings {
             size: [250f32, 150f32].into(),
@@ -324,12 +324,23 @@ impl GeneratePopup for IcedGuiInternal {
         self.winid_to_popupid.insert(id, popup_id);
         popup_id
     }
+
+    fn resize(&mut self, width: isize, height: isize) {
+        let new_size = Size::new(width as f32, height as f32);
+        self.wcmds
+            .push(window::resize::<Message>(window::Id::MAIN, new_size));
+        // self.resize_request = Some((turtle, thread)); TODO
+    }
+
+    fn set_bg_color(&mut self, bgcolor: TurtleColor) {
+        self.bgcolor = bgcolor;
+    }
 }
 
 pub(crate) struct IcedGuiFramework {
     cache: Cache,
     tt: TurtleTask,
-    handler: Handler<IndividualTurtle, IcedGuiInternal>,
+    handler: Handler<IcedUI, IcedGuiInternal>,
     clear_cache: bool,
     winsize: (f32, f32),   // width, height
     mouse_pos: (f32, f32), // x, y
@@ -362,7 +373,7 @@ impl Application for IcedGuiFramework {
             cache: Cache::default(),
             tt,
             clear_cache: true,
-            handler: Handler::<IndividualTurtle, IcedGuiInternal>::new(title),
+            handler: Handler::<IcedUI, IcedGuiInternal>::new(title),
             winsize: (0., 0.),
             mouse_pos: (0., 0.),
             mouse_down: false,
@@ -375,7 +386,7 @@ impl Application for IcedGuiFramework {
         if win_id == WindowID::MAIN {
             self.handler.title.clone()
         } else {
-            let popid = self.handler.internal.winid_to_popupid.get(&win_id).unwrap();
+            let popid = self.handler.screen.winid_to_popupid.get(&win_id).unwrap();
             self.handler
                 .popups
                 .get(popid)
@@ -397,7 +408,7 @@ impl Application for IcedGuiFramework {
                 }
             }
             Message::AckError(win_id) => {
-                let popid = self.handler.internal.winid_to_popupid.get(&win_id).unwrap();
+                let popid = self.handler.screen.winid_to_popupid.get(&win_id).unwrap();
                 let popup = self
                     .handler
                     .popups
@@ -410,12 +421,12 @@ impl Application for IcedGuiFramework {
                 match &turtle_event {
                     TurtleEvent::WindowResize(x, y) => {
                         self.winsize = (*x as f32, *y as f32);
-                        if self.handler.internal.resize_request.is_none() {
+                        if self.handler.screen.resize_request.is_none() {
                             self.tt.handle_event(None, None, &turtle_event);
                         } else {
                             let (turtle, thread) = self
                                 .handler
-                                .internal
+                                .screen
                                 .resize_request
                                 .expect("missing resize data");
                             self.tt
@@ -460,7 +471,7 @@ impl Application for IcedGuiFramework {
                 }
             }
             Message::TextInputChanged(id, msg) => {
-                let id = self.handler.internal.winid_to_popupid.get(&id).unwrap();
+                let id = self.handler.screen.winid_to_popupid.get(&id).unwrap();
                 let popup = self
                     .handler
                     .popups
@@ -469,7 +480,7 @@ impl Application for IcedGuiFramework {
                 popup.set_message(&msg);
             }
             Message::TextInputSubmit(win_id) => {
-                let id = self.handler.internal.winid_to_popupid.get(&win_id).unwrap();
+                let id = self.handler.screen.winid_to_popupid.get(&win_id).unwrap();
                 let mut popup = self
                     .handler
                     .popups
@@ -480,7 +491,7 @@ impl Application for IcedGuiFramework {
                         let turtle = popup.turtle();
                         let thread = popup.thread();
                         self.tt.popup_result(turtle, thread, response);
-                        self.handler.internal.wcmds.push(window::close(win_id));
+                        self.handler.screen.wcmds.push(window::close(win_id));
                     }
                     Err(message) => {
                         popup.set_error(message);
@@ -489,17 +500,17 @@ impl Application for IcedGuiFramework {
                 }
             }
             Message::Cancel(winid) => {
-                let id = self.handler.internal.winid_to_popupid.get(&winid).unwrap();
+                let id = self.handler.screen.winid_to_popupid.get(&winid).unwrap();
                 let popup = self
                     .handler
                     .popups
                     .remove(id)
                     .expect("looking up popup data");
                 self.tt.popup_cancelled(popup.turtle(), popup.thread());
-                self.handler.internal.wcmds.push(window::close(winid));
+                self.handler.screen.wcmds.push(window::close(winid));
             }
         }
-        IcedCommand::batch(self.handler.internal.wcmds.drain(..).collect::<Vec<_>>())
+        IcedCommand::batch(self.handler.screen.wcmds.drain(..).collect::<Vec<_>>())
     }
 
     fn view(
@@ -512,7 +523,7 @@ impl Application for IcedGuiFramework {
                 .height(Length::Fill)
                 .into()
         } else {
-            let id = self.handler.internal.winid_to_popupid.get(&win_id).unwrap();
+            let id = self.handler.screen.winid_to_popupid.get(&win_id).unwrap();
             let popup = self.handler.popups.get(id).expect("looking up window data");
             if let Some(error) = popup.get_error() {
                 container(
@@ -591,13 +602,14 @@ impl<Message> canvas::Program<Message> for IcedGuiFramework {
                 [0., 0.].into(),
                 bounds.size(),
                 Fill {
-                    style: stroke::Style::Solid((&self.handler.internal.bgcolor).into()),
+                    style: stroke::Style::Solid((&self.handler.screen.bgcolor).into()),
                     rule: Rule::NonZero,
                 },
             );
             frame.translate([center.x, center.y].into());
             for turtle in self.handler.turtle.values() {
-                turtle.draw(frame);
+                let ui = turtle.ui.borrow();
+                ui.draw(frame);
             }
         });
         vec![geometry]
@@ -628,7 +640,8 @@ impl IcedGuiFramework {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
                 done = false;
-                turtle.convert(pct);
+                let mut ui = turtle.ui.borrow_mut();
+                ui.convert(pct, &turtle.cmds, turtle);
                 if prog.is_done(pct) {
                     turtle.has_new_cmd = false;
                 }
@@ -643,14 +656,14 @@ impl IcedGuiFramework {
     }
 }
 
-impl Handler<IndividualTurtle, IcedGuiInternal> {
+impl Handler<IcedUI, IcedGuiInternal> {
     fn new(title: String) -> Self {
         let mut this = Self {
             last_id: TurtleID::default(),
             turtle: HashMap::new(),
             title: format!(" {} ", title),
             popups: HashMap::new(),
-            internal: IcedGuiInternal {
+            screen: IcedGuiInternal {
                 bgcolor: TurtleColor::from("white"),
                 next_id: PopupID::new(0),
                 ..IcedGuiInternal::default()

@@ -278,6 +278,7 @@ impl Drop for RatatuiInternal {
             crossterm::event::PopKeyboardEnhancementFlags,
             crossterm::event::DisableMouseCapture
         );
+        ratatui::restore();
     }
 }
 
