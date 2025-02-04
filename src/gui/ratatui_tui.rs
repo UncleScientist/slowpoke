@@ -34,9 +34,9 @@ use crate::{
     generate::{CirclePos, DrawCommand},
     polygon::{PolygonPath, TurtleShape},
     turtle::{
-        handler::{Handler, Resize, SetBackgroundColor},
+        handler::{GeneratePopup, Handler, Resize, SetBackgroundColor},
         task::TurtleTask,
-        types::{PopupID, TurtleID},
+        types::{PopupID, TurtleID, TurtleThread},
         TurtleFlags,
     },
 };
@@ -329,11 +329,6 @@ impl Handler<IndividualTurtle, RatatuiInternal> {
             },
         );
         id
-    }
-
-    fn generate_popup(&mut self, popupdata: PopupData) {
-        let id = self.internal.next_id.get();
-        self.popups.insert(id, popupdata);
     }
 }
 
@@ -650,6 +645,12 @@ impl RatatuiFramework {
     }
 }
 
+impl GeneratePopup for RatatuiInternal {
+    fn generate_popup(&mut self, _popupdata: &PopupData) -> PopupID {
+        self.next_id.get()
+    }
+}
+
 impl TurtleGui for Handler<IndividualTurtle, RatatuiInternal> {
     fn new_turtle(&mut self) -> TurtleID {
         let id = self.last_id.get();
@@ -765,24 +766,16 @@ impl TurtleGui for Handler<IndividualTurtle, RatatuiInternal> {
         todo!()
     }
 
-    fn numinput(
-        &mut self,
-        turtle: TurtleID,
-        thread: crate::turtle::types::TurtleThread,
-        title: &str,
-        prompt: &str,
-    ) {
-        self.generate_popup(PopupData::num_input(title, prompt, turtle, thread));
+    fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
+        let popupdata = PopupData::num_input(title, prompt, turtle, thread);
+        let id = self.internal.generate_popup(&popupdata);
+        self.popups.insert(id, popupdata);
     }
 
-    fn textinput(
-        &mut self,
-        turtle: TurtleID,
-        thread: crate::turtle::types::TurtleThread,
-        title: &str,
-        prompt: &str,
-    ) {
-        self.generate_popup(PopupData::text_input(title, prompt, turtle, thread));
+    fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
+        let popupdata = PopupData::text_input(title, prompt, turtle, thread);
+        let id = self.internal.generate_popup(&popupdata);
+        self.popups.insert(id, popupdata);
     }
 
     fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
@@ -790,13 +783,7 @@ impl TurtleGui for Handler<IndividualTurtle, RatatuiInternal> {
         self.internal.do_redraw = true;
     }
 
-    fn resize(
-        &mut self,
-        _turtle: TurtleID,
-        _thread: crate::turtle::types::TurtleThread,
-        width: isize,
-        height: isize,
-    ) {
+    fn resize(&mut self, _turtle: TurtleID, _thread: TurtleThread, width: isize, height: isize) {
         self.internal.size = [width as f32, height as f32];
     }
 
