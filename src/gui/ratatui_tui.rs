@@ -9,7 +9,7 @@ use crossterm::{
     event::{KeyboardEnhancementFlags, MouseEventKind},
     execute,
 };
-use either::Either;
+
 use lyon_tessellation::{
     geom::{euclid::default::Transform2D, point, Angle, Point},
     geometry_builder::simple_builder,
@@ -32,29 +32,20 @@ use ratatui::{
 use crate::{
     color_names::TurtleColor,
     generate::{CirclePos, DrawCommand},
-    polygon::{PolygonPath, TurtleShape},
+    polygon::PolygonPath,
     turtle::{
-        handler::{GeneratePopup, Handler, Resize, SetBackgroundColor},
+        handler::{Handler, IndividualTurtle, TurtleUI},
         task::TurtleTask,
-        types::{PopupID, TurtleID, TurtleThread},
+        types::{PopupID, TurtleID},
         TurtleFlags,
     },
 };
 
-use super::{events::TurtleEvent, popup::PopupData, StampCount, TurtleGui};
+use super::{events::TurtleEvent, popup::PopupData, TurtleGui};
 
 pub(crate) struct RatatuiFramework {
     tt: TurtleTask,
-    handler: Handler<IndividualTurtle, RatatuiInternal>,
-}
-
-#[derive(Default)]
-struct IndividualTurtle {
-    cmds: Vec<DrawCommand>,
-    drawing: Vec<RatatuiDrawCmd>,
-    has_new_cmd: bool,
-    turtle_shape: TurtleShape,
-    hide_turtle: bool,
+    handler: Handler<RatatuiUI, RatatuiInternal>,
 }
 
 struct CircleDrawData {
@@ -63,8 +54,8 @@ struct CircleDrawData {
     angle: f32,
 }
 
-impl IndividualTurtle {
-    fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, &String, &Color)> {
+impl RatatuiUI {
+    fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, String, Color)> {
         let mut text_draw_cmds = Vec::new();
         for cmd in &self.drawing {
             match cmd {
@@ -76,7 +67,7 @@ impl IndividualTurtle {
                         // x/2 & y/4 because that's the size of the Marker::Braille dots
                         let x = x.clamp_to_f32() / 2.;
                         let y = y.clamp_to_f32() / 4.;
-                        text_draw_cmds.push((x, y, text, color));
+                        text_draw_cmds.push((x, y, text.clone(), *color));
                     }
                 }
             }
@@ -84,7 +75,7 @@ impl IndividualTurtle {
         text_draw_cmds
     }
 
-    fn convert(&mut self, pct: f32) {
+    fn convert(&mut self, pct: f32, cmds: &[DrawCommand], turtle: &IndividualTurtle<RatatuiUI>) {
         let mut _penwidth = 1f32;
         let pct = f64::from(pct);
 
@@ -92,7 +83,7 @@ impl IndividualTurtle {
         let mut fillcolor = TurtleColor::default();
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
-        let mut iter = self.cmds.iter().peekable();
+        let mut iter = cmds.iter().peekable();
 
         self.drawing.clear();
 
@@ -207,11 +198,11 @@ impl IndividualTurtle {
             }
         }
 
-        if !self.hide_turtle {
+        if !turtle.hide_turtle {
             let angle = Angle::degrees(trot);
             let tpos = [tpos[0] as f32, tpos[1] as f32];
             let transform = Transform2D::rotation(angle).then_translate(tpos.into());
-            for poly in &self.turtle_shape.poly {
+            for poly in &turtle.turtle_shape.poly {
                 for pair in poly.polygon.path.as_slice().windows(2) {
                     let p1 = pair[0];
                     let p2 = pair[1];
@@ -271,6 +262,7 @@ impl IndividualTurtle {
     }
 }
 
+#[derive(Default)]
 struct RatatuiInternal {
     next_id: PopupID,
     bgcolor: Color,
@@ -289,10 +281,12 @@ impl Drop for RatatuiInternal {
     }
 }
 
-impl Resize for RatatuiInternal {}
-impl SetBackgroundColor for RatatuiInternal {}
+#[derive(Default)]
+struct RatatuiUI {
+    drawing: Vec<RatatuiDrawCmd>,
+}
 
-impl Handler<IndividualTurtle, RatatuiInternal> {
+impl Handler<RatatuiUI, RatatuiInternal> {
     fn new(flags: &TurtleFlags) -> Self {
         let mut stdout = std::io::stdout();
         let _ = execute!(
@@ -307,7 +301,7 @@ impl Handler<IndividualTurtle, RatatuiInternal> {
             turtle: HashMap::new(),
             title: format!(" {} ", flags.title),
             popups: HashMap::new(),
-            internal: RatatuiInternal {
+            screen: RatatuiInternal {
                 next_id: PopupID::new(0),
                 bgcolor: Color::White,
                 size: flags.size,
@@ -316,19 +310,6 @@ impl Handler<IndividualTurtle, RatatuiInternal> {
         };
         let _turtle = this.new_turtle();
         this
-    }
-
-    fn new_turtle(&mut self) -> TurtleID {
-        let id = self.last_id.get();
-
-        self.turtle.insert(
-            id,
-            IndividualTurtle {
-                has_new_cmd: true,
-                ..Default::default()
-            },
-        );
-        id
     }
 }
 
@@ -375,11 +356,9 @@ impl RatatuiFramework {
         let mut tt = TurtleTask::new(&mut flags);
         tt.run_turtle(func.unwrap());
 
-        let tui = Handler::<IndividualTurtle, RatatuiInternal>::new(&flags);
+        let tui = Handler::<RatatuiUI, RatatuiInternal>::new(&flags);
         let mut rata = Self { tt, handler: tui };
         let _ = rata.run();
-
-        ratatui::restore();
     }
 
     fn run(&mut self) -> Result<Event, std::io::Error> {
@@ -393,8 +372,8 @@ impl RatatuiFramework {
             None,
             None,
             &TurtleEvent::WindowResize(
-                self.handler.internal.size[0] as isize,
-                self.handler.internal.size[1] as isize,
+                self.handler.screen.size[0] as isize,
+                self.handler.screen.size[1] as isize,
             ),
         );
 
@@ -402,12 +381,12 @@ impl RatatuiFramework {
         loop {
             let size = terminal.size().expect("could not get screen size");
 
-            if needs_redraw || self.handler.internal.do_redraw {
+            if needs_redraw || self.handler.screen.do_redraw {
                 if let Err(e) = terminal.draw(|frame| self.draw(frame)) {
                     break Err(e);
                 }
                 needs_redraw = false;
-                self.handler.internal.do_redraw = false;
+                self.handler.screen.do_redraw = false;
             }
             let timeout = tick_rate.saturating_sub(last_tick.elapsed());
 
@@ -431,8 +410,8 @@ impl RatatuiFramework {
                             let mouse_x = me.column as f32 - size.width as f32 / 2.;
                             let mouse_y = me.row as f32 - size.height as f32 / 2.;
 
-                            let x = (self.handler.internal.size[0] * mouse_x) / size.width as f32;
-                            let y = (self.handler.internal.size[1] * mouse_y) / size.height as f32;
+                            let x = (self.handler.screen.size[0] * mouse_x) / size.width as f32;
+                            let y = (self.handler.screen.size[1] * mouse_y) / size.height as f32;
 
                             match me.kind {
                                 MouseEventKind::Down(_button) => {
@@ -472,8 +451,8 @@ impl RatatuiFramework {
                                 None,
                                 None,
                                 &TurtleEvent::WindowResize(
-                                    self.handler.internal.size[0] as isize,
-                                    self.handler.internal.size[1] as isize,
+                                    self.handler.screen.size[0] as isize,
+                                    self.handler.screen.size[1] as isize,
                                 ),
                             );
                             needs_redraw = true;
@@ -491,7 +470,8 @@ impl RatatuiFramework {
                     let (pct, prog) = self.tt.progress(*tid);
                     if turtle.has_new_cmd {
                         needs_redraw = true;
-                        turtle.convert(pct);
+                        let mut ui = turtle.ui.borrow_mut();
+                        ui.convert(pct, &turtle.cmds, turtle);
                         if prog.is_done(pct) {
                             turtle.has_new_cmd = false;
                         }
@@ -565,20 +545,21 @@ impl RatatuiFramework {
 
     fn draw(&self, frame: &mut Frame) {
         let text_list_cmds = RefCell::new(Vec::new()); // TODO: can we do this without a RefCell?
-        let width = self.handler.internal.size[0];
-        let height = self.handler.internal.size[1];
+        let width = self.handler.screen.size[0];
+        let height = self.handler.screen.size[1];
 
         let x_bounds = [-(width / 2.) as f64, (width / 2.) as f64];
         let y_bounds = [-(height / 2.) as f64, (height / 2.) as f64];
 
         let area = frame.area();
         let widget = Canvas::default()
-            .background_color(self.handler.internal.bgcolor)
+            .background_color(self.handler.screen.bgcolor)
             .block(Block::bordered().title(self.handler.title.clone()))
             .marker(Marker::Braille)
             .paint(|ctx| {
                 for turtle in self.handler.turtle.values() {
-                    let text_list = turtle.draw(ctx);
+                    let ui = turtle.ui.borrow();
+                    let text_list = ui.draw(ctx);
                     text_list_cmds.borrow_mut().extend(text_list);
                 }
             })
@@ -587,11 +568,11 @@ impl RatatuiFramework {
 
         frame.render_widget(widget, area);
 
-        for (x, y, sref, &cref) in text_list_cmds.borrow().iter() {
+        for (x, y, sref, cref) in text_list_cmds.borrow().iter() {
             let block = Block::new()
                 .borders(Borders::NONE)
                 .title((*sref).clone())
-                .style(Style::new().fg(cref));
+                .style(Style::new().fg(*cref));
             let text_rect = Rect::new(*x as u16, *y as u16, sref.len() as u16, 1);
             frame.render_widget(block, text_rect);
         }
@@ -645,165 +626,21 @@ impl RatatuiFramework {
     }
 }
 
-impl GeneratePopup for RatatuiInternal {
+impl TurtleUI for RatatuiInternal {
     fn generate_popup(&mut self, _popupdata: &PopupData) -> PopupID {
         self.next_id.get()
     }
-}
 
-impl TurtleGui for Handler<IndividualTurtle, RatatuiInternal> {
-    fn new_turtle(&mut self) -> TurtleID {
-        let id = self.last_id.get();
-
-        self.turtle.insert(
-            id,
-            IndividualTurtle {
-                has_new_cmd: true,
-                ..Default::default()
-            },
-        );
-        id
+    fn resize(&mut self, width: isize, height: isize) {
+        self.size = [width as f32, height as f32];
     }
 
-    fn shut_down(&mut self) {
-        ratatui::restore();
-        std::process::exit(0);
-    }
-
-    fn clear_turtle(&mut self, _turtle: TurtleID) {
-        todo!()
-    }
-
-    fn set_shape(&mut self, turtle: TurtleID, shape: crate::polygon::TurtleShape) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.turtle_shape = shape;
-        turtle.has_new_cmd = true;
-    }
-
-    fn stamp(&mut self, turtle: TurtleID, pos: crate::ScreenPosition<f32>, angle: f32) -> usize {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.cmds.push(DrawCommand::DrawPolyAt(
-            turtle.turtle_shape.poly[0].polygon.clone(),
-            pos,
-            angle,
-        ));
-        turtle.has_new_cmd = true;
-        turtle.cmds.len() - 1
-    }
-
-    fn clear_stamp(&mut self, turtle: TurtleID, stamp: usize) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        assert!(matches!(
-            turtle.cmds[stamp],
-            DrawCommand::DrawPolyAt(_, _, _)
-        ));
-        turtle.cmds[stamp] = DrawCommand::Filler;
-        turtle.has_new_cmd = true;
-    }
-
-    fn clear_stamps(&mut self, turtle: TurtleID, count: StampCount) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        let all = turtle.cmds.len();
-        let (mut iter, mut count) = match count {
-            StampCount::Forward(count) => (Either::Right(turtle.cmds.iter_mut()), count),
-            StampCount::Reverse(count) => (Either::Left(turtle.cmds.iter_mut().rev()), count),
-            StampCount::All => (Either::Right(turtle.cmds.iter_mut()), all),
-        };
-
-        while count > 0 {
-            if let Some(cmd) = iter.next() {
-                if matches!(cmd, DrawCommand::DrawPolyAt(_, _, _)) {
-                    count -= 1;
-                    *cmd = DrawCommand::Filler;
-                }
-            } else {
-                break;
-            }
-        }
-
-        turtle.has_new_cmd = true;
-    }
-
-    fn get_turtle_shape_name(&mut self, turtle: TurtleID) -> String {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.turtle_shape.name.clone()
-    }
-
-    fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.cmds.push(cmd);
-        turtle.has_new_cmd = true;
-    }
-
-    fn get_position(&self, turtle: TurtleID) -> usize {
-        self.turtle[&turtle].cmds.len()
-    }
-
-    fn fill_polygon(&mut self, turtle: TurtleID, cmd: DrawCommand, index: usize) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.cmds[index] = cmd;
-        turtle.cmds.push(DrawCommand::Filled(index));
-        turtle.has_new_cmd = true;
-    }
-
-    fn undo(&mut self, turtle: TurtleID) {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.has_new_cmd = true;
-    }
-
-    fn pop(&mut self, turtle: TurtleID) -> Option<DrawCommand> {
-        let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        let cmd = turtle.cmds.pop();
-
-        if let Some(DrawCommand::Filled(index)) = &cmd {
-            turtle.cmds[*index] = DrawCommand::Filler;
-        }
-
-        cmd
-    }
-
-    fn undo_count(&self, _turtle: TurtleID) -> usize {
-        todo!()
-    }
-
-    fn numinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
-        let popupdata = PopupData::num_input(title, prompt, turtle, thread);
-        let id = self.internal.generate_popup(&popupdata);
-        self.popups.insert(id, popupdata);
-    }
-
-    fn textinput(&mut self, turtle: TurtleID, thread: TurtleThread, title: &str, prompt: &str) {
-        let popupdata = PopupData::text_input(title, prompt, turtle, thread);
-        let id = self.internal.generate_popup(&popupdata);
-        self.popups.insert(id, popupdata);
-    }
-
-    fn bgcolor(&mut self, color: crate::color_names::TurtleColor) {
-        self.internal.bgcolor = color.into();
-        self.internal.do_redraw = true;
-    }
-
-    fn resize(&mut self, _turtle: TurtleID, _thread: TurtleThread, width: isize, height: isize) {
-        self.internal.size = [width as f32, height as f32];
-    }
-
-    fn set_visible(&mut self, _turtle: TurtleID, _visible: bool) {
-        todo!()
-    }
-
-    fn is_visible(&self, _turtle: TurtleID) -> bool {
-        todo!()
-    }
-
-    fn clearscreen(&mut self) {
-        todo!()
-    }
-
-    fn set_title(&mut self, title: String) {
-        self.title = title;
-        self.internal.do_redraw = true;
+    fn set_bg_color(&mut self, bgcolor: TurtleColor) {
+        self.bgcolor = bgcolor.into();
+        self.do_redraw = true;
     }
 }
+
 //
 //TODO: use tryfrom instead?
 impl From<&TurtleColor> for Color {
