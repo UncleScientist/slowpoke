@@ -179,19 +179,11 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
     }
 
     fn bgcolor(&mut self, color: TurtleColor) {
-        /*self.screen.bgcolor = color;*/
         self.screen.set_bg_color(color);
     }
 
     fn resize(&mut self, _turtle: TurtleID, _thread: TurtleThread, width: isize, height: isize) {
         self.screen.resize(width, height);
-        /*
-        let new_size = Size::new(width as f32, height as f32);
-        self.internal
-            .wcmds
-            .push(window::resize::<Message>(window::Id::MAIN, new_size));
-        self.internal.resize_request = Some((turtle, thread));
-        */
     }
 
     fn set_visible(&mut self, turtle: TurtleID, visible: bool) {
