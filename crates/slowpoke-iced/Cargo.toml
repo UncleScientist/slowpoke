@@ -1,0 +1,12 @@
+[package]
+name = "slowpoke_iced"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+iced = { version = "0.12.1", features = ["canvas", "smol", "multi-window"] }
+lyon_tessellation = "1.0.15"
+slowpoke = { path = "../slowpoke" }
+
+[lints.clippy]
+all = "warn"
