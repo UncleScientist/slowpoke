@@ -11,24 +11,25 @@ use crate::{
 
 use super::{types::PopupID, DrawCommand, TurtleGui, TurtleID, TurtleThread};
 
-#[derive(Default)]
-pub(crate) struct IndividualTurtle<U> {
-    pub(crate) cmds: Vec<DrawCommand>,
-    pub(crate) has_new_cmd: bool,
-    pub(crate) turtle_shape: TurtleShape,
-    pub(crate) hide_turtle: bool,
-    pub(crate) ui: RefCell<U>,
+#[derive(Default, Debug)]
+pub struct IndividualTurtle<U> {
+    pub cmds: Vec<DrawCommand>,
+    pub has_new_cmd: bool,
+    pub turtle_shape: TurtleShape,
+    pub hide_turtle: bool,
+    pub ui: RefCell<U>,
 }
 
-pub(crate) struct Handler<U, S: TurtleUI> {
-    pub(crate) last_id: TurtleID,
-    pub(crate) turtle: HashMap<TurtleID, IndividualTurtle<U>>,
-    pub(crate) popups: HashMap<PopupID, PopupData>,
-    pub(crate) title: String,
-    pub(crate) screen: S,
+#[derive(Debug)]
+pub struct Handler<U, S: TurtleUI> {
+    pub last_id: TurtleID,
+    pub turtle: HashMap<TurtleID, IndividualTurtle<U>>,
+    pub popups: HashMap<PopupID, PopupData>,
+    pub title: String,
+    pub screen: S,
 }
 
-pub(crate) trait TurtleUI {
+pub trait TurtleUI {
     fn generate_popup(&mut self, popupdata: &PopupData) -> PopupID;
     fn resize(&mut self, width: isize, height: isize);
     fn set_bg_color(&mut self, bgcolor: TurtleColor);

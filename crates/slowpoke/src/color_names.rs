@@ -7,7 +7,7 @@ pub enum TurtleColor {
 }
 
 impl TurtleColor {
-    pub(crate) const fn color_or(self, or: &Self) -> Self {
+    pub const fn color_or(self, or: &Self) -> Self {
         if matches!(self, Self::CurrentColor) {
             *or
         } else {

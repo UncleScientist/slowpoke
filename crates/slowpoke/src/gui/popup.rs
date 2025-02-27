@@ -1,7 +1,7 @@
 use crate::comms::Response;
 use crate::turtle::types::{TurtleID, TurtleThread};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 enum PopupType {
     TextInput {
         thread: TurtleThread,
@@ -48,7 +48,6 @@ impl PopupType {
         }
     }
 
-    #[cfg(feature = "ratatui")]
     fn text_input_field_mut(&mut self) -> &mut String {
         match self {
             PopupType::TextInput {
@@ -74,8 +73,8 @@ impl PopupType {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct PopupData {
+#[derive(Debug, Default)]
+pub struct PopupData {
     title: String,
     err: Option<String>,
     popup: PopupType,
@@ -112,7 +111,6 @@ impl PopupData {
         self.title.clone()
     }
 
-    #[cfg(feature = "iced")]
     pub fn set_message<T: Into<String>>(&mut self, message: T) {
         match &mut self.popup {
             PopupType::TextInput {
@@ -133,20 +131,19 @@ impl PopupData {
         self.popup.turtle()
     }
 
-    pub(crate) fn prompt(&self) -> &str {
+    pub fn prompt(&self) -> &str {
         self.popup.prompt()
     }
 
-    pub(crate) fn get_text(&self) -> &str {
+    pub fn get_text(&self) -> &str {
         self.popup.text_input_field()
     }
 
-    #[cfg(feature = "ratatui")]
     pub(crate) fn get_text_mut(&mut self) -> &mut String {
         self.popup.text_input_field_mut()
     }
 
-    pub(crate) fn get_response(&self) -> Result<Response, String> {
+    pub fn get_response(&self) -> Result<Response, String> {
         match &self.popup {
             PopupType::TextInput {
                 text_input_field, ..
@@ -164,15 +161,15 @@ impl PopupData {
         }
     }
 
-    pub(crate) fn get_error(&self) -> &Option<String> {
+    pub fn get_error(&self) -> &Option<String> {
         &self.err
     }
 
-    pub(crate) fn set_error<S: Into<String>>(&mut self, msg: S) {
+    pub fn set_error<S: Into<String>>(&mut self, msg: S) {
         self.err = Some(msg.into());
     }
 
-    pub(crate) fn clear_error(&mut self) {
+    pub fn clear_error(&mut self) {
         self.err = None;
     }
 }

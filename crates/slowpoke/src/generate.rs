@@ -16,14 +16,14 @@ use crate::{
 };
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct LineInfo {
+pub struct LineInfo {
     pub begin: ScreenPosition<i32>,
     pub end: ScreenPosition<i32>,
     pub pen_down: bool,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct CirclePos {
+pub struct CirclePos {
     pub angle: f32,
     pub x: i32,
     pub y: i32,
@@ -37,7 +37,7 @@ impl CirclePos {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum DrawCommand {
+pub enum DrawCommand {
     Clear,
     Reset,
     Filler,

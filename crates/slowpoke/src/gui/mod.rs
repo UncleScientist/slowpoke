@@ -12,7 +12,7 @@ pub(crate) mod ratatui_tui;
 
 use crate::turtle::types::{TurtleID, TurtleThread};
 
-pub(crate) trait TurtleGui {
+pub trait TurtleGui {
     // Generate a new connection to the windowing system
     fn new_turtle(&mut self) -> TurtleID;
 
@@ -82,14 +82,14 @@ pub(crate) trait TurtleGui {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-pub(crate) enum Progression {
+pub enum Progression {
     #[default]
     Forward,
     Reverse,
 }
 
 impl Progression {
-    pub(crate) fn is_done(self, pct: f32) -> bool {
+    pub fn is_done(self, pct: f32) -> bool {
         match self {
             Progression::Forward if pct >= 1. => true,
             Progression::Reverse if pct <= 0. => true,
@@ -98,7 +98,7 @@ impl Progression {
     }
 }
 
-pub(crate) enum StampCount {
+pub enum StampCount {
     Forward(usize), // delete from the beginning of the stamp list
     Reverse(usize), // delete from the end of the stamp list
     All,

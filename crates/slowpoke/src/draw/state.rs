@@ -1,5 +1,7 @@
 #![allow(clippy::cast_possible_truncation)]
-use crate::{command::DataCmd, comms::Response, ScreenPosition, Turtle};
+use crate::{
+    command::DataCmd, comms::Response, turtle::TurtleUserInterface, ScreenPosition, Turtle,
+};
 
 /*
  * Tell Turtle's State

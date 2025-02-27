@@ -1,6 +1,6 @@
 use lyon_tessellation::geom::euclid::{Point2D, UnknownUnit};
 pub use polygon::{Shape, TurtleShapeName};
-pub use turtle::{Slowpoke, Turtle};
+pub use turtle::{SlowpokeLib, Turtle};
 
 pub mod color_names;
 mod command;
@@ -20,3 +20,13 @@ pub type ScreenCoords = UnknownUnit;
 pub type ScreenPosition<T> = Point2D<T, ScreenCoords>;
 
 pub type StampID = usize;
+
+// make these all top-level exports
+pub use color_names::TurtleColor;
+pub use generate::{CirclePos, DrawCommand, LineInfo};
+pub use gui::{events::TurtleEvent, popup::PopupData, TurtleGui};
+pub use polygon::{PolygonPath, ShapeComponent};
+pub use turtle::handler::{Handler, IndividualTurtle, TurtleUI};
+pub use turtle::task::{EventResult, TurtleTask};
+pub use turtle::types::{PopupID, TurtleID, TurtleThread};
+pub use turtle::{TurtleFlags, TurtleUserInterface};

@@ -2,6 +2,7 @@ use crate::{
     color_names::TurtleColor,
     command::{DataCmd, ScreenCmd},
     comms::Response,
+    turtle::TurtleUserInterface,
     Turtle,
 };
 

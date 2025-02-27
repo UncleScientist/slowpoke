@@ -4,7 +4,6 @@ use crate::{
     Turtle,
 };
 
-#[derive(Debug)]
 pub enum Response {
     Done,
     Cancel,
@@ -23,6 +22,34 @@ pub enum Response {
     IsFilling(bool),
     ShapeList(Vec<String>),
     Turtles(Vec<Turtle>),
+}
+
+impl std::fmt::Debug for Response {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Response::Done => todo!(),
+                Response::Cancel => todo!(),
+                Response::Heading(_) => todo!(),
+                Response::Position(point2_d) => todo!(),
+                Response::StampID(_) => todo!(),
+                Response::Turtle(turtle) => todo!(),
+                Response::Count(_) => todo!(),
+                Response::Name(_) => todo!(),
+                Response::Polygon(vec) => todo!(),
+                Response::Visibility(_) => todo!(),
+                Response::ScreenSize(_) => todo!(),
+                Response::TextInput(_) => todo!(),
+                Response::NumInput(_) => todo!(),
+                Response::IsPenDown(_) => todo!(),
+                Response::IsFilling(_) => todo!(),
+                Response::ShapeList(vec) => todo!(),
+                Response::Turtles(vec) => todo!(),
+            }
+        )
+    }
 }
 
 #[derive(Debug)]

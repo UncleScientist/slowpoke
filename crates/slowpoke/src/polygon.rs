@@ -66,9 +66,9 @@ const SHAPES: [(&str, &[[f32; 2]]); 6] = [
 // struct TurtleShapeComponent
 
 #[derive(Debug, Clone)]
-pub(crate) struct TurtleShape {
-    pub(crate) name: String,
-    pub(crate) poly: Vec<ShapeComponent>,
+pub struct TurtleShape {
+    pub name: String,
+    pub poly: Vec<ShapeComponent>,
 }
 
 impl Default for TurtleShape {
@@ -114,10 +114,9 @@ pub enum TurtleShapeName {
 
 #[derive(Debug, Clone)]
 pub struct ShapeComponent {
-    // TODO: can ShapeComponent be "more private" than Shape?
-    pub(crate) polygon: PolygonPath,
-    pub(crate) fill: TurtleColor,
-    pub(crate) outline: TurtleColor,
+    pub polygon: PolygonPath,
+    pub fill: TurtleColor,
+    pub outline: TurtleColor,
 }
 
 #[derive(Debug, Clone)]
@@ -171,8 +170,8 @@ impl From<&str> for TurtleShapeName {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct PolygonPath {
-    pub(crate) path: Vec<[f32; 2]>,
+pub struct PolygonPath {
+    pub path: Vec<[f32; 2]>,
 }
 
 impl PolygonPath {

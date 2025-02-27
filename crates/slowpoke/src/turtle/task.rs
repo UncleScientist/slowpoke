@@ -12,12 +12,15 @@ use crate::{
     ScreenPosition, Shape, Turtle, TurtleShapeName,
 };
 
-use super::{types::TurtleThread, TurtleCommand, TurtleData, TurtleFlags, TurtleID, TurtleTimer};
+use super::{
+    types::TurtleThread, TurtleCommand, TurtleData, TurtleFlags, TurtleID, TurtleTimer,
+    TurtleUserInterface,
+};
 
 use crate::generate::TurtlePosition;
 
-#[derive(Default)]
-pub(crate) struct TurtleTask {
+#[derive(Debug)]
+pub struct TurtleTask {
     issue_command: Option<Sender<Request>>,
     receive_command: Option<Receiver<Request>>,
     turtle_list: Vec<TurtleData>,
@@ -43,13 +46,13 @@ macro_rules! spawn {
 }
 
 #[derive(PartialEq)]
-pub(crate) enum EventResult {
+pub enum EventResult {
     Continue,
     ShutDown,
 }
 
 impl TurtleTask {
-    pub(crate) fn new(flags: &mut TurtleFlags) -> Self {
+    pub fn new(flags: &mut TurtleFlags) -> Self {
         let issue_command = flags.issue_command.take();
         let receive_command = flags.receive_command.take();
         Self {
@@ -57,31 +60,27 @@ impl TurtleTask {
             receive_command,
             turtle_list: vec![TurtleData::new()],
             shapes: generate_default_shapes(),
-            ..Self::default()
+            winsize: [0, 0],
+            exit_on_click: false,
         }
     }
 
-    pub(crate) fn progress(&self, tid: TurtleID) -> (f32, Progression) {
+    pub fn progress(&self, tid: TurtleID) -> (f32, Progression) {
         (
             self.turtle_list[tid].state.percent,
             self.turtle_list[tid].state.progression,
         )
     }
 
-    pub(crate) fn popup_result(
-        &mut self,
-        turtle: TurtleID,
-        thread: TurtleThread,
-        response: Response,
-    ) {
+    pub fn popup_result(&mut self, turtle: TurtleID, thread: TurtleThread, response: Response) {
         let _ = self.turtle_list[turtle].responder[&thread].send(response);
     }
 
-    pub(crate) fn popup_cancelled(&mut self, turtle: TurtleID, thread: TurtleThread) {
+    pub fn popup_cancelled(&mut self, turtle: TurtleID, thread: TurtleThread) {
         let _ = self.turtle_list[turtle].responder[&thread].send(Response::Cancel);
     }
 
-    pub(crate) fn handle_event(
+    pub fn handle_event(
         &mut self,
         turtle: Option<TurtleID>,
         thread: Option<TurtleThread>,
@@ -137,7 +136,6 @@ impl TurtleTask {
                     }
                 }
             }
-            #[cfg(feature = "iced")]
             TurtleEvent::MousePosition(_, _) => unreachable!(),
             TurtleEvent::MouseDrag(x, y) => {
                 for (idx, turtle) in self.turtle_list.iter_mut().enumerate() {
@@ -154,7 +152,7 @@ impl TurtleTask {
         EventResult::Continue
     }
 
-    pub(crate) fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
+    pub fn run_turtle<F: FnOnce(&mut Turtle) + Send + 'static>(&mut self, func: F) {
         let turtle = TurtleID::new(0);
         let thread = TurtleThread::new(0);
         let issue_command = self.issue_command.as_ref().unwrap().clone();
@@ -162,7 +160,7 @@ impl TurtleTask {
         let _ = std::thread::spawn(move || func(&mut primary));
     }
 
-    pub(crate) fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
+    pub fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
         while let Ok(req) = self.receive_command.as_ref().unwrap().try_recv() {
             self.handle_command(req, gui);
         }

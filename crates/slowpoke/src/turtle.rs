@@ -7,6 +7,7 @@ use types::{TurtleID, TurtleThread};
 use std::{
     cell::RefCell,
     collections::{HashMap, VecDeque},
+    marker::PhantomData,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
     time::{Duration, Instant},
 };
@@ -36,24 +37,27 @@ struct TurtleCommand {
     thread: TurtleThread,
 }
 
-pub struct Slowpoke {
+// T == user interface code
+pub struct SlowpokeLib<T> {
     pub(crate) size: [isize; 2],
     pub(crate) title: String,
+    data: PhantomData<T>,
 }
 
-impl Default for Slowpoke {
+impl<T> Default for SlowpokeLib<T> {
     fn default() -> Self {
         Self {
             size: [800, 800],
             title: "Turtle".to_string(),
+            data: PhantomData::default(),
         }
     }
 }
 
-impl Slowpoke {
+impl<T: std::fmt::Debug + TurtleUserInterface> SlowpokeLib<T> {
     #[must_use]
-    pub fn new() -> Slowpoke {
-        Slowpoke::default()
+    pub fn new() -> SlowpokeLib<T> {
+        SlowpokeLib::default()
     }
 
     #[must_use]
@@ -80,6 +84,7 @@ pub struct Turtle {
     turtle: TurtleID,
     thread: TurtleThread,
     tracer: RefCell<bool>,
+    // data: PhantomData<T>,
 }
 
 impl Drop for Turtle {
@@ -90,8 +95,15 @@ impl Drop for Turtle {
     }
 }
 
+pub trait TurtleUserInterface {
+    fn start(flags: TurtleFlags);
+}
+
 impl Turtle {
-    pub fn run<F: FnOnce(&mut Turtle) + Send + 'static>(args: &Slowpoke, func: F) {
+    pub fn run<T: TurtleUserInterface, F: FnOnce(&mut Turtle) + Send + 'static>(
+        args: &SlowpokeLib<T>,
+        func: F,
+    ) {
         let xsize = to_f32(args.size[0]);
         let ysize = to_f32(args.size[1]);
 
@@ -105,17 +117,7 @@ impl Turtle {
             size: [xsize, ysize],
         };
 
-        #[cfg(feature = "iced")]
-        IcedGuiFramework::start(flags);
-
-        #[cfg(feature = "ratatui")]
-        RatatuiFramework::start(flags);
-
-        // EguiGui::start(flags);
-        // SlintGui::start(flags);
-        // OtherGui::start(flags);
-        // #[cfg(test)]
-        // TestGui::start(flags)
+        T::start(flags);
     }
 
     pub(crate) fn init(
@@ -223,7 +225,7 @@ impl Turtle {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct PolygonBuilder {
     last_point: Option<ScreenPosition<i32>>,
     verticies: Vec<[f32; 2]>,
@@ -252,7 +254,7 @@ impl PolygonBuilder {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct DrawState {
     percent: f32,
     progression: Progression,
@@ -273,6 +275,7 @@ impl DrawState {
     }
 }
 
+#[derive(Debug)]
 struct TurtleTimer {
     time: Duration,
     prev: Instant,
@@ -289,7 +292,7 @@ impl TurtleTimer {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug)]
 struct EventHandlers {
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
     onkeyrelease: HashMap<char, fn(&mut Turtle, char)>,
@@ -301,7 +304,22 @@ struct EventHandlers {
     requesting_thread: TurtleThread, // The thread that made the last drawing request
 }
 
-#[derive(Default)]
+impl Default for EventHandlers {
+    fn default() -> Self {
+        Self {
+            onkeypress: HashMap::new(),
+            onkeyrelease: HashMap::new(),
+            onmousepress: None,
+            onmouserelease: None,
+            onmousedrag: None,
+            ontimer: None,
+            pending_keys: false,
+            requesting_thread: TurtleThread::default(),
+        }
+    }
+}
+
+#[derive(Debug)]
 struct TurtleData {
     queue: VecDeque<TurtleCommand>,       // new commands to draw
     current_command: Option<DrawRequest>, // what we're drawing now
@@ -320,7 +338,12 @@ impl TurtleData {
                 tracer: true,
                 ..DrawState::default()
             },
-            ..Self::default()
+            queue: VecDeque::new(),
+            current_command: None,
+            turtle_id: TurtleID::default(),
+            event: EventHandlers::default(),
+            responder: HashMap::new(),
+            next_thread: TurtleThread::default(),
         }
     }
 
@@ -526,12 +549,12 @@ impl TurtleData {
 type TurtleStartFunc = dyn FnOnce(&mut Turtle) + Send + 'static;
 
 #[derive(Default)]
-pub(crate) struct TurtleFlags {
-    pub(crate) start_func: Option<Box<TurtleStartFunc>>,
-    pub(crate) issue_command: Option<Sender<Request>>,
-    pub(crate) receive_command: Option<Receiver<Request>>,
-    pub(crate) title: String,
-    pub(crate) size: [f32; 2],
+pub struct TurtleFlags {
+    pub start_func: Option<Box<TurtleStartFunc>>,
+    pub issue_command: Option<Sender<Request>>,
+    pub receive_command: Option<Receiver<Request>>,
+    pub title: String,
+    pub size: [f32; 2],
 }
 
 #[allow(clippy::cast_precision_loss)]

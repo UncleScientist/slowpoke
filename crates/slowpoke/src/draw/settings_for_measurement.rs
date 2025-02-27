@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use crate::{
     command::{DrawRequest, InstantaneousDrawCmd},
+    turtle::TurtleUserInterface,
     Turtle,
 };
 

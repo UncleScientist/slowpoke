@@ -1,6 +1,7 @@
 use crate::{
     color_names::TurtleColor,
     command::{DrawRequest, InstantaneousDrawCmd},
+    turtle::TurtleUserInterface,
     Turtle,
 };
 

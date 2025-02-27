@@ -5,14 +5,14 @@ use super::TurtleData;
 macro_rules! gen_generator {
     ($name:ident) => {
         #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
-        pub(crate) struct $name(IDGenerator);
+        pub struct $name(IDGenerator);
 
         impl $name {
-            pub(crate) fn new(id: usize) -> Self {
+            pub fn new(id: usize) -> Self {
                 Self(IDGenerator::new(id))
             }
 
-            pub(crate) fn get(&mut self) -> Self {
+            pub fn get(&mut self) -> Self {
                 Self(self.0.get())
             }
         }
@@ -20,7 +20,7 @@ macro_rules! gen_generator {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Default, Copy, Clone)]
-pub(crate) struct IDGenerator {
+pub struct IDGenerator {
     id: usize,
 }
 

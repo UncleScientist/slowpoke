@@ -1,5 +1,6 @@
 use crate::{
     command::{DrawRequest, TimedDrawCmd},
+    turtle::TurtleUserInterface,
     Turtle,
 };
 
