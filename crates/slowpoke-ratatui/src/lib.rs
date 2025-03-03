@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
+    ops::{Deref, DerefMut},
     time::{Duration, Instant},
 };
 
@@ -29,21 +30,16 @@ use ratatui::{
     Frame,
 };
 
-use crate::{
-    color_names::TurtleColor,
-    generate::{CirclePos, DrawCommand},
-    polygon::PolygonPath,
-    turtle::{
-        handler::{Handler, IndividualTurtle, TurtleUI},
-        task::TurtleTask,
-        types::{PopupID, TurtleID},
-        TurtleFlags,
-    },
+pub type Slowpoke = SlowpokeLib<RatatuiFramework>;
+
+use slowpoke::{
+    CirclePos, DrawCommand, Handler, IndividualTurtle, PolygonPath, PopupData, PopupID,
+    SlowpokeLib, TurtleColor, TurtleEvent, TurtleFlags, TurtleGui, TurtleID, TurtleTask, TurtleUI,
+    TurtleUserInterface,
 };
 
-use super::{events::TurtleEvent, popup::PopupData, TurtleGui};
-
-pub(crate) struct RatatuiFramework {
+#[derive(Debug)]
+pub struct RatatuiFramework {
     tt: TurtleTask,
     handler: Handler<RatatuiUI, RatatuiInternal>,
 }
@@ -55,7 +51,7 @@ struct CircleDrawData {
 }
 
 impl RatatuiUI {
-    fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, String, Color)> {
+    fn draw(&self, ctx: &mut Context) -> Vec<(f32, f32, String, RatatuiColor)> {
         let mut text_draw_cmds = Vec::new();
         for cmd in &self.drawing {
             match cmd {
@@ -79,8 +75,8 @@ impl RatatuiUI {
         let mut _penwidth = 1f32;
         let pct = f64::from(pct);
 
-        let mut pencolor = TurtleColor::default();
-        let mut fillcolor = TurtleColor::default();
+        let mut pencolor = RatatuiColor(Color::Rgb(0, 0, 0));
+        let mut fillcolor = RatatuiColor(Color::Rgb(0, 0, 0));
         let mut trot = 0f32;
         let mut tpos = [0f64, 0f64];
         let mut iter = cmds.iter().peekable();
@@ -113,9 +109,9 @@ impl RatatuiUI {
                     }
                 }
                 DrawCommand::Filler | DrawCommand::Filled(_) => {}
-                DrawCommand::SetPenColor(pc) => pencolor = *pc,
+                DrawCommand::SetPenColor(pc) => pencolor = pc.into(),
                 DrawCommand::SetPenWidth(pw) => _penwidth = *pw,
-                DrawCommand::SetFillColor(fc) => fillcolor = *fc,
+                DrawCommand::SetFillColor(fc) => fillcolor = fc.into(),
                 DrawCommand::SetPosition(pos) => {
                     tpos = [pos.x.clamp_to(), pos.y.clamp_to()];
                 }
@@ -141,6 +137,7 @@ impl RatatuiUI {
                     trot = rotation;
                 }
                 DrawCommand::Dot(center, radius, color) => {
+                    let color: RatatuiColor = color.into();
                     self.drawing.push(RatatuiDrawCmd::circle(
                         (f64::from(center.x), f64::from(center.y)),
                         f64::from(*radius),
@@ -199,6 +196,8 @@ impl RatatuiUI {
         }
 
         if !turtle.hide_turtle {
+            let pencolor: TurtleColor = pencolor.into();
+            let fillcolor: TurtleColor = fillcolor.into();
             let angle = Angle::degrees(trot);
             let tpos = [tpos[0] as f32, tpos[1] as f32];
             let transform = Transform2D::rotation(angle).then_translate(tpos.into());
@@ -212,10 +211,11 @@ impl RatatuiUI {
                     let pencolor = pencolor.color_or(&poly.outline);
                     let _fillcolor = fillcolor.color_or(&poly.fill);
 
+                    let pc: RatatuiColor = pencolor.into();
                     self.drawing.push(RatatuiDrawCmd::line(
                         (start.x as f64, start.y as f64),
                         (end.x as f64, end.y as f64),
-                        (&pencolor).into(),
+                        pc.into(),
                     ));
                 }
             }
@@ -262,7 +262,7 @@ impl RatatuiUI {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct RatatuiInternal {
     next_id: PopupID,
     bgcolor: Color,
@@ -282,36 +282,9 @@ impl Drop for RatatuiInternal {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct RatatuiUI {
     drawing: Vec<RatatuiDrawCmd>,
-}
-
-impl Handler<RatatuiUI, RatatuiInternal> {
-    fn new(flags: &TurtleFlags) -> Self {
-        let mut stdout = std::io::stdout();
-        let _ = execute!(
-            stdout,
-            crossterm::event::PushKeyboardEnhancementFlags(
-                KeyboardEnhancementFlags::REPORT_EVENT_TYPES
-            ),
-            crossterm::event::EnableMouseCapture,
-        );
-        let mut this = Self {
-            last_id: TurtleID::default(),
-            turtle: HashMap::new(),
-            title: format!(" {} ", flags.title),
-            popups: HashMap::new(),
-            screen: RatatuiInternal {
-                next_id: PopupID::new(0),
-                bgcolor: Color::White,
-                size: flags.size,
-                do_redraw: false,
-            },
-        };
-        let _turtle = this.new_turtle();
-        this
-    }
 }
 
 #[derive(Debug)]
@@ -322,7 +295,7 @@ enum RatatuiDrawCmd {
         x: f32,
         y: f32,
         text: String,
-        color: Color,
+        color: RatatuiColor,
     },
 }
 
@@ -345,23 +318,49 @@ impl RatatuiDrawCmd {
             x: pos.x,
             y: -pos.y,
             text: text.to_string(),
-            color,
+            color: color.into(),
         }
     }
 }
 
-impl RatatuiFramework {
-    pub(crate) fn start(mut flags: TurtleFlags) {
+impl TurtleUserInterface for RatatuiFramework {
+    fn start(mut flags: TurtleFlags) {
+        fn new(flags: &TurtleFlags) -> Handler<RatatuiUI, RatatuiInternal> {
+            let mut stdout = std::io::stdout();
+            let _ = execute!(
+                stdout,
+                crossterm::event::PushKeyboardEnhancementFlags(
+                    KeyboardEnhancementFlags::REPORT_EVENT_TYPES
+                ),
+                crossterm::event::EnableMouseCapture,
+            );
+            let mut this = Handler::<RatatuiUI, RatatuiInternal> {
+                last_id: TurtleID::default(),
+                turtle: HashMap::new(),
+                title: format!(" {} ", flags.title),
+                popups: HashMap::new(),
+                screen: RatatuiInternal {
+                    next_id: PopupID::new(0),
+                    bgcolor: Color::White,
+                    size: flags.size,
+                    do_redraw: false,
+                },
+            };
+            let _turtle = this.new_turtle();
+            this
+        }
         let func = flags.start_func.take();
 
         let mut tt = TurtleTask::new(&mut flags);
         tt.run_turtle(func.unwrap());
 
-        let tui = Handler::<RatatuiUI, RatatuiInternal>::new(&flags);
+        let tui = new(&flags);
         let mut rata = Self { tt, handler: tui };
         let _ = rata.run();
     }
+}
 
+impl RatatuiFramework {
     fn run(&mut self) -> Result<Event, std::io::Error> {
         let tick_rate = Duration::from_millis(1000 / 60);
         let mut last_tick = Instant::now();
@@ -573,7 +572,7 @@ impl RatatuiFramework {
             let block = Block::new()
                 .borders(Borders::NONE)
                 .title((*sref).clone())
-                .style(Style::new().fg(*cref));
+                .style(Style::new().fg(**cref));
             let text_rect = Rect::new(*x as u16, *y as u16, sref.len() as u16, 1);
             frame.render_widget(block, text_rect);
         }
@@ -637,34 +636,82 @@ impl TurtleUI for RatatuiInternal {
     }
 
     fn set_bg_color(&mut self, bgcolor: TurtleColor) {
-        self.bgcolor = bgcolor.into();
+        let bgc: RatatuiColor = bgcolor.into();
+        self.bgcolor = bgc.into();
         self.do_redraw = true;
     }
 }
 
-//
-//TODO: use tryfrom instead?
-impl From<&TurtleColor> for Color {
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone)]
+struct RatatuiColor(ratatui::style::Color);
+
+impl Deref for RatatuiColor {
+    type Target = ratatui::style::Color;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for RatatuiColor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<&TurtleColor> for RatatuiColor {
     fn from(value: &TurtleColor) -> Self {
         if let TurtleColor::Color(r, g, b) = value {
-            Color::Rgb(
+            RatatuiColor(Color::Rgb(
                 (*r * 255.).clamp_to(),
                 (*g * 255.).clamp_to(),
                 (*b * 255.).clamp_to(),
-            )
+            ))
         } else {
             todo!()
         }
     }
 }
 
-impl From<TurtleColor> for Color {
+impl From<TurtleColor> for RatatuiColor {
     fn from(value: TurtleColor) -> Self {
         (&value).into()
     }
 }
 
-impl PolygonPath {
+impl From<RatatuiColor> for TurtleColor {
+    fn from(value: RatatuiColor) -> Self {
+        let ratatui::style::Color::Rgb(r, g, b) = value.0 else {
+            unreachable!()
+        };
+        TurtleColor::Color(r as f32, g as f32, b as f32)
+    }
+}
+
+impl From<ratatui::style::Color> for RatatuiColor {
+    fn from(value: ratatui::style::Color) -> Self {
+        RatatuiColor(value)
+    }
+}
+
+impl From<&RatatuiColor> for ratatui::style::Color {
+    fn from(value: &RatatuiColor) -> Self {
+        value.0
+    }
+}
+
+impl From<RatatuiColor> for ratatui::style::Color {
+    fn from(value: RatatuiColor) -> Self {
+        value.0
+    }
+}
+
+trait GetPolyPath {
+    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)>;
+}
+
+impl GetPolyPath for PolygonPath {
     // This code has been adapted from the example
     // in the lyon_tesselation docs.
     // See https://docs.rs/lyon_tessellation/latest/lyon_tessellation/struct.FillTessellator.html

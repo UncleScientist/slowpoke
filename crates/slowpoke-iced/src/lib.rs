@@ -775,7 +775,6 @@ impl DerefMut for IcedColor {
     }
 }
 
-//TODO: use tryfrom instead?
 impl From<TurtleColor> for IcedColor {
     fn from(value: TurtleColor) -> Self {
         (&value).into()
