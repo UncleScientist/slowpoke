@@ -1,0 +1,12 @@
+[package]
+name = "slowpoke_egui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.31.0"
+egui = "0.31.0"
+slowpoke = { path = "../slowpoke" }
+
+[lints.clippy]
+all = "warn"
