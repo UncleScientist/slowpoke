@@ -1,7 +1,6 @@
 use crate::{
     command::{DataCmd, ScreenCmd},
     comms::Response,
-    turtle::TurtleUserInterface,
     Shape, Turtle, TurtleShapeName,
 };
 

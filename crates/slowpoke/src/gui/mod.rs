@@ -4,12 +4,6 @@ pub(crate) mod popup;
 use crate::color_names::TurtleColor;
 use crate::{generate::DrawCommand, polygon::TurtleShape, ScreenPosition};
 
-#[cfg(feature = "iced")]
-pub(crate) mod iced_gui;
-
-#[cfg(feature = "ratatui")]
-pub(crate) mod ratatui_tui;
-
 use crate::turtle::types::{TurtleID, TurtleThread};
 
 pub trait TurtleGui {

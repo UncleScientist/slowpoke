@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use crate::{
-    command::InputCmd,
-    turtle::{Turtle, TurtleUserInterface},
-};
+use crate::{command::InputCmd, turtle::Turtle};
 
 impl Turtle {
     pub fn onkey(&self, func: fn(&mut Turtle, char), key: char) {

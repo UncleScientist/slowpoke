@@ -2,7 +2,6 @@ use crate::{
     command::{DataCmd, DrawRequest, MotionCmd, RotateCmd, ScreenCmd, TimedDrawCmd},
     comms::Response,
     speed::Speed,
-    turtle::TurtleUserInterface,
     StampID, Turtle,
 };
 

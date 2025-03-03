@@ -139,7 +139,7 @@ impl PopupData {
         self.popup.text_input_field()
     }
 
-    pub(crate) fn get_text_mut(&mut self) -> &mut String {
+    pub fn get_text_mut(&mut self) -> &mut String {
         self.popup.text_input_field_mut()
     }
 

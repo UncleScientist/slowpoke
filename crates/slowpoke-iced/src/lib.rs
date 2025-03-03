@@ -130,7 +130,7 @@ impl IcedUI {
             {
                 self.drawing.push(IcedDrawCmd::Stroke(
                     make_path(&mut cur_path),
-                    pencolor.into(),
+                    pencolor,
                     penwidth,
                 ));
             }

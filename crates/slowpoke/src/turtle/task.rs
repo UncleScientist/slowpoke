@@ -12,10 +12,7 @@ use crate::{
     ScreenPosition, Shape, Turtle, TurtleShapeName,
 };
 
-use super::{
-    types::TurtleThread, TurtleCommand, TurtleData, TurtleFlags, TurtleID, TurtleTimer,
-    TurtleUserInterface,
-};
+use super::{types::TurtleThread, TurtleCommand, TurtleData, TurtleFlags, TurtleID, TurtleTimer};
 
 use crate::generate::TurtlePosition;
 

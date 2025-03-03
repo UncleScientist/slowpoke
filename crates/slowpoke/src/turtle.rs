@@ -24,12 +24,6 @@ use crate::{
     ScreenPosition,
 };
 
-#[cfg(feature = "iced")]
-use crate::gui::iced_gui::IcedGuiFramework;
-
-#[cfg(feature = "ratatui")]
-use crate::gui::ratatui_tui::RatatuiFramework;
-
 #[derive(Debug)]
 struct TurtleCommand {
     cmd: DrawRequest,
@@ -49,7 +43,7 @@ impl<T> Default for SlowpokeLib<T> {
         Self {
             size: [800, 800],
             title: "Turtle".to_string(),
-            data: PhantomData::default(),
+            data: PhantomData,
         }
     }
 }
@@ -292,7 +286,7 @@ impl TurtleTimer {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 struct EventHandlers {
     onkeypress: HashMap<char, fn(&mut Turtle, char)>,
     onkeyrelease: HashMap<char, fn(&mut Turtle, char)>,
@@ -302,21 +296,6 @@ struct EventHandlers {
     ontimer: Option<TurtleTimer>,
     pending_keys: bool,
     requesting_thread: TurtleThread, // The thread that made the last drawing request
-}
-
-impl Default for EventHandlers {
-    fn default() -> Self {
-        Self {
-            onkeypress: HashMap::new(),
-            onkeyrelease: HashMap::new(),
-            onmousepress: None,
-            onmouserelease: None,
-            onmousedrag: None,
-            ontimer: None,
-            pending_keys: false,
-            requesting_thread: TurtleThread::default(),
-        }
-    }
 }
 
 #[derive(Debug)]

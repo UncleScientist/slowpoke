@@ -1,7 +1,6 @@
 use crate::{
     command::{DataCmd, DrawRequest, InstantaneousDrawCmd},
     comms::Response,
-    turtle::TurtleUserInterface,
     Turtle,
 };
 

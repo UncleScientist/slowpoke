@@ -17,7 +17,7 @@ use std::{fs::File, io::Read, path::Path};
 use crate::{
     command::{DataCmd, ScreenCmd},
     comms::Response,
-    turtle::{Turtle, TurtleUserInterface},
+    turtle::Turtle,
     ScreenPosition,
 };
 

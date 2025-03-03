@@ -1,4 +1,4 @@
-use crate::{command::DataCmd, comms::Response, turtle::TurtleUserInterface, Turtle};
+use crate::{command::DataCmd, comms::Response, Turtle};
 
 impl Turtle {
     /// # Panics
