@@ -1,7 +1,7 @@
-use slowpoke::{SlowpokeLib, Turtle};
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("4 7-pointed stars [Press C to change size]")
         .run(|turtle| {

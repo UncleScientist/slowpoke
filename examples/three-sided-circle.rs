@@ -1,7 +1,7 @@
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(800, 800)
         .with_title("Circles")
         .run(|turtle| {

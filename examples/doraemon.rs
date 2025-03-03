@@ -3,11 +3,11 @@
 //
 // Ported to rust
 
-use slowpoke::{SlowpokeLib, Turtle};
+use slowpoke::{Slowpoke, Turtle};
 
 #[allow(clippy::too_many_lines)]
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(600, 800)
         .with_title("a doraemon")
         .run(|turtle| {

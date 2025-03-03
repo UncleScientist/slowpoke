@@ -1,7 +1,7 @@
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("some text")
         .run(|turtle| {

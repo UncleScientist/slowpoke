@@ -1,7 +1,7 @@
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(500, 500)
         .with_title("a parallelogram")
         .run(|turtle| {

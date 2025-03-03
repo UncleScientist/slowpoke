@@ -1,9 +1,9 @@
 #![allow(clippy::cast_precision_loss)]
 
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("lotsa turtles")
         .run(|turtle| {

@@ -1,8 +1,8 @@
 use clamp_to::Clamp;
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("Input a number")
         .run(|turtle| {

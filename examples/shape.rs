@@ -1,8 +1,8 @@
 use rand::Rng;
-use slowpoke::{Shape, SlowpokeLib};
+use slowpoke::{Shape, Slowpoke};
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("polygon test")
         .run(|turtle| {

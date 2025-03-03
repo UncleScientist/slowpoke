@@ -1,7 +1,7 @@
-use slowpoke::SlowpokeLib;
+use slowpoke::Slowpoke;
 
 fn main() {
-    SlowpokeLib::default()
+    Slowpoke::default()
         .with_size(600, 400)
         .with_title("a corner radius")
         .run(|turtle| {

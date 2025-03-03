@@ -1,7 +1,7 @@
-use slowpoke::{SlowpokeLib, Turtle};
+use slowpoke::{Slowpoke, Turtle};
 
 fn main() {
-    SlowpokeLib::new()
+    Slowpoke::new()
         .with_size(500, 500)
         .with_title("A Squarish Fractal")
         .run(|turtle| {
