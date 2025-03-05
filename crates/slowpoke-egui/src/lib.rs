@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
-use egui::{pos2, vec2, Color32, Painter, Pos2, Rect, Stroke};
+use eframe::CreationContext;
+use egui::{pos2, vec2, Color32, Frame, Painter, Pos2, Rect, Stroke};
 use slowpoke::{
     DrawCommand, Handler, IndividualTurtle, LineInfo, PopupID, SlowpokeLib, TurtleColor, TurtleGui,
     TurtleID, TurtleTask, TurtleUI, TurtleUserInterface,
@@ -10,7 +11,10 @@ pub type Slowpoke = SlowpokeLib<EguiFramework>;
 pub type Turtle = slowpoke::Turtle;
 
 #[derive(Debug)]
-pub struct EguiFramework;
+pub struct EguiFramework {
+    tt: TurtleTask,
+    handler: Handler<EguiUI, EguiInternal>,
+}
 
 #[derive(Debug, Default)]
 struct EguiInternal;
@@ -62,7 +66,7 @@ impl EguiUI {
     fn draw(&self, painter: &Painter, cur_size: &Rect) {
         let center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
 
-        let stroke = Stroke::new(0.25, Color32::WHITE);
+        let stroke = Stroke::new(0.25, Color32::BLACK);
         for cmd in &self.drawing {
             match cmd {
                 EguiCmd::Line(start, end) => {
@@ -110,39 +114,58 @@ impl TurtleUserInterface for EguiFramework {
             ..Default::default()
         };
 
-        eframe::run_simple_native(title.as_str(), options, move |ctx, _frame| {
-            tt.tick(&mut handler);
-
-            if update_turtles(&mut handler, &mut tt) {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    let cur_size = ctx.screen_rect();
-                    let painter = ui.painter();
-
-                    for turtle in handler.turtle.values() {
-                        let ui = turtle.ui.borrow();
-                        ui.draw(painter, &cur_size);
-                    }
-                });
-            }
-        })
+        eframe::run_native(
+            title.as_str(),
+            options,
+            Box::new(move |cc| Ok(Box::new(EguiFramework::new(cc, handler, tt)))),
+        )
         .expect("failed to start turtle");
     }
 }
 
-fn update_turtles(handler: &mut Handler<EguiUI, EguiInternal>, tt: &mut TurtleTask) -> bool {
-    let mut done = true;
+impl eframe::App for EguiFramework {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.tt.tick(&mut self.handler);
+        let frame = Frame {
+            fill: Color32::WHITE,
+            ..Frame::default()
+        };
 
-    for (tid, turtle) in handler.turtle.iter_mut() {
-        let (pct, prog) = tt.progress(*tid);
-        if turtle.has_new_cmd {
-            done = false;
-            let mut ui = turtle.ui.borrow_mut();
-            ui.convert(pct, &turtle.cmds, &turtle);
-            if prog.is_done(pct) {
-                turtle.has_new_cmd = false;
-            }
+        if self.update_turtles() {
+            egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+                let cur_size = ctx.screen_rect();
+                let painter = ui.painter();
+
+                for turtle in self.handler.turtle.values() {
+                    let ui = turtle.ui.borrow();
+                    ui.draw(painter, &cur_size);
+                }
+            });
         }
+        ctx.request_repaint_after(Duration::from_millis(10));
+    }
+}
+
+impl EguiFramework {
+    fn new(_cc: &CreationContext, handler: Handler<EguiUI, EguiInternal>, tt: TurtleTask) -> Self {
+        Self { handler, tt }
     }
 
-    !done
+    fn update_turtles(&mut self) -> bool {
+        let mut done = true;
+
+        for (tid, turtle) in self.handler.turtle.iter_mut() {
+            let (pct, prog) = self.tt.progress(*tid);
+            if turtle.has_new_cmd {
+                done = false;
+                let mut ui = turtle.ui.borrow_mut();
+                ui.convert(pct, &turtle.cmds, &turtle);
+                if prog.is_done(pct) {
+                    turtle.has_new_cmd = false;
+                }
+            }
+        }
+
+        !done
+    }
 }
