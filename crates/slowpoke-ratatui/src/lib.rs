@@ -31,6 +31,7 @@ use ratatui::{
 };
 
 pub type Slowpoke = SlowpokeLib<RatatuiFramework>;
+pub type Turtle = slowpoke::Turtle;
 
 use slowpoke::{
     CirclePos, DrawCommand, Handler, IndividualTurtle, PolygonPath, PopupData, PopupID,
