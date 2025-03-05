@@ -34,6 +34,7 @@ use iced::window::Event::Resized;
 use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 pub type Slowpoke = SlowpokeLib<IcedGuiFramework>;
+pub type Turtle = slowpoke::Turtle;
 
 #[derive(Debug, Clone)]
 pub enum Message {
