@@ -66,7 +66,7 @@ impl EguiUI {
     fn draw(&self, painter: &Painter, cur_size: &Rect) {
         let center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
 
-        let stroke = Stroke::new(0.25, Color32::BLACK);
+        let stroke = Stroke::new(0.25, Color32::WHITE);
         for cmd in &self.drawing {
             match cmd {
                 EguiCmd::Line(start, end) => {
@@ -126,22 +126,22 @@ impl TurtleUserInterface for EguiFramework {
 impl eframe::App for EguiFramework {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.tt.tick(&mut self.handler);
-        let frame = Frame {
-            fill: Color32::WHITE,
-            ..Frame::default()
-        };
+        // let frame = Frame {
+        // fill: Color32::WHITE,
+        // ..Frame::default()
+        // };
 
-        if self.update_turtles() {
-            egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
-                let cur_size = ctx.screen_rect();
-                let painter = ui.painter();
+        self.update_turtles();
 
-                for turtle in self.handler.turtle.values() {
-                    let ui = turtle.ui.borrow();
-                    ui.draw(painter, &cur_size);
-                }
-            });
-        }
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let cur_size = ctx.screen_rect();
+            let painter = ui.painter();
+
+            for turtle in self.handler.turtle.values() {
+                let ui = turtle.ui.borrow();
+                ui.draw(painter, &cur_size);
+            }
+        });
         ctx.request_repaint_after(Duration::from_millis(10));
     }
 }
@@ -154,12 +154,12 @@ impl EguiFramework {
     fn update_turtles(&mut self) -> bool {
         let mut done = true;
 
-        for (tid, turtle) in self.handler.turtle.iter_mut() {
+        for (tid, turtle) in &mut self.handler.turtle {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
                 done = false;
                 let mut ui = turtle.ui.borrow_mut();
-                ui.convert(pct, &turtle.cmds, &turtle);
+                ui.convert(pct, &turtle.cmds, turtle);
                 if prog.is_done(pct) {
                     turtle.has_new_cmd = false;
                 }
