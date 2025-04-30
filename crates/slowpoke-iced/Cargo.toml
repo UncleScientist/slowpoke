@@ -8,5 +8,8 @@ iced = { version = "0.12.1", features = ["canvas", "smol", "multi-window"] }
 lyon_tessellation = "1.0.15"
 slowpoke = { path = "../slowpoke" }
 
+[dev-dependencies]
+rand = "0.9.1"
+
 [lints.clippy]
 all = "warn"

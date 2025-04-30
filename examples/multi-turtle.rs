@@ -36,17 +36,17 @@ fn main() {
                 t.speed("fastest");
             }
 
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             loop {
                 for t in &mut tlist {
-                    let dist: f64 = 10. + rng.gen::<f64>() * 20.;
+                    let dist: f64 = 10. + rng.random::<f64>() * 20.;
                     let pos = t.pos();
                     if pos.x > 200 || pos.x < -200 || pos.y > 200 || pos.y < -200 {
                         let h = t.towards(0, 0);
                         t.setheading(h);
                     } else {
-                        let angle: f64 = rng.gen::<f64>() * 40. - 20.;
+                        let angle: f64 = rng.random::<f64>() * 40. - 20.;
                         t.right(angle);
                     }
                     t.forward(dist);
