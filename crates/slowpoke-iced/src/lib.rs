@@ -35,6 +35,7 @@ use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 pub type Slowpoke = SlowpokeLib<IcedGuiFramework>;
 pub type Turtle = slowpoke::Turtle;
+pub use slowpoke::TurtleShapeName; // TODO XXX Fix this -- we shouldn't need to do this?
 
 #[derive(Debug, Clone)]
 pub enum Message {

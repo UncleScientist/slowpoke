@@ -1,4 +1,5 @@
 pub(crate) mod events;
+pub(crate) mod ops;
 pub(crate) mod popup;
 
 use crate::color_names::TurtleColor;
