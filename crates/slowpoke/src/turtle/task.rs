@@ -176,6 +176,7 @@ impl TurtleTask {
             }
 
             turtle.time_passes(gui, 0.01); // TODO: use actual time delta
+            gui.convert(turtle.state.percent);
         }
     }
 

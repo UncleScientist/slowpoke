@@ -24,7 +24,12 @@ pub type StampID = usize;
 // make these all top-level exports
 pub use color_names::TurtleColor;
 pub use generate::{CirclePos, DrawCommand, LineInfo};
-pub use gui::{events::TurtleEvent, popup::PopupData, TurtleGui};
+pub use gui::{
+    events::TurtleEvent,
+    ops::{LineSegment, TurtleDraw},
+    popup::PopupData,
+    TurtleGui,
+};
 pub use polygon::{PolygonPath, ShapeComponent};
 pub use turtle::handler::{Handler, IndividualTurtle, TurtleUI};
 pub use turtle::task::{EventResult, TurtleTask};

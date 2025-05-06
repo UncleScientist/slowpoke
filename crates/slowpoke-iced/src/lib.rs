@@ -3,9 +3,9 @@
 
 use iced::Pixels;
 use slowpoke::{
-    CirclePos, DrawCommand, EventResult, Handler, IndividualTurtle, LineInfo, PolygonPath,
-    PopupData, PopupID, SlowpokeLib, TurtleColor, TurtleEvent, TurtleFlags, TurtleGui, TurtleID,
-    TurtleTask, TurtleThread, TurtleUI, TurtleUserInterface,
+    CirclePos, DrawCommand, EventResult, Handler, IndividualTurtle, LineInfo, LineSegment,
+    PolygonPath, PopupData, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleEvent,
+    TurtleFlags, TurtleGui, TurtleID, TurtleTask, TurtleThread, TurtleUI, TurtleUserInterface,
 };
 
 use std::collections::HashMap;
@@ -60,246 +60,98 @@ struct IcedUI {
 }
 
 impl IcedUI {
-    fn draw(&self, frame: &mut Frame) {
-        for draw_iced_cmd in &self.drawing {
-            match draw_iced_cmd {
-                IcedDrawCmd::Stroke(path, pencolor, penwidth) => frame.stroke(
-                    path,
-                    Stroke {
-                        style: stroke::Style::Solid(pencolor.into()),
-                        width: *penwidth,
-                        line_join: LineJoin::Round,
-                        ..Stroke::default()
-                    },
-                ),
-                IcedDrawCmd::Fill(path, fillcolor) => frame.fill(
-                    path,
-                    Fill {
-                        style: stroke::Style::Solid(fillcolor.into()),
-                        rule: Rule::EvenOdd,
-                    },
-                ),
-                IcedDrawCmd::Text(pos, text) => {
-                    frame.fill_text(Text {
-                        content: text.to_string(),
-                        position: *pos,
-                        color: Color::BLACK,
-                        size: 10.into(),
-                        line_height: LineHeight::Relative(1.0),
-                        font: Font::DEFAULT,
-                        horizontal_alignment: Horizontal::Left,
-                        vertical_alignment: Vertical::Bottom,
-                        shaping: Shaping::Basic,
-                    });
-                }
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_lines)]
-    fn convert(&mut self, pct: f32, cmds: &[DrawCommand], turtle: &IndividualTurtle<IcedUI>) {
-        fn make_path(path: &mut Vec<(bool, Point)>) -> Path {
-            Path::new(|b| {
-                b.move_to(path[0].1);
-                for (pen, pos) in path.drain(1..) {
-                    if pen {
-                        b.line_to(pos);
-                    } else {
-                        b.move_to(pos);
-                    }
-                }
-                path.clear(); // remove first element
-            })
-        }
-
-        let mut pencolor = IcedColor(Color::BLACK);
-        let mut penwidth = 1.0;
-        let mut fillcolor = IcedColor(Color::BLACK);
-
-        let mut tpos = [0f32, 0f32];
-        let mut trot = 0f32;
-
-        self.drawing.clear();
-
-        let mut iter = cmds.iter().peekable();
-        let mut cur_path: Vec<(bool, Point)> = Vec::new();
-
-        while let Some(element) = iter.next() {
-            let last_element = iter.peek().is_none() && pct < 1.;
-            if !matches!(element, DrawCommand::Line(..))
-                && !matches!(element, DrawCommand::SetHeading(..))
-                && !cur_path.is_empty()
-            {
-                self.drawing.push(IcedDrawCmd::Stroke(
-                    make_path(&mut cur_path),
-                    pencolor,
-                    penwidth,
-                ));
-            }
-
-            match element {
-                DrawCommand::Line(line) => {
-                    let (start, end) = Self::start_and_end(last_element, pct, line);
-                    tpos = [end.x, end.y];
-                    if cur_path.is_empty() {
-                        cur_path.push((line.pen_down, start));
-                    }
-                    cur_path.push((line.pen_down, end));
-                }
-                DrawCommand::SetPenColor(pc) => {
-                    pencolor = pc.into();
-                }
-                DrawCommand::SetPenWidth(pw) => penwidth = *pw,
-                DrawCommand::SetFillColor(fc) => {
-                    fillcolor = fc.into();
-                }
-                DrawCommand::DrawPolygon(p) => {
-                    self.drawing
-                        .push(IcedDrawCmd::Fill(p.get_path().clone(), fillcolor));
-                }
-                DrawCommand::SetHeading(start, end) => {
-                    let rotation = if last_element {
-                        *start + (*end - *start) * pct
-                    } else {
-                        *end
+    fn draw(&self, frame: &mut Frame, ops: &[TurtleDraw]) {
+        fn segs_to_path(segments: &[LineSegment]) -> Option<Path> {
+            let mut iter = segments.iter();
+            let mut cur = iter.next()?;
+            Some(Path::new(|b| {
+                let start = Point {
+                    x: cur.start.x,
+                    y: cur.start.y,
+                };
+                b.move_to(start);
+                for i in iter {
+                    let end = Point {
+                        x: cur.end.x,
+                        y: cur.end.y,
                     };
-                    trot = rotation;
+                    b.line_to(end);
+                    let next_start = Point {
+                        x: i.start.x,
+                        y: i.start.y,
+                    };
+                    if next_start != end {
+                        b.move_to(next_start);
+                    }
+                    cur = i;
                 }
-                DrawCommand::Dot(center, radius, color) => {
+                let end = Point {
+                    x: cur.end.x,
+                    y: cur.end.y,
+                };
+                b.line_to(end);
+            }))
+        }
+
+        for op in ops {
+            match op {
+                TurtleDraw::DrawLines(color, width, segments) => {
+                    let color: IcedColor = color.into();
+                    if let Some(path) = segs_to_path(segments) {
+                        frame.stroke(
+                            &path,
+                            Stroke {
+                                style: stroke::Style::Solid(*color),
+                                width: *width,
+                                line_join: LineJoin::Round,
+                                ..Stroke::default()
+                            },
+                        );
+                    }
+                }
+                TurtleDraw::DrawDot(center, radius, color) => {
                     let center: Point = Point::new(center.x, center.y);
                     let circle = Path::circle(center, *radius);
-                    self.drawing.push(IcedDrawCmd::Fill(circle, color.into()));
+                    let color: IcedColor = color.into();
+                    frame.fill(
+                        &circle,
+                        Fill {
+                            style: stroke::Style::Solid(*color),
+                            rule: Rule::EvenOdd,
+                        },
+                    );
                 }
-                DrawCommand::DrawPolyAt(polygon, pos, angle) => {
-                    let path = polygon.get_path();
-                    let angle = Angle::degrees(*angle);
-                    let xform = Transform2D::rotation(angle).then_translate([pos.x, pos.y].into());
-                    let path = path.transform(&xform);
-                    self.drawing
-                        .push(IcedDrawCmd::Fill(path.clone(), fillcolor));
-                    self.drawing
-                        .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
+                TurtleDraw::FillPolygon(fillcolor, pencolor, pen_width, segments) => {
+                    let stroke_color: IcedColor = pencolor.into();
+                    let fill_color: IcedColor = fillcolor.into();
+                    if let Some(path) = segs_to_path(segments) {
+                        frame.fill(
+                            &path,
+                            Fill {
+                                style: stroke::Style::Solid(*fill_color),
+                                rule: Rule::EvenOdd,
+                            },
+                        );
+                        frame.stroke(
+                            &path,
+                            Stroke {
+                                style: stroke::Style::Solid(*stroke_color),
+                                width: *pen_width,
+                                line_join: LineJoin::Round,
+                                ..Stroke::default()
+                            },
+                        );
+                    }
                 }
-                DrawCommand::Circle(points) => {
-                    let (path, final_pos, final_angle) =
-                        Self::circle_path(last_element, pct, points);
-                    tpos = final_pos.into();
-                    trot = final_angle;
-                    self.drawing
-                        .push(IcedDrawCmd::Stroke(path, pencolor, penwidth));
-                }
-                DrawCommand::SetPosition(pos) => {
-                    tpos = [pos.x as f32, pos.y as f32];
-                }
-                DrawCommand::Text(pos, text) => {
-                    let pos = Point { x: pos.x, y: pos.y };
-                    self.drawing.push(IcedDrawCmd::Text(pos, text.to_string()));
-                }
-                DrawCommand::Filler | DrawCommand::Filled(_) => {}
-                DrawCommand::StampTurtle
-                | DrawCommand::Clear
-                | DrawCommand::Reset
-                | DrawCommand::BeginFill
-                | DrawCommand::EndFill
-                | DrawCommand::BeginPoly
-                | DrawCommand::EndPoly => panic!("invalid draw command in gui"),
+                TurtleDraw::DrawText(start_pos, text) => {}
+
+                // TODO: remove?
+                TurtleDraw::_SetLineWidth => todo!(),
+                TurtleDraw::_SetLineColor => todo!(),
+                TurtleDraw::_SetFillColor => todo!(),
+                TurtleDraw::_DrawLine(_) => todo!(),
             }
         }
-
-        if !cur_path.is_empty() {
-            self.drawing.push(IcedDrawCmd::Stroke(
-                make_path(&mut cur_path),
-                pencolor,
-                penwidth,
-            ));
-        }
-
-        if !turtle.hide_turtle {
-            for (path, fillcolor, pencolor) in
-                self.calculate_turtle(tpos, trot, fillcolor.into(), pencolor.into(), turtle)
-            {
-                self.drawing
-                    .push(IcedDrawCmd::Fill(path.clone(), (&fillcolor).into()));
-                self.drawing
-                    .push(IcedDrawCmd::Stroke(path, (&pencolor).into(), penwidth));
-            }
-        }
-    }
-
-    fn calculate_turtle(
-        &self,
-        tpos: [f32; 2],
-        trot: f32,
-        fillcolor: TurtleColor,
-        pencolor: TurtleColor,
-        turtle: &IndividualTurtle<IcedUI>,
-    ) -> Vec<(Path, TurtleColor, TurtleColor)> {
-        let angle = Angle::degrees(trot);
-        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
-        let mut result = Vec::new();
-
-        for poly in &turtle.turtle_shape.poly {
-            let path = poly.polygon.get_path();
-            let path = path.transform(&transform);
-
-            let fillcolor = fillcolor.color_or(&poly.fill);
-            let pencolor = pencolor.color_or(&poly.outline);
-            result.push((path, fillcolor, pencolor));
-        }
-
-        result
-    }
-
-    fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
-        (
-            [line.begin.x as f32, line.begin.y as f32].into(),
-            if last_element {
-                let end_x = line.begin.x as f32 + (line.end.x - line.begin.x) as f32 * pct;
-                let end_y = line.begin.y as f32 + (line.end.y - line.begin.y) as f32 * pct;
-                [end_x, end_y]
-            } else {
-                [line.end.x as f32, line.end.y as f32]
-            }
-            .into(),
-        )
-    }
-
-    // returns path, final point, and final angle
-    fn circle_path(last_element: bool, pct: f32, points: &[CirclePos]) -> (Path, Point, f32) {
-        let (total, subpercent) = if last_element {
-            let partial = (points.len() - 1) as f32 * pct;
-            let p = (partial.floor() as i64).checked_abs().expect("too small") as usize;
-            (p, (partial - partial.floor()))
-        } else {
-            (points.len() - 1, 1_f32)
-        };
-        let mut tpos = Point::default();
-        let mut trot = 0.;
-        let path = Path::new(|b| {
-            let (_, start) = points[0].get_data();
-
-            b.move_to(start.into());
-
-            let mut iter = points.windows(2).take(total + 1).peekable();
-            while let Some(p) = iter.next() {
-                let (end_angle, end) = p[1].get_data();
-                let last_segment = iter.peek().is_none();
-                tpos = end.into();
-                if last_element && last_segment {
-                    let (_, begin) = p[0].get_data();
-                    let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
-                    let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
-                    tpos = [end_x, end_y].into();
-                }
-                if points[0].pen_down {
-                    b.line_to(tpos);
-                } else {
-                    b.move_to(tpos);
-                }
-                trot = end_angle;
-            }
-        });
-        (path, tpos, trot)
     }
 }
 
@@ -642,7 +494,7 @@ impl<Message> canvas::Program<Message> for IcedGuiFramework {
             frame.translate([center.x, center.y].into());
             for turtle in self.handler.turtle.values() {
                 let ui = turtle.ui.borrow();
-                ui.draw(frame);
+                ui.draw(frame, &turtle.ops);
             }
         });
         vec![geometry]
@@ -658,8 +510,6 @@ impl IcedGuiFramework {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
                 done = false;
-                let mut ui = turtle.ui.borrow_mut();
-                ui.convert(pct, &turtle.cmds, turtle);
                 if prog.is_done(pct) {
                     turtle.has_new_cmd = false;
                 }

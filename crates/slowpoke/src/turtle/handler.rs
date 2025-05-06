@@ -4,7 +4,7 @@ use either::Either;
 
 use crate::{
     color_names::TurtleColor,
-    gui::{popup::PopupData, StampCount},
+    gui::{ops::TurtleDraw, popup::PopupData, StampCount},
     polygon::TurtleShape,
     ScreenPosition,
 };
@@ -14,6 +14,7 @@ use super::{types::PopupID, DrawCommand, TurtleGui, TurtleID, TurtleThread};
 #[derive(Default, Debug)]
 pub struct IndividualTurtle<U> {
     pub cmds: Vec<DrawCommand>,
+    pub ops: Vec<TurtleDraw>,
     pub has_new_cmd: bool,
     pub turtle_shape: TurtleShape,
     pub hide_turtle: bool,
@@ -35,7 +36,19 @@ pub trait TurtleUI {
     fn set_bg_color(&mut self, bgcolor: TurtleColor);
 }
 
+impl<T, U: TurtleUI> Handler<T, U> {
+    pub(crate) fn do_conversion(&mut self, pct: f32) {
+        for turtle in self.turtle.values_mut() {
+            turtle.ops = crate::gui::ops::TurtleDraw::convert(pct, &turtle);
+        }
+    }
+}
+
 impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
+    fn convert(&mut self, pct: f32) {
+        self.do_conversion(pct);
+    }
+
     fn set_title(&mut self, title: String) {
         self.title = title;
     }

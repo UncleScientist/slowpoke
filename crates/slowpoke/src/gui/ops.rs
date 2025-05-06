@@ -9,13 +9,13 @@ use crate::{DrawCommand, LineInfo, TurtleColor};
 type Point = Point2D<f32>;
 
 #[derive(Debug)]
-pub(crate) enum DrawOp {
+pub enum DrawOp {
     ScreenCmd(ScreenDraw),
     TurtleCmd(TurtleDraw),
 }
 
 #[derive(Debug)]
-pub(crate) enum ScreenDraw {
+pub enum ScreenDraw {
     SetBackgroundColor,
     SetBackgroundImage,
     SetScreenSize,
@@ -29,30 +29,32 @@ pub(crate) enum ScreenDraw {
 }
 
 #[derive(Debug)]
-pub(crate) enum TurtleDraw {
-    DrawLine(LineSegment),
+pub enum TurtleDraw {
+    _DrawLine(LineSegment),
     DrawLines(TurtleColor, f32, Vec<LineSegment>),
     DrawDot(Point, f32, TurtleColor),
     DrawText(Point, String),
     FillPolygon(TurtleColor, TurtleColor, f32, Vec<LineSegment>),
-    SetLineWidth,
-    SetLineColor,
-    SetFillColor,
+    _SetLineWidth,
+    _SetLineColor,
+    _SetFillColor,
 }
 
 #[derive(Debug)]
-pub(crate) struct LineSegment {
-    start: Point,
-    end: Point,
+pub struct LineSegment {
+    pub start: Point,
+    pub end: Point,
+}
+impl LineSegment {
+    fn transform(&self, xform: &Transform2D<f32>) -> LineSegment {
+        let start = xform.transform_point(self.start);
+        let end = xform.transform_point(self.end);
+        LineSegment { start, end }
+    }
 }
 
 impl TurtleDraw {
-    fn convert<UI>(
-        pct: f32,
-        cmds: &[DrawCommand],
-        hide_turtle: bool,
-        turtle: &IndividualTurtle<UI>,
-    ) -> Vec<Self> {
+    pub(crate) fn convert<UI>(pct: f32, turtle: &IndividualTurtle<UI>) -> Vec<Self> {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Vec<LineSegment> {
             let mut segments = Vec::new();
             let mut cur_pos = path.remove(0).1;
@@ -77,7 +79,7 @@ impl TurtleDraw {
         let mut tpos = [0f32, 0f32];
         let mut trot = 0f32;
 
-        let mut iter = cmds.iter().peekable();
+        let mut iter = turtle.cmds.iter().peekable();
         let mut cur_path: Vec<(bool, Point)> = Vec::new();
 
         while let Some(element) = iter.next() {
@@ -169,12 +171,13 @@ impl TurtleDraw {
             ));
         }
 
-        if !hide_turtle {
+        if !turtle.hide_turtle {
             drawing.extend(Self::calculate_turtle(
                 tpos,
                 trot,
                 fillcolor.into(),
                 pencolor.into(),
+                penwidth,
                 turtle,
             ));
         }
@@ -209,9 +212,23 @@ impl TurtleDraw {
         trot: f32,
         fillcolor: TurtleColor,
         pencolor: TurtleColor,
+        penwidth: f32,
         turtle: &IndividualTurtle<UI>,
     ) -> Vec<TurtleDraw> {
-        todo!()
+        let angle = Angle::degrees(trot);
+        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+        let mut result = Vec::new();
+
+        for poly in &turtle.turtle_shape.poly {
+            let path = poly.polygon.get_path();
+            let path = path.transform(&transform);
+
+            let fillcolor = fillcolor.color_or(&poly.fill);
+            let pencolor = pencolor.color_or(&poly.outline);
+            result.push(TurtleDraw::FillPolygon(fillcolor, pencolor, penwidth, path));
+        }
+
+        result
     }
 
     /*
@@ -260,7 +277,16 @@ trait ConvertSimplePolygon {
 
 impl ConvertSimplePolygon for PolygonPath {
     fn get_path(&self) -> Vec<LineSegment> {
-        todo!()
+        let mut path = Vec::new();
+        let mut iter = self.path.iter();
+        let mut start_pos = iter.next().unwrap();
+        while let Some(end_pos) = iter.next() {
+            let start = Point::new(start_pos[0], start_pos[1]);
+            let end = Point::new(end_pos[0], end_pos[1]);
+            path.push(LineSegment { start, end });
+            start_pos = end_pos;
+        }
+        path
     }
 }
 
@@ -270,6 +296,8 @@ trait Transformer {
 
 impl Transformer for Vec<LineSegment> {
     fn transform(&self, xform: &Transform2D<f32>) -> Vec<LineSegment> {
-        todo!()
+        self.iter()
+            .map(|segment| segment.transform(xform))
+            .collect()
     }
 }
