@@ -204,7 +204,40 @@ impl TurtleDraw {
         pct: f32,
         points: &[CirclePos],
     ) -> (Vec<LineSegment>, Point, f32) {
-        todo!()
+        let mut line_list = Vec::new();
+
+        let (total, subpercent) = if last_element {
+            let partial = (points.len() - 1) as f32 * pct;
+            let p = (partial.floor() as i64).checked_abs().expect("too small") as usize;
+            (p, (partial - partial.floor()))
+        } else {
+            (points.len() - 1, 1_f32)
+        };
+        let mut end: Point = Point::new(0., 0.);
+        let mut angle = 0.;
+        let (_, start_slice) = points[0].get_data();
+        let mut start: Point = start_slice.into();
+
+        let mut iter = points.windows(2).take(total + 1).peekable();
+        while let Some(p) = iter.next() {
+            let (end_angle, end_position_slice) = p[1].get_data();
+            let end_position: Point = end_position_slice.into();
+            let last_segment = iter.peek().is_none();
+            end = end_position;
+            if last_element && last_segment {
+                let (_, begin) = p[0].get_data();
+                let end_x = begin[0] + (end_position.x - begin[0]) * subpercent;
+                let end_y = begin[1] + (end_position.y - begin[1]) * subpercent;
+                end = [end_x, end_y].into();
+            }
+            if points[0].pen_down {
+                line_list.push(LineSegment { start, end });
+            }
+            start = end_position;
+            angle = end_angle;
+        }
+
+        (line_list, end, angle)
     }
 
     fn calculate_turtle<UI>(

@@ -145,7 +145,7 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
 
     fn append_command(&mut self, turtle: TurtleID, cmd: DrawCommand) {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
-        turtle.cmds.push(cmd);
+        // turtle.cmds.push(cmd);
         turtle.has_new_cmd = true;
     }
 
