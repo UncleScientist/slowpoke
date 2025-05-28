@@ -302,7 +302,6 @@ struct EventHandlers {
 struct TurtleData {
     queue: VecDeque<TurtleCommand>,       // new commands to draw
     current_command: Option<DrawRequest>, // what we're drawing now
-    commands: Vec<DrawCommand>,
     turtle_id: TurtleID,
     state: DrawState,
     event: EventHandlers,
@@ -320,7 +319,6 @@ impl TurtleData {
             },
             queue: VecDeque::new(),
             current_command: None,
-            commands: Vec::new(),
             turtle_id: TurtleID::default(),
             event: EventHandlers::default(),
             responder: HashMap::new(),
@@ -358,7 +356,6 @@ impl TurtleData {
                     // to continue the current polygon if fill_gap=True (see python docs)
                     self.state.fill_poly.update(lineinfo.end);
                     self.state.shape_poly.update(lineinfo.end);
-                    self.commands.push(command.clone());
                     gui.append_command(tid, command);
                 }
                 DrawCommand::Circle(circle) => {
@@ -366,7 +363,6 @@ impl TurtleData {
                         self.state.fill_poly.update([c.x, c.y].into());
                         self.state.shape_poly.update([c.x, c.y].into());
                     }
-                    self.commands.push(command.clone());
                     gui.append_command(tid, command);
                 }
                 DrawCommand::DrawPolygon(_) => {
@@ -387,7 +383,6 @@ impl TurtleData {
                     let pos_copy = self.state.turtle.pos();
                     self.state.fill_poly.start(pos_copy);
                     self.state.insert_fill = Some(gui.get_position(tid));
-                    self.commands.push(DrawCommand::Filler);
                     gui.append_command(tid, DrawCommand::Filler);
                 }
                 DrawCommand::EndFill => {
@@ -402,7 +397,6 @@ impl TurtleData {
                 DrawCommand::Clear => {
                     gui.clear_turtle(tid);
                     for cmd in self.state.turtle.get_state() {
-                        self.commands.push(cmd.clone());
                         gui.append_command(tid, cmd);
                     }
                 }
@@ -422,7 +416,6 @@ impl TurtleData {
                 | DrawCommand::Dot(..)
                 | DrawCommand::DrawPolyAt(..)
                 | DrawCommand::SetPenColor(_) => {
-                    self.commands.push(command.clone());
                     gui.append_command(tid, command);
                 }
             }
