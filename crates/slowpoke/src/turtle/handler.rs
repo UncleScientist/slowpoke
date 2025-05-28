@@ -15,6 +15,7 @@ use super::{types::PopupID, DrawCommand, TurtleGui, TurtleID, TurtleThread};
 pub struct IndividualTurtle<U> {
     pub cmds: Vec<DrawCommand>,
     pub ops: Vec<TurtleDraw>,
+    pub last_op: usize, // entry in ops vec that is done?
     pub has_new_cmd: bool,
     pub turtle_shape: TurtleShape,
     pub hide_turtle: bool,
@@ -39,7 +40,7 @@ pub trait TurtleUI {
 impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
     fn convert(&mut self, pct: f32, id: &TurtleID) {
         if let Some(turtle) = self.turtle.get_mut(id) {
-            turtle.ops = crate::gui::ops::TurtleDraw::convert(pct, &turtle);
+            crate::gui::ops::TurtleDraw::convert(pct, turtle);
         }
     }
 

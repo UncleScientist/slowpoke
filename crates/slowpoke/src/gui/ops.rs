@@ -54,7 +54,7 @@ impl LineSegment {
 }
 
 impl TurtleDraw {
-    pub(crate) fn convert<UI>(pct: f32, turtle: &IndividualTurtle<UI>) -> Vec<Self> {
+    pub(crate) fn convert<UI>(pct: f32, turtle: &mut IndividualTurtle<UI>) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Vec<LineSegment> {
             let mut segments = Vec::new();
             let mut cur_pos = path.remove(0).1;
@@ -173,16 +173,11 @@ impl TurtleDraw {
 
         if !turtle.hide_turtle {
             drawing.extend(Self::calculate_turtle(
-                tpos,
-                trot,
-                fillcolor.into(),
-                pencolor.into(),
-                penwidth,
-                turtle,
+                tpos, trot, fillcolor, pencolor, penwidth, turtle,
             ));
         }
 
-        drawing
+        turtle.ops = drawing;
     }
 
     fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
@@ -313,7 +308,7 @@ impl ConvertSimplePolygon for PolygonPath {
         let mut path = Vec::new();
         let mut iter = self.path.iter();
         let mut start_pos = iter.next().unwrap();
-        while let Some(end_pos) = iter.next() {
+        for end_pos in iter {
             let start = Point::new(start_pos[0], start_pos[1]);
             let end = Point::new(end_pos[0], end_pos[1]);
             path.push(LineSegment { start, end });
