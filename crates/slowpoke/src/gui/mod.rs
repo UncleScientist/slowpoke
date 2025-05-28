@@ -8,7 +8,7 @@ use crate::{generate::DrawCommand, polygon::TurtleShape, ScreenPosition};
 use crate::turtle::types::{TurtleID, TurtleThread};
 
 pub trait TurtleGui {
-    fn convert(&mut self, pct: f32);
+    fn convert(&mut self, pct: f32, id: &TurtleID);
 
     // Generate a new connection to the windowing system
     fn new_turtle(&mut self) -> TurtleID;

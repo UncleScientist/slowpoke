@@ -37,8 +37,8 @@ pub trait TurtleUI {
 }
 
 impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
-    fn convert(&mut self, pct: f32) {
-        for turtle in self.turtle.values_mut() {
+    fn convert(&mut self, pct: f32, id: &TurtleID) {
+        if let Some(turtle) = self.turtle.get_mut(id) {
             turtle.ops = crate::gui::ops::TurtleDraw::convert(pct, &turtle);
         }
     }
