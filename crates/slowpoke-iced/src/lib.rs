@@ -144,12 +144,6 @@ impl IcedUI {
                     }
                 }
                 TurtleDraw::DrawText(start_pos, text) => {}
-
-                // TODO: remove?
-                TurtleDraw::_SetLineWidth => todo!(),
-                TurtleDraw::_SetLineColor => todo!(),
-                TurtleDraw::_SetFillColor => todo!(),
-                TurtleDraw::_DrawLine(_) => todo!(),
             }
         }
     }
@@ -176,7 +170,6 @@ impl TurtleUI for IcedGuiInternal {
         let new_size = Size::new(width as f32, height as f32);
         self.wcmds
             .push(window::resize::<Message>(window::Id::MAIN, new_size));
-        // self.resize_request = Some((turtle, thread)); TODO
     }
 
     fn set_bg_color(&mut self, bgcolor: TurtleColor) {
@@ -589,23 +582,6 @@ impl From<Event> for TurtleEvent {
                 TurtleEvent::Unhandled
             }
         }
-    }
-}
-
-pub trait ConvertPolygon {
-    fn get_path(&self) -> Path;
-}
-
-impl ConvertPolygon for PolygonPath {
-    fn get_path(&self) -> Path {
-        let mut iter = self.path.iter();
-        let first = iter.next().unwrap();
-        Path::new(|b| {
-            b.move_to((*first).into());
-            for i in iter {
-                b.line_to((*i).into());
-            }
-        })
     }
 }
 

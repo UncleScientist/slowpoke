@@ -9,35 +9,11 @@ use crate::{DrawCommand, LineInfo, TurtleColor};
 type Point = Point2D<f32>;
 
 #[derive(Debug)]
-pub enum DrawOp {
-    ScreenCmd(ScreenDraw),
-    TurtleCmd(TurtleDraw),
-}
-
-#[derive(Debug)]
-pub enum ScreenDraw {
-    SetBackgroundColor,
-    SetBackgroundImage,
-    SetScreenSize,
-    SetTitle,
-    UserEvent,
-    TimerTick,
-    PopupNumber,
-    PopupText,
-    GetScreenSize,
-    GetImage,
-}
-
-#[derive(Debug)]
 pub enum TurtleDraw {
-    _DrawLine(LineSegment),
     DrawLines(TurtleColor, f32, Vec<LineSegment>),
     DrawDot(Point, f32, TurtleColor),
     DrawText(Point, String),
     FillPolygon(TurtleColor, TurtleColor, f32, Vec<LineSegment>),
-    _SetLineWidth,
-    _SetLineColor,
-    _SetFillColor,
 }
 
 #[derive(Debug)]
@@ -45,6 +21,7 @@ pub struct LineSegment {
     pub start: Point,
     pub end: Point,
 }
+
 impl LineSegment {
     fn transform(&self, xform: &Transform2D<f32>) -> LineSegment {
         let start = xform.transform_point(self.start);
