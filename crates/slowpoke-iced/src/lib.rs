@@ -517,30 +517,9 @@ impl IcedGuiFramework {
     }
 }
 
-/*
-impl Handler<IcedUI, IcedGuiInternal> {
-}
-*/
-
 #[repr(transparent)]
 #[derive(Clone, Debug)]
 pub struct Event(iced::Event);
-
-/*
-impl Deref for Event {
-    type Target = iced::Event;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Event {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-*/
 
 impl From<Event> for TurtleEvent {
     fn from(event: Event) -> Self {
