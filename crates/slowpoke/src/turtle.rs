@@ -170,6 +170,7 @@ impl Turtle {
             *self.tracer.borrow_mut() = *t;
         }
 
+        let cmd_string = format!("{cmd:?}");
         if self.issue_command.send(self.req(cmd)).is_ok() {
             if *self.tracer.borrow() {
                 if tracer_was_off {
@@ -201,8 +202,8 @@ impl Turtle {
                     match self.command_complete.try_recv() {
                         Ok(response) => {
                             assert!(
-                                !matches!(response, Response::Done),
-                                "Received data response: {response:?}"
+                                matches!(response, Response::Done),
+                                "Received data response: {response:?} to command {cmd_string}"
                             );
                         }
                         Err(TryRecvError::Empty) => return Response::Done,
