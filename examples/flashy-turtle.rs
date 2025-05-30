@@ -6,10 +6,10 @@ fn main() {
         .with_size(500, 500)
         .with_title("cool patterns")
         .run(|turtle| {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             for _ in 0..10 {
-                let visible = if rng.gen::<bool>() {
+                let visible = if rng.random::<bool>() {
                     println!("hiding");
                     turtle.hideturtle();
                     false
