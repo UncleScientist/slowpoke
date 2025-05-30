@@ -8,11 +8,11 @@ fn main() {
         .run(|turtle| {
             fn draw(turtle: &mut Turtle, count: isize, x: isize, angle: f64) {
                 for i in 0..count {
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand::rng();
 
-                    let a: f64 = rng.gen::<f64>();
-                    let b: f64 = rng.gen::<f64>();
-                    let c: f64 = rng.gen::<f64>();
+                    let a: f64 = rng.random::<f64>();
+                    let b: f64 = rng.random::<f64>();
+                    let c: f64 = rng.random::<f64>();
 
                     turtle.pencolor((a, b, c));
                     turtle.fillcolor((a, b, c));
