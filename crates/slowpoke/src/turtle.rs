@@ -9,6 +9,7 @@ use std::{
     collections::{HashMap, VecDeque},
     marker::PhantomData,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    thread::JoinHandle,
     time::{Duration, Instant},
 };
 
@@ -308,6 +309,7 @@ struct TurtleData {
     event: EventHandlers,
     responder: HashMap<TurtleThread, Sender<Response>>,
     next_thread: TurtleThread,
+    join_handle: Option<JoinHandle<()>>,
 }
 
 impl TurtleData {
@@ -324,6 +326,7 @@ impl TurtleData {
             event: EventHandlers::default(),
             responder: HashMap::new(),
             next_thread: TurtleThread::default(),
+            join_handle: None,
         }
     }
 
@@ -514,11 +517,13 @@ impl TurtleData {
     }
 
     fn send_response(&mut self, thread: TurtleThread, is_stamp: bool) {
-        let _ = self.responder[&thread].send(if is_stamp {
-            Response::StampID(self.state.current_stamp)
-        } else {
-            Response::Done
-        });
+        if let Some(responder) = self.responder.get(&thread) {
+            let _ = responder.send(if is_stamp {
+                Response::StampID(self.state.current_stamp)
+            } else {
+                Response::Done
+            });
+        }
     }
 
     fn reset(&mut self) {

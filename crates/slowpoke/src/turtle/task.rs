@@ -154,7 +154,7 @@ impl TurtleTask {
         let thread = TurtleThread::new(0);
         let issue_command = self.issue_command.as_ref().unwrap().clone();
         let mut primary = self.turtle_list[turtle].spawn(thread, issue_command);
-        let _ = std::thread::spawn(move || func(&mut primary));
+        self.turtle_list[turtle].join_handle = Some(std::thread::spawn(move || func(&mut primary)));
     }
 
     pub fn tick<G: TurtleGui>(&mut self, gui: &mut G) {
@@ -429,6 +429,9 @@ impl TurtleTask {
 
         match req.cmd {
             Command::ShutDown => {
+                if let Some(handle) = self.turtle_list[turtle].join_handle.take() {
+                    let _ = handle.join();
+                }
                 let tid = self.turtle_list[turtle].responder.remove(&thread);
                 self.turtle_list[turtle].event.pending_keys = false;
                 assert!(tid.is_some());
