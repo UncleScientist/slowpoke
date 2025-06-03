@@ -1,5 +1,7 @@
+use slowpoke::Slowpoke;
+
 fn main() {
-    slowpoke::Slowpoke::default()
+    Slowpoke::default()
         .with_size(400, 400)
         .with_title("headings")
         .run(|turtle| {
