@@ -1,4 +1,7 @@
-use std::ops::{Deref, Index, IndexMut};
+use std::{
+    fmt::Display,
+    ops::{Deref, Index, IndexMut},
+};
 
 use super::TurtleData;
 
@@ -14,6 +17,12 @@ macro_rules! gen_generator {
 
             pub fn get(&mut self) -> Self {
                 Self(self.0.get())
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}({})", stringify!($name), self.0.id)
             }
         }
     };

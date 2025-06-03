@@ -325,7 +325,7 @@ impl TurtleData {
             turtle_id: TurtleID::default(),
             event: EventHandlers::default(),
             responder: HashMap::new(),
-            next_thread: TurtleThread::default(),
+            next_thread: TurtleThread::new(1),
             join_handle: None,
         }
     }

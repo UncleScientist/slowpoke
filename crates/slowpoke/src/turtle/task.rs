@@ -429,8 +429,10 @@ impl TurtleTask {
 
         match req.cmd {
             Command::ShutDown => {
-                if let Some(handle) = self.turtle_list[turtle].join_handle.take() {
-                    let _ = handle.join();
+                if self.turtle_list[turtle].responder.len() == 1 {
+                    if let Some(handle) = self.turtle_list[turtle].join_handle.take() {
+                        let _ = handle.join();
+                    }
                 }
                 let tid = self.turtle_list[turtle].responder.remove(&thread);
                 self.turtle_list[turtle].event.pending_keys = false;
