@@ -3,9 +3,9 @@
 
 use iced::Pixels;
 use slowpoke::{
-    CirclePos, DrawCommand, EventResult, Handler, IndividualTurtle, LineInfo, LineSegment,
-    PolygonPath, PopupData, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleEvent,
-    TurtleFlags, TurtleGui, TurtleID, TurtleTask, TurtleThread, TurtleUI, TurtleUserInterface,
+    EventResult, Handler, LineSegment, PopupData, PopupID, SlowpokeLib, TurtleColor, TurtleDraw,
+    TurtleEvent, TurtleFlags, TurtleGui, TurtleID, TurtleTask, TurtleThread, TurtleUI,
+    TurtleUserInterface,
 };
 
 use std::collections::HashMap;
@@ -14,24 +14,19 @@ use std::ops::{Deref, DerefMut};
 use iced::widget::text;
 
 use iced::{
-    alignment::{Horizontal, Vertical},
     event, executor, mouse,
     multi_window::Application,
     widget::{
         button,
-        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, LineJoin, Path, Stroke, Text},
-        column, container, horizontal_space, row,
-        text::{LineHeight, Shaping},
-        text_input, vertical_space, Canvas, TextInput,
+        canvas::{self, fill::Rule, stroke, Cache, Fill, Frame, LineJoin, Path, Stroke},
+        column, container, horizontal_space, row, text_input, vertical_space, Canvas, TextInput,
     },
     window::{self, Id as WindowID},
-    Color, Element, Font, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
+    Element, Length, Point, Rectangle, Renderer, Settings, Size, Subscription, Theme,
 };
 
 use iced::keyboard::{Event::KeyPressed, Event::KeyReleased, Key};
 use iced::window::Event::Resized;
-
-use lyon_tessellation::geom::{euclid::default::Transform2D, Angle};
 
 pub type Slowpoke = SlowpokeLib<IcedGuiFramework>;
 pub type Turtle = slowpoke::Turtle;
@@ -47,17 +42,8 @@ pub enum Message {
     Cancel(WindowID),
 }
 
-#[derive(Debug)]
-pub(crate) enum IcedDrawCmd {
-    Stroke(Path, IcedColor, f32),
-    Fill(Path, IcedColor),
-    Text(Point, String),
-}
-
 #[derive(Default, Debug)]
-struct IcedUI {
-    drawing: Vec<IcedDrawCmd>,
-}
+struct IcedUI;
 
 impl IcedUI {
     fn draw(&self, frame: &mut Frame, ops: &[TurtleDraw]) {
@@ -143,7 +129,9 @@ impl IcedUI {
                         );
                     }
                 }
-                TurtleDraw::DrawText(start_pos, text) => {}
+                TurtleDraw::DrawText(_start_pos, _text) => {
+                    todo!();
+                }
             }
         }
     }
