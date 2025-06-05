@@ -15,11 +15,35 @@ use super::{types::PopupID, DrawCommand, TurtleGui, TurtleID, TurtleThread};
 pub struct IndividualTurtle<U> {
     pub cmds: Vec<DrawCommand>,
     pub ops: Vec<TurtleDraw>,
-    pub last_op: usize, // entry in ops vec that is done?
     pub has_new_cmd: bool,
     pub turtle_shape: TurtleShape,
     pub hide_turtle: bool,
+    pub cvt: ConversionInfo,
     pub ui: RefCell<U>,
+}
+
+#[derive(Debug, Default)]
+pub struct ConversionInfo {
+    pub last_cmd_pos: usize, // entry in ops vec that is done?
+    pub last_fill_point: Option<usize>,
+    pub last_ops_pos: Option<usize>,
+    pub last_fill_pos: Option<usize>,
+    pub poly_pos: Option<usize>,
+    pub cur_path: Vec<(bool, crate::gui::ops::Point)>,
+    pub pencolor: TurtleColor,
+    pub penwidth: f32,
+    pub fillcolor: TurtleColor,
+    pub tpos: [f32; 2],
+    pub trot: f32,
+}
+
+impl ConversionInfo {
+    fn new() -> Self {
+        Self {
+            penwidth: 1.0,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -40,7 +64,16 @@ pub trait TurtleUI {
 impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
     fn convert(&mut self, pct: f32, id: &TurtleID) {
         if let Some(turtle) = self.turtle.get_mut(id) {
+            if turtle.cmds.is_empty() {
+                return;
+            }
+
             crate::gui::ops::TurtleDraw::convert(pct, turtle);
+            if let Some(pos) = turtle.cvt.last_fill_point.take() {
+                turtle.cvt.last_cmd_pos = pos - 1;
+            } else {
+                turtle.cvt.last_cmd_pos = turtle.cmds.len() - 1;
+            }
         }
     }
 
@@ -56,6 +89,7 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
         self.turtle.entry(id0).and_modify(|t| {
             *t = IndividualTurtle::<T> {
                 has_new_cmd: true,
+                cvt: ConversionInfo::new(),
                 ..Default::default()
             };
         });
@@ -68,6 +102,7 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
             id,
             IndividualTurtle {
                 has_new_cmd: true,
+                cvt: ConversionInfo::new(),
                 ..Default::default()
             },
         );
@@ -82,6 +117,7 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
         let turtle = self.turtle.get_mut(&turtle).expect("missing turtle");
         turtle.cmds.clear();
         turtle.has_new_cmd = true;
+        turtle.cvt = ConversionInfo::new();
     }
 
     fn set_shape(&mut self, turtle: TurtleID, shape: TurtleShape) {

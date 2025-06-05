@@ -6,7 +6,7 @@ use lyon_tessellation::{
 use crate::{polygon::PolygonPath, CirclePos, IndividualTurtle};
 use crate::{DrawCommand, LineInfo, TurtleColor};
 
-type Point = Point2D<f32>;
+pub(crate) type Point = Point2D<f32>;
 
 #[derive(Debug)]
 pub enum TurtleDraw {
@@ -30,6 +30,13 @@ impl LineSegment {
     }
 }
 
+// time   command                           command list
+// 1       start fill @ cur pos             [Filler, Pos1]
+// 2       move turtle to new position      [Filler, Pos1, Pos2]
+// 3       move turtle to new position      [Filler, Pos1, Pos2, Pos3]
+// 4       move turtle to new position      [Filler, Pos1, Pos2, Pos3, Pos4]
+// 5       end fill                         [Polygon, Pos1, Pos2, Pos3, Pos4]
+
 impl TurtleDraw {
     pub(crate) fn convert<UI>(pct: f32, turtle: &mut IndividualTurtle<UI>) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Vec<LineSegment> {
@@ -47,17 +54,16 @@ impl TurtleDraw {
             segments
         }
 
-        let mut drawing = Vec::new();
+        let mut iter = turtle.cmds.iter().skip(turtle.cvt.last_cmd_pos).peekable();
+        let mut cur_path: Vec<(bool, Point)> = turtle.cvt.cur_path.clone();
 
-        let mut pencolor = TurtleColor::Color(0., 0., 0.);
-        let mut penwidth = 1.0;
-        let mut fillcolor = TurtleColor::Color(0., 0., 0.);
-
-        let mut tpos = [0f32, 0f32];
-        let mut trot = 0f32;
-
-        let mut iter = turtle.cmds.iter().peekable();
-        let mut cur_path: Vec<(bool, Point)> = Vec::new();
+        if let Some(pos) = turtle.cvt.last_fill_pos.take() {
+            turtle.ops.truncate(pos);
+        } else if let Some(pos) = turtle.cvt.last_ops_pos.take() {
+            turtle.ops.truncate(pos);
+        } else if let Some(pos) = turtle.cvt.poly_pos.take() {
+            turtle.ops.truncate(pos);
+        }
 
         while let Some(element) = iter.next() {
             let last_element = iter.peek().is_none() && pct < 1.;
@@ -65,9 +71,9 @@ impl TurtleDraw {
                 && !matches!(element, DrawCommand::SetHeading(..))
                 && !cur_path.is_empty()
             {
-                drawing.push(TurtleDraw::DrawLines(
-                    pencolor,
-                    penwidth,
+                turtle.ops.push(TurtleDraw::DrawLines(
+                    turtle.cvt.pencolor,
+                    turtle.cvt.penwidth,
                     make_path(&mut cur_path),
                 ));
             }
@@ -75,24 +81,24 @@ impl TurtleDraw {
             match element {
                 DrawCommand::Line(line) => {
                     let (start, end) = Self::start_and_end(last_element, pct, line);
-                    tpos = [end.x, end.y];
+                    turtle.cvt.tpos = [end.x, end.y];
                     if cur_path.is_empty() {
                         cur_path.push((line.pen_down, start));
                     }
                     cur_path.push((line.pen_down, end));
                 }
                 DrawCommand::SetPenColor(pc) => {
-                    pencolor = *pc;
+                    turtle.cvt.pencolor = *pc;
                 }
-                DrawCommand::SetPenWidth(pw) => penwidth = *pw,
+                DrawCommand::SetPenWidth(pw) => turtle.cvt.penwidth = *pw,
                 DrawCommand::SetFillColor(fc) => {
-                    fillcolor = *fc;
+                    turtle.cvt.fillcolor = *fc;
                 }
                 DrawCommand::DrawPolygon(p) => {
-                    drawing.push(TurtleDraw::FillPolygon(
-                        fillcolor,
-                        pencolor,
-                        penwidth,
+                    turtle.ops.push(TurtleDraw::FillPolygon(
+                        turtle.cvt.fillcolor,
+                        turtle.cvt.pencolor,
+                        turtle.cvt.penwidth,
                         p.get_path(),
                     ));
                 }
@@ -102,34 +108,52 @@ impl TurtleDraw {
                     } else {
                         *end
                     };
-                    trot = rotation;
+                    turtle.cvt.trot = rotation;
                 }
                 DrawCommand::Dot(center, radius, color) => {
                     let center: Point = Point2D::new(center.x, center.y);
-                    drawing.push(TurtleDraw::DrawDot(center, *radius, *color));
+                    turtle
+                        .ops
+                        .push(TurtleDraw::DrawDot(center, *radius, *color));
                 }
                 DrawCommand::DrawPolyAt(polygon, pos, angle) => {
                     let path = polygon.get_path();
                     let angle = Angle::degrees(*angle);
                     let xform = Transform2D::rotation(angle).then_translate([pos.x, pos.y].into());
                     let path = path.transform(&xform);
-                    drawing.push(TurtleDraw::FillPolygon(fillcolor, pencolor, penwidth, path));
+                    turtle.ops.push(TurtleDraw::FillPolygon(
+                        turtle.cvt.fillcolor,
+                        turtle.cvt.pencolor,
+                        turtle.cvt.penwidth,
+                        path,
+                    ));
                 }
                 DrawCommand::Circle(points) => {
                     let (path, final_pos, final_angle) =
                         Self::circle_path(last_element, pct, points);
-                    tpos = final_pos.into();
-                    trot = final_angle;
-                    drawing.push(TurtleDraw::DrawLines(pencolor, penwidth, path));
+                    turtle.cvt.tpos = final_pos.into();
+                    turtle.cvt.trot = final_angle;
+                    turtle.ops.push(TurtleDraw::DrawLines(
+                        turtle.cvt.pencolor,
+                        turtle.cvt.penwidth,
+                        path,
+                    ));
                 }
                 DrawCommand::SetPosition(pos) => {
-                    tpos = [pos.x as f32, pos.y as f32];
+                    turtle.cvt.tpos = [pos.x as f32, pos.y as f32];
                 }
                 DrawCommand::Text(pos, text) => {
                     let pos = Point::new(pos.x, pos.y);
-                    drawing.push(TurtleDraw::DrawText(pos, text.to_string()));
+                    turtle.ops.push(TurtleDraw::DrawText(pos, text.to_string()));
                 }
-                DrawCommand::Filler | DrawCommand::Filled(_) => {}
+                DrawCommand::Filler => {
+                    turtle.cvt.last_fill_pos = Some(turtle.ops.len());
+                    println!("last fill pos = {}", turtle.ops.len());
+                }
+                DrawCommand::Filled(fill_point) => {
+                    turtle.cvt.last_ops_pos = turtle.cvt.last_fill_pos.take();
+                    turtle.cvt.last_fill_point = Some(*fill_point);
+                }
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
                 | DrawCommand::Reset
@@ -141,20 +165,19 @@ impl TurtleDraw {
         }
 
         if !cur_path.is_empty() {
-            drawing.push(TurtleDraw::DrawLines(
-                pencolor,
-                penwidth,
+            turtle.cvt.last_ops_pos = Some(turtle.ops.len());
+            turtle.cvt.cur_path = cur_path.clone();
+            turtle.ops.push(TurtleDraw::DrawLines(
+                turtle.cvt.pencolor,
+                turtle.cvt.penwidth,
                 make_path(&mut cur_path),
             ));
         }
 
         if !turtle.hide_turtle {
-            drawing.extend(Self::calculate_turtle(
-                tpos, trot, fillcolor, pencolor, penwidth, turtle,
-            ));
+            turtle.cvt.poly_pos = Some(turtle.ops.len());
+            turtle.ops.extend(Self::calculate_turtle(turtle));
         }
-
-        turtle.ops = drawing;
     }
 
     fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
@@ -212,68 +235,27 @@ impl TurtleDraw {
         (line_list, end, angle)
     }
 
-    fn calculate_turtle<UI>(
-        tpos: [f32; 2],
-        trot: f32,
-        fillcolor: TurtleColor,
-        pencolor: TurtleColor,
-        penwidth: f32,
-        turtle: &IndividualTurtle<UI>,
-    ) -> Vec<TurtleDraw> {
-        let angle = Angle::degrees(trot);
-        let transform = Transform2D::rotation(angle).then_translate(tpos.into());
+    fn calculate_turtle<UI>(turtle: &IndividualTurtle<UI>) -> Vec<TurtleDraw> {
+        let angle = Angle::degrees(turtle.cvt.trot);
+        let transform = Transform2D::rotation(angle).then_translate(turtle.cvt.tpos.into());
         let mut result = Vec::new();
 
         for poly in &turtle.turtle_shape.poly {
             let path = poly.polygon.get_path();
             let path = path.transform(&transform);
 
-            let fillcolor = fillcolor.color_or(&poly.fill);
-            let pencolor = pencolor.color_or(&poly.outline);
-            result.push(TurtleDraw::FillPolygon(fillcolor, pencolor, penwidth, path));
+            let fillcolor = turtle.cvt.fillcolor.color_or(&poly.fill);
+            let pencolor = turtle.cvt.pencolor.color_or(&poly.outline);
+            result.push(TurtleDraw::FillPolygon(
+                fillcolor,
+                pencolor,
+                turtle.cvt.penwidth,
+                path,
+            ));
         }
 
         result
     }
-
-    /*
-    fn _circle_path(last_element: bool, pct: f32, points: &[CirclePos]) -> (Path, Point, f32) {
-        let (total, subpercent) = if last_element {
-            let partial = (points.len() - 1) as f32 * pct;
-            let p = (partial.floor() as i64).checked_abs().expect("too small") as usize;
-            (p, (partial - partial.floor()))
-        } else {
-            (points.len() - 1, 1_f32)
-        };
-        let mut tpos = Point::default();
-        let mut trot = 0.;
-        let path = Path::new(|b| {
-            let (_, start) = points[0].get_data();
-
-            b.move_to(start.into());
-
-            let mut iter = points.windows(2).take(total + 1).peekable();
-            while let Some(p) = iter.next() {
-                let (end_angle, end) = p[1].get_data();
-                let last_segment = iter.peek().is_none();
-                tpos = end.into();
-                if last_element && last_segment {
-                    let (_, begin) = p[0].get_data();
-                    let end_x = begin[0] + (end[0] - begin[0]) * subpercent;
-                    let end_y = begin[1] + (end[1] - begin[1]) * subpercent;
-                    tpos = [end_x, end_y].into();
-                }
-                if points[0].pen_down {
-                    b.line_to(tpos);
-                } else {
-                    b.move_to(tpos);
-                }
-                trot = end_angle;
-            }
-        });
-        (path, tpos, trot)
-    }
-    */
 }
 
 trait ConvertSimplePolygon {
