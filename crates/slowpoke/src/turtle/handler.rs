@@ -26,9 +26,10 @@ pub struct IndividualTurtle<U> {
 pub struct ConversionInfo {
     pub last_cmd_pos: usize, // entry in ops vec that is done?
     pub last_fill_point: Option<usize>,
-    pub last_ops_pos: Option<usize>,
-    pub last_fill_pos: Option<usize>,
-    pub poly_pos: Option<usize>,
+
+    trunc_pos: Option<usize>,
+    pub polygon_start_point: Option<usize>,
+
     pub cur_path: Vec<(bool, crate::gui::ops::Point)>,
     pub pencolor: TurtleColor,
     pub penwidth: f32,
@@ -43,6 +44,22 @@ impl ConversionInfo {
             penwidth: 1.0,
             ..Default::default()
         }
+    }
+
+    pub(crate) fn set_trunc_pos(&mut self, pos: usize) {
+        if self.trunc_pos.is_none() {
+            println!("trunc point = {pos}");
+            self.trunc_pos = Some(pos);
+        } else if let Some(cur_pos) = self.trunc_pos
+            && pos < cur_pos
+        {
+            println!("trunc point = {pos}");
+            self.trunc_pos = Some(pos);
+        }
+    }
+
+    pub(crate) fn get_trunc_pos(&mut self) -> Option<usize> {
+        self.trunc_pos.take()
     }
 }
 
@@ -69,11 +86,6 @@ impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
             }
 
             crate::gui::ops::TurtleDraw::convert(pct, turtle);
-            if let Some(pos) = turtle.cvt.last_fill_point.take() {
-                turtle.cvt.last_cmd_pos = pos - 1;
-            } else {
-                turtle.cvt.last_cmd_pos = turtle.cmds.len() - 1;
-            }
         }
     }
 
