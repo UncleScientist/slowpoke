@@ -347,6 +347,7 @@ impl TurtleData {
     }
 
     fn convert_command<G: TurtleGui>(&mut self, cmd: &DrawRequest, gui: &mut G) {
+        println!("draw request: {cmd:?}");
         if let Some(command) = self.state.turtle.apply(cmd) {
             let tid = self.turtle_id;
 

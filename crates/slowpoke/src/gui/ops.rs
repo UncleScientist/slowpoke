@@ -40,6 +40,7 @@ impl LineSegment {
 impl TurtleDraw {
     pub(crate) fn convert<UI>(pct: f32, turtle: &mut IndividualTurtle<UI>) {
         fn make_path(path: &mut Vec<(bool, Point)>) -> Vec<LineSegment> {
+            println!("MAKE PATH = {path:?}");
             let mut segments = Vec::new();
             let mut cur_pos = path.remove(0).1;
             for (pen, pos) in path.drain(..) {
@@ -54,25 +55,50 @@ impl TurtleDraw {
             segments
         }
 
+        println!("starting at: {}", turtle.cvt.last_cmd_pos);
         let mut iter = turtle.cmds.iter().skip(turtle.cvt.last_cmd_pos).peekable();
-        let mut cur_path: Vec<(bool, Point)> = turtle.cvt.cur_path.clone();
+        let mut cur_path = turtle.cvt.cur_path.clone();
+        turtle.cvt.cur_path = Vec::new();
 
         if let Some(pos) = turtle.cvt.get_trunc_pos() {
+            println!("truncate ops to {pos}");
             turtle.ops.truncate(pos);
+            if pos > 0 {
+                // TODO: fix this 0 -- it should be some sort of trunc point
+                // println!("new top is: {:?}", turtle.ops.iter().last().unwrap());
+                println!("cur_path = {cur_path:?}");
+                cur_path.clear();
+            }
         }
 
+        // are we backfilling a polygon?
+        let refill_point = if let Some(DrawCommand::Filled(pos)) = iter.peek() {
+            println!("restarting at {}", pos);
+            iter = turtle.cmds.iter().skip(*pos).peekable();
+            cur_path.clear();
+            Some(*pos)
+        } else {
+            None
+        };
+
         while let Some(element) = iter.next() {
+            println!("***************** next draw cmd: {element:?}");
             let last_element = iter.peek().is_none() && pct < 1.;
             if !matches!(element, DrawCommand::Line(..))
                 && !matches!(element, DrawCommand::SetHeading(..))
                 && !cur_path.is_empty()
             {
-                turtle.ops.push(TurtleDraw::DrawLines(
-                    turtle.cvt.pencolor,
-                    turtle.cvt.penwidth,
-                    make_path(&mut cur_path),
-                ));
+                let path = make_path(&mut cur_path);
+                if !path.is_empty() {
+                    println!("finished path {path:?}");
+                    turtle.ops.push(TurtleDraw::DrawLines(
+                        turtle.cvt.pencolor,
+                        turtle.cvt.penwidth,
+                        path,
+                    ));
+                }
             }
+            println!("cur_path len = {}", cur_path.len());
 
             match element {
                 DrawCommand::Line(line) => {
@@ -143,13 +169,17 @@ impl TurtleDraw {
                     turtle.ops.push(TurtleDraw::DrawText(pos, text.to_string()));
                 }
                 DrawCommand::Filler => {
-                    // turtle.cvt.set_trunc_pos(turtle.ops.len());
                     turtle.cvt.polygon_start_point = Some(turtle.ops.len());
-                    println!("psp = {:?}", turtle.cvt.polygon_start_point);
                 }
                 DrawCommand::Filled(fill_point) => {
-                    println!("Setting fill point to {fill_point}");
                     turtle.cvt.last_fill_point = Some(*fill_point);
+                    if let Some(prev) = refill_point
+                        && prev == *fill_point
+                    {
+                        // do nothing
+                    } else {
+                        turtle.cvt.set_trunc_pos(*fill_point);
+                    }
                 }
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
@@ -163,12 +193,17 @@ impl TurtleDraw {
 
         if !cur_path.is_empty() {
             turtle.cvt.set_trunc_pos(turtle.ops.len());
+            println!("saving cur_path");
             turtle.cvt.cur_path = cur_path.clone();
-            turtle.ops.push(TurtleDraw::DrawLines(
-                turtle.cvt.pencolor,
-                turtle.cvt.penwidth,
-                make_path(&mut cur_path),
-            ));
+            let path = make_path(&mut cur_path);
+            if !path.is_empty() {
+                println!("partial path = {path:?}");
+                turtle.ops.push(TurtleDraw::DrawLines(
+                    turtle.cvt.pencolor,
+                    turtle.cvt.penwidth,
+                    path,
+                ));
+            }
         }
 
         if !turtle.hide_turtle {
@@ -177,15 +212,10 @@ impl TurtleDraw {
         }
 
         if let Some(pos) = turtle.cvt.polygon_start_point.take() {
-            println!("> setting psp to {pos}");
             turtle.cvt.set_trunc_pos(pos);
         }
 
-        if let Some(pos) = turtle.cvt.last_fill_point.take() {
-            turtle.cvt.last_cmd_pos = pos;
-        } else {
-            turtle.cvt.last_cmd_pos = turtle.cmds.len();
-        }
+        turtle.cvt.last_cmd_pos = turtle.cmds.len();
     }
 
     fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
@@ -336,6 +366,57 @@ mod test {
         turtle.cmds.push(DrawCommand::Filler);
         TurtleDraw::convert(1., &mut turtle);
         assert_eq!(turtle.ops.len(), 1);
+        assert_eq!(turtle.cvt.cur_path.len(), 0);
+
+        println!("-- 1st line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(0, 0),
+            end: ScreenPosition::new(10, 0),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 2);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
+
+        println!("-- 2nd line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(10, 0),
+            end: ScreenPosition::new(0, 10),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 2);
+        assert_eq!(turtle.cvt.cur_path.len(), 3);
+
+        println!("-- 3rd line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(0, 10),
+            end: ScreenPosition::new(0, 0),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 2);
+        assert_eq!(turtle.cvt.cur_path.len(), 4);
+
+        println!("-- polygon --");
+        let polygon = PolygonPath::new(&[[0., 0.], [10., 0.], [0., 10.]]);
+        turtle.cmds[index] = DrawCommand::DrawPolygon(polygon);
+        turtle.cmds.push(DrawCommand::Filled(index));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 3);
+        dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 0);
+    }
+
+    #[test]
+    fn test_two_polygons() {
+        let mut turtle = get_turtle();
+
+        println!("-- filler --");
+        let index = turtle.ops.len();
+        turtle.cmds.push(DrawCommand::Filler);
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 1);
 
         println!("-- 1st line --");
         turtle.cmds.push(DrawCommand::Line(LineInfo {
@@ -364,14 +445,65 @@ mod test {
         TurtleDraw::convert(1., &mut turtle);
         assert_eq!(turtle.ops.len(), 2);
 
-        // dbg!(&turtle.ops);
-
         println!("-- polygon --");
         let polygon = PolygonPath::new(&[[0., 0.], [10., 0.], [0., 10.]]);
         turtle.cmds[index] = DrawCommand::DrawPolygon(polygon);
         turtle.cmds.push(DrawCommand::Filled(index));
         TurtleDraw::convert(1., &mut turtle);
-        dbg!(&turtle.ops);
         assert_eq!(turtle.ops.len(), 3);
+
+        println!("-- go to new location --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(0, 0),
+            end: ScreenPosition::new(100, 100),
+            pen_down: false,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
+
+        println!("-- 2nd filler --");
+        let index = turtle.ops.len();
+        turtle.cmds.push(DrawCommand::Filler);
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 3);
+
+        println!("-- 2nd 1st line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(100, 100),
+            end: ScreenPosition::new(110, 100),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 4);
+        assert_eq!(turtle.cvt.cur_path.len(), 3);
+
+        println!("-- 2nd 2nd line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(110, 100),
+            end: ScreenPosition::new(100, 110),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 4);
+        dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 4);
+
+        println!("-- 2nd 3rd line --");
+        turtle.cmds.push(DrawCommand::Line(LineInfo {
+            begin: ScreenPosition::new(100, 110),
+            end: ScreenPosition::new(100, 100),
+            pen_down: true,
+        }));
+        TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 4);
+        assert_eq!(turtle.cvt.cur_path.len(), 5);
+
+        println!("-- 2nd polygon --");
+        let polygon = PolygonPath::new(&[[100., 100.], [110., 100.], [100., 110.]]);
+        turtle.cmds[index] = DrawCommand::DrawPolygon(polygon);
+        turtle.cmds.push(DrawCommand::Filled(index));
+        TurtleDraw::convert(1., &mut turtle);
+        dbg!(&turtle.ops);
+        assert_eq!(turtle.ops.len(), 5);
     }
 }

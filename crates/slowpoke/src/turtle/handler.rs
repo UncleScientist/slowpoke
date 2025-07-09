@@ -48,12 +48,10 @@ impl ConversionInfo {
 
     pub(crate) fn set_trunc_pos(&mut self, pos: usize) {
         if self.trunc_pos.is_none() {
-            println!("trunc point = {pos}");
             self.trunc_pos = Some(pos);
         } else if let Some(cur_pos) = self.trunc_pos
             && pos < cur_pos
         {
-            println!("trunc point = {pos}");
             self.trunc_pos = Some(pos);
         }
     }
