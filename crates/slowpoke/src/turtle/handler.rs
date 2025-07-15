@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap};
 
 use either::Either;
 
@@ -18,13 +18,59 @@ pub struct IndividualTurtle<U> {
     pub has_new_cmd: bool,
     pub turtle_shape: TurtleShape,
     pub hide_turtle: bool,
-    pub cvt: ConversionInfo,
+    pub(crate) cvt: ConversionInfo,
     pub ui: RefCell<U>,
 }
 
 #[derive(Debug, Default)]
-pub struct ConversionInfo {
-    pub last_cmd_pos: usize, // entry in ops vec that is done?
+pub(crate) struct Stance {
+    pub position: usize,
+    pub percent: f32,
+}
+
+impl Stance {
+    pub(crate) fn is_undoing_from(&self, other: &Stance) -> bool {
+        self.percent == 0.0 && self.position == other.position && other.percent > 0.0
+    }
+
+    pub(crate) fn set_stance(&mut self, len: usize, pct: f32) {
+        if pct >= 1.0 || len == 0 {
+            self.position = len;
+            self.percent = 0.0;
+        } else {
+            self.position = len - 1;
+            self.percent = pct;
+        }
+    }
+
+    pub(crate) fn of(position: usize, percent: f32) -> Self {
+        Self { position, percent }
+    }
+
+    pub(crate) fn prev_step(&self) -> usize {
+        self.position.saturating_sub(1)
+    }
+}
+
+impl PartialEq for Stance {
+    fn eq(&self, other: &Self) -> bool {
+        self.position == other.position && self.percent.eq(&other.percent)
+    }
+}
+
+impl PartialOrd for Stance {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.position.cmp(&other.position) {
+            Ordering::Less => Some(Ordering::Less),
+            Ordering::Equal => self.percent.partial_cmp(&other.percent),
+            Ordering::Greater => Some(Ordering::Greater),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ConversionInfo {
+    pub last_cmd: Stance,
     pub last_fill_point: Option<usize>,
 
     trunc_pos: Option<usize>,
