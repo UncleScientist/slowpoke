@@ -3,7 +3,7 @@ use lyon_tessellation::{
     math::Angle,
 };
 
-use crate::{polygon::PolygonPath, turtle::handler::Stance, CirclePos, IndividualTurtle};
+use crate::{polygon::PolygonPath, turtle::handler::Progress, CirclePos, IndividualTurtle};
 use crate::{DrawCommand, LineInfo, TurtleColor};
 
 pub(crate) type Point = Point2D<f32>;
@@ -36,13 +36,25 @@ impl LineSegment {
 // 4       move turtle to new position      [Filler, Pos1, Pos2, Pos3, Pos4]
 // 5       end fill                         [Polygon, Pos1, Pos2, Pos3, Pos4]
 
+// forward in time (i.e. a new command was issued):
+//  - turtle.cmds.len() increased, or
+//  - pct increased
+//
+// backward in time (i.e. undo)
+//  - turtle.cmds.len() decreased, or
+//  - pct decreased
 impl TurtleDraw {
-    pub(crate) fn convert<UI>(pct: f32, turtle: &mut IndividualTurtle<UI>) {
+    pub(crate) fn convert<UI>(fraction: f32, turtle: &mut IndividualTurtle<UI>) {
         println!(
-            "============== command count = {}, pct = {pct}  ===================",
+            "============== command count = {}, fraction = {fraction}  ===================",
             turtle.cmds.len()
         );
-        let stance = Stance::of(turtle.cmds.len(), pct);
+        let index = if !turtle.cmds.is_empty() {
+            turtle.cmds.len() - 1
+        } else {
+            0
+        };
+        let cur_progress = Progress::of(index, fraction);
 
         fn make_path(path: &mut Vec<(bool, Point)>) -> Vec<LineSegment> {
             let mut segments = Vec::new();
@@ -60,17 +72,18 @@ impl TurtleDraw {
         }
 
         println!(
-            "last_cmd_pos = {:?}, cmd len = {}, cur_cmd_pos = {stance:?}",
-            turtle.cvt.last_cmd,
+            "  last_time = {:?}\n  cmd len = {}\n  cur_time = {cur_progress:?}",
+            turtle.cvt.last_progress,
             turtle.cmds.len(),
         );
         let mut iter = turtle
             .cmds
             .iter()
-            .skip(turtle.cvt.last_cmd.position)
+            .skip(turtle.cvt.last_progress.cmd_index)
             .peekable();
         let mut cur_path = turtle.cvt.cur_path.clone();
         turtle.cvt.cur_path = Vec::new();
+        println!("  cur_path = {cur_path:?}");
 
         if let Some(pos) = turtle.cvt.get_trunc_pos() {
             turtle.ops.truncate(pos);
@@ -82,21 +95,48 @@ impl TurtleDraw {
             cur_path.clear();
             Some(*pos)
         } else {
-            println!("compare: {stance:?} with {:?}", turtle.cvt.last_cmd);
-            cur_path.pop();
-            if turtle.cvt.last_cmd.is_undoing_from(&stance) {
+            None
+        };
+
+        if !cur_path.is_empty() {
+            if turtle.cvt.last_progress.cmd_index == cur_progress.cmd_index {
+                println!("popping last element of cur_path");
                 cur_path.pop();
                 iter = turtle
                     .cmds
                     .iter()
-                    .skip(turtle.cvt.last_cmd.prev_step())
+                    .skip(turtle.cvt.last_progress.cmd_index)
                     .peekable();
+                match iter.peek() {
+                    Some(DrawCommand::Line(..)) | Some(DrawCommand::SetHeading(..)) => {}
+                    _ => {
+                        println!("removing last non-line element {:?}", iter.peek());
+                        cur_path.pop();
+                    }
+                }
+            } else if turtle.cvt.last_progress > cur_progress {
+                // moving backward in time, to the previous cmd_index
+                println!("moving backward in time");
+                cur_path.pop();
+                if turtle.cvt.last_progress.cmd_index > 0 {
+                    iter = turtle
+                        .cmds
+                        .iter()
+                        .skip(turtle.cvt.last_progress.cmd_index - 1)
+                        .peekable();
+                }
+                match iter.peek() {
+                    Some(DrawCommand::Line(..)) | Some(DrawCommand::SetHeading(..)) => {}
+                    _ => {
+                        cur_path.pop();
+                    }
+                }
             }
-            None
-        };
+        }
 
         while let Some(element) = iter.next() {
-            let last_element = iter.peek().is_none() && pct < 1.;
+            println!("> drawing element {element:?}");
+            let last_element = iter.peek().is_none() && fraction < 1.;
             if !matches!(element, DrawCommand::Line(..))
                 && !matches!(element, DrawCommand::SetHeading(..))
                 && !cur_path.is_empty()
@@ -111,14 +151,19 @@ impl TurtleDraw {
                 }
             }
 
+            if last_element && fraction == 0.0 {
+                continue;
+            }
+
             match element {
                 DrawCommand::Line(line) => {
-                    let (start, end) = Self::start_and_end(last_element, pct, line);
+                    let (start, end) = Self::start_and_end(last_element, fraction, line);
                     turtle.cvt.tpos = [end.x, end.y];
                     if cur_path.is_empty() {
                         cur_path.push((line.pen_down, start));
                     }
                     cur_path.push((line.pen_down, end));
+                    println!("extended cur_path: {cur_path:?}");
                 }
                 DrawCommand::SetPenColor(pc) => {
                     turtle.cvt.pencolor = *pc;
@@ -137,7 +182,7 @@ impl TurtleDraw {
                 }
                 DrawCommand::SetHeading(start, end) => {
                     let rotation = if last_element {
-                        *start + (*end - *start) * pct
+                        *start + (*end - *start) * fraction
                     } else {
                         *end
                     };
@@ -163,7 +208,7 @@ impl TurtleDraw {
                 }
                 DrawCommand::Circle(points) => {
                     let (path, final_pos, final_angle) =
-                        Self::circle_path(last_element, pct, points);
+                        Self::circle_path(last_element, fraction, points);
                     turtle.cvt.tpos = final_pos.into();
                     turtle.cvt.trot = final_angle;
                     turtle.ops.push(TurtleDraw::DrawLines(
@@ -224,8 +269,13 @@ impl TurtleDraw {
             turtle.cvt.set_trunc_pos(pos);
         }
 
-        turtle.cvt.last_cmd.set_stance(turtle.cmds.len(), pct);
-        println!("leaving last_cmd_pos = {:?}", turtle.cvt.last_cmd);
+        let index = if fraction < 1.0 {
+            turtle.cmds.len() - 1
+        } else {
+            turtle.cmds.len()
+        };
+        turtle.cvt.last_progress.set_progress(index, fraction);
+        println!("leaving last_cmd_pos = {:?}", turtle.cvt.last_progress);
     }
 
     fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
@@ -577,6 +627,8 @@ mod test {
             pen_down: true,
         }));
         TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 2);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
 
         turtle.cmds.push(DrawCommand::Line(LineInfo {
             begin: ScreenPosition::new(10, 10),
@@ -584,11 +636,14 @@ mod test {
             pen_down: true,
         }));
         TurtleDraw::convert(1., &mut turtle);
+        assert_eq!(turtle.ops.len(), 2);
+        assert_eq!(turtle.cvt.cur_path.len(), 3);
 
         turtle
             .cmds
             .push(DrawCommand::Dot(Point::new(42., 81.), 2.3, "black".into()));
         TurtleDraw::convert(1.0, &mut turtle);
+        assert_eq!(turtle.ops.len(), 3);
 
         turtle.cmds.push(DrawCommand::Line(LineInfo {
             begin: ScreenPosition::new(41, 81),
@@ -597,6 +652,8 @@ mod test {
         }));
         TurtleDraw::convert(1., &mut turtle);
         dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
+        assert_eq!(turtle.ops.len(), 4);
 
         turtle.cmds.push(DrawCommand::Line(LineInfo {
             begin: ScreenPosition::new(100, 0),
@@ -605,9 +662,29 @@ mod test {
         }));
         TurtleDraw::convert(1., &mut turtle);
         dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 3);
+        assert_eq!(turtle.ops.len(), 4);
 
         TurtleDraw::convert(0.5, &mut turtle);
         dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 3);
+
+        TurtleDraw::convert(0.0, &mut turtle);
+        dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
+
+        turtle.cmds.pop();
+        TurtleDraw::convert(1.0, &mut turtle);
+        dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 2);
+        assert_eq!(turtle.ops.len(), 4);
+
+        turtle.cmds.pop();
+        TurtleDraw::convert(1.0, &mut turtle);
+        dbg!(&turtle.cvt.cur_path);
+        assert_eq!(turtle.cvt.cur_path.len(), 0);
+        assert_eq!(turtle.ops.len(), 3);
+
         assert!(false);
     }
 }

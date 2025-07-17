@@ -23,46 +23,36 @@ pub struct IndividualTurtle<U> {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct Stance {
-    pub position: usize,
-    pub percent: f32,
+pub(crate) struct Progress {
+    pub cmd_index: usize, // index into turtle.cmds[]
+    pub fraction: f32,    // fractional part completed of the current command being drawn
 }
 
-impl Stance {
-    pub(crate) fn is_undoing_from(&self, other: &Stance) -> bool {
-        self.percent == 0.0 && self.position == other.position && other.percent > 0.0
+impl Progress {
+    pub(crate) fn set_progress(&mut self, cmd_index: usize, fraction: f32) {
+        self.cmd_index = cmd_index;
+        self.fraction = fraction;
     }
 
-    pub(crate) fn set_stance(&mut self, len: usize, pct: f32) {
-        if pct >= 1.0 || len == 0 {
-            self.position = len;
-            self.percent = 0.0;
-        } else {
-            self.position = len - 1;
-            self.percent = pct;
+    pub(crate) fn of(cmd_index: usize, fraction: f32) -> Self {
+        Self {
+            cmd_index,
+            fraction,
         }
     }
-
-    pub(crate) fn of(position: usize, percent: f32) -> Self {
-        Self { position, percent }
-    }
-
-    pub(crate) fn prev_step(&self) -> usize {
-        self.position.saturating_sub(1)
-    }
 }
 
-impl PartialEq for Stance {
+impl PartialEq for Progress {
     fn eq(&self, other: &Self) -> bool {
-        self.position == other.position && self.percent.eq(&other.percent)
+        self.cmd_index == other.cmd_index && self.fraction.eq(&other.fraction)
     }
 }
 
-impl PartialOrd for Stance {
+impl PartialOrd for Progress {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.position.cmp(&other.position) {
+        match self.cmd_index.cmp(&other.cmd_index) {
             Ordering::Less => Some(Ordering::Less),
-            Ordering::Equal => self.percent.partial_cmp(&other.percent),
+            Ordering::Equal => self.fraction.partial_cmp(&other.fraction),
             Ordering::Greater => Some(Ordering::Greater),
         }
     }
@@ -70,7 +60,7 @@ impl PartialOrd for Stance {
 
 #[derive(Debug, Default)]
 pub(crate) struct ConversionInfo {
-    pub last_cmd: Stance,
+    pub last_progress: Progress,
     pub last_fill_point: Option<usize>,
 
     trunc_pos: Option<usize>,
