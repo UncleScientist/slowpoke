@@ -60,6 +60,15 @@ pub enum DrawCommand {
     Text(Point2D<f32>, String),
 }
 
+impl DrawCommand {
+    pub(crate) fn _needs_time(&self) -> bool {
+        matches!(
+            self,
+            Self::Line(..) | Self::SetHeading(..) | Self::Circle(..)
+        )
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct CurrentTurtleState {
     pub transform: Transform2D<f32>,
