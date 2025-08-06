@@ -29,12 +29,12 @@ pub(crate) struct Progress {
 }
 
 impl Progress {
-    pub(crate) fn set_progress(&mut self, cmd_index: usize, fraction: f32) {
+    pub(crate) fn _set_progress(&mut self, cmd_index: usize, fraction: f32) {
         self.cmd_index = cmd_index;
         self.fraction = fraction;
     }
 
-    pub(crate) fn of(cmd_index: usize, fraction: f32) -> Self {
+    pub(crate) fn _of(cmd_index: usize, fraction: f32) -> Self {
         Self {
             cmd_index,
             fraction,
@@ -60,7 +60,7 @@ impl PartialOrd for Progress {
 
 #[derive(Debug, Default)]
 pub(crate) struct ConversionInfo {
-    pub last_progress: Progress,
+    pub _last_progress: Progress,
     pub last_fill_point: Option<usize>,
 
     trunc_pos: Option<usize>,
@@ -92,7 +92,7 @@ impl ConversionInfo {
         }
     }
 
-    pub(crate) fn get_trunc_pos(&mut self) -> Option<usize> {
+    pub(crate) fn _get_trunc_pos(&mut self) -> Option<usize> {
         self.trunc_pos.take()
     }
 }

@@ -3,7 +3,7 @@ use lyon_tessellation::{
     math::Angle,
 };
 
-use crate::{polygon::PolygonPath, turtle::handler::Progress, CirclePos, IndividualTurtle};
+use crate::{polygon::PolygonPath, CirclePos, IndividualTurtle};
 use crate::{DrawCommand, LineInfo, TurtleColor};
 
 pub(crate) type Point = Point2D<f32>;
@@ -60,80 +60,13 @@ impl TurtleDraw {
             segments
         }
 
-        println!(
-            "============== command count = {}, fraction = {fraction}  ===================",
-            turtle.cmds.len()
-        );
-        let cur_progress = Progress::of(turtle.cmds.len(), fraction);
-        println!("last_progress = {:?}", turtle.cvt.last_progress);
-        println!("cur_progress = {cur_progress:?}");
-
-        if turtle.cmds.is_empty() {
-            turtle.ops.clear();
-            turtle.cvt.cur_path.clear();
-
-            // TODO: don't have these two lines twice in this function
-            turtle.cvt.set_trunc_pos(turtle.ops.len());
-            turtle.ops.extend(Self::calculate_turtle(turtle));
-            return;
-        }
-
-        let skip_to = cur_progress.cmd_index - 1;
-        let mut iter = turtle.cmds.iter().skip(skip_to).peekable();
         let mut cur_path = turtle.cvt.cur_path.clone();
         turtle.cvt.cur_path = Vec::new();
-        println!("  cur_path = {cur_path:?}");
+        let mut iter = turtle.cmds.iter().peekable();
 
-        if let Some(pos) = turtle.cvt.get_trunc_pos() {
-            turtle.ops.truncate(pos);
-        }
-
-        // are we backfilling a polygon?
-        let refill_point = if let Some(DrawCommand::Filled(pos)) = iter.peek() {
-            // TODO: don't recaulate the whole set of lines here -- just use what's already done
-            iter = turtle.cmds.iter().skip(*pos).peekable();
-            cur_path.clear();
-            Some(*pos)
-        } else {
-            None
-        };
-
-        if !cur_path.is_empty() {
-            if turtle.cvt.last_progress < cur_progress
-                && turtle.cvt.last_progress.cmd_index == cur_progress.cmd_index
-            {
-                println!("popping last element of cur_path");
-                cur_path.pop();
-                /*
-                if let Some(next_cmd) = iter.peek()
-                    && _next_cmd.needs_time()
-                {
-                    println!("removing last non-line element {:?}", iter.peek());
-                    cur_path.pop();
-                }
-                */
-            } else if turtle.cvt.last_progress > cur_progress {
-                // moving backward in time, to the previous cmd_index
-                println!("moving backward in time");
-                cur_path.pop();
-                if let Some(next_cmd) = iter.peek()
-                    && !next_cmd._needs_time()
-                {
-                    turtle.ops.pop();
-                    let _x = iter.next();
-                    dbg!(_x);
-                    assert!(iter.next().is_none());
-                    return;
-                } else {
-                    if !iter.peek().is_none() {
-                        cur_path.pop();
-                    }
-                }
-            }
-        }
+        turtle.ops.clear();
 
         while let Some(element) = iter.next() {
-            println!("> drawing element {element:?}");
             let last_element = iter.peek().is_none() && fraction < 1.;
             if !matches!(element, DrawCommand::Line(..))
                 && !matches!(element, DrawCommand::SetHeading(..))
@@ -161,7 +94,6 @@ impl TurtleDraw {
                         cur_path.push((line.pen_down, start));
                     }
                     cur_path.push((line.pen_down, end));
-                    // println!("extended cur_path: {cur_path:?}");
                 }
                 DrawCommand::SetPenColor(pc) => {
                     turtle.cvt.pencolor = *pc;
@@ -226,15 +158,7 @@ impl TurtleDraw {
                     turtle.cvt.polygon_start_point = Some(turtle.ops.len());
                 }
                 DrawCommand::Filled(fill_point) => {
-                    println!("** FILLED **");
                     turtle.cvt.last_fill_point = Some(*fill_point);
-                    if let Some(prev) = refill_point
-                        && prev == *fill_point
-                    {
-                        // do nothing
-                    } else {
-                        turtle.cvt.set_trunc_pos(*fill_point);
-                    }
                 }
                 DrawCommand::StampTurtle
                 | DrawCommand::Clear
@@ -263,16 +187,6 @@ impl TurtleDraw {
             turtle.cvt.set_trunc_pos(turtle.ops.len());
             turtle.ops.extend(Self::calculate_turtle(turtle));
         }
-
-        if let Some(pos) = turtle.cvt.polygon_start_point.take() {
-            turtle.cvt.set_trunc_pos(pos);
-        }
-
-        turtle
-            .cvt
-            .last_progress
-            .set_progress(turtle.cmds.len(), fraction);
-        println!("leaving last_cmd_pos = {:?}", turtle.cvt.last_progress);
     }
 
     fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Point, Point) {
@@ -681,7 +595,5 @@ mod test {
         dbg!(&turtle.cvt.cur_path);
         assert_eq!(turtle.cvt.cur_path.len(), 0);
         assert_eq!(turtle.ops.len(), 3);
-
-        assert!(false);
     }
 }
