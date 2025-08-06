@@ -465,7 +465,9 @@ impl TurtleData {
     }
 
     fn do_next_command<G: TurtleGui>(&mut self, gui: &mut G) {
-        if self.state.drawing_done && self.current_command.is_some() {
+        if self.state.drawing_done
+            && let Some(cmd) = self.current_command.take()
+        {
             self.state.drawing_done = false;
 
             if matches!(self.state.progression, Progression::Reverse) {
@@ -473,8 +475,6 @@ impl TurtleData {
                     self.state.turtle.undo(&cmd);
                 }
             }
-
-            let cmd = self.current_command.take().unwrap();
 
             if cmd.tracer_true() {
                 self.state.respond_immediately = false;

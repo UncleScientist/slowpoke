@@ -70,12 +70,12 @@ pub(crate) struct ConversionInfo {
     pub pencolor: TurtleColor,
     pub penwidth: f32,
     pub fillcolor: TurtleColor,
-    pub tpos: [f32; 2],
-    pub trot: f32,
+    pub position: [f32; 2],
+    pub angle: f32,
 }
 
 impl ConversionInfo {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             penwidth: 1.0,
             ..Default::default()
@@ -115,9 +115,11 @@ pub trait TurtleUI {
 impl<T: Default, U: Default + TurtleUI> TurtleGui for Handler<T, U> {
     fn convert(&mut self, pct: f32, id: &TurtleID) {
         if let Some(turtle) = self.turtle.get_mut(id) {
-            if turtle.cmds.is_empty() {
-                return;
-            }
+            // TODO: if it's empty because of an "undo" we still need to call "convert" one last
+            // time
+            //if turtle.cmds.is_empty() {
+            //return;
+            //}
 
             crate::gui::ops::TurtleDraw::convert(pct, turtle);
         }

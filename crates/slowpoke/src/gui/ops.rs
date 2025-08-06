@@ -3,7 +3,7 @@ use lyon_tessellation::{
     math::Angle,
 };
 
-use crate::{polygon::PolygonPath, CirclePos, IndividualTurtle};
+use crate::{polygon::PolygonPath, turtle::handler::ConversionInfo, CirclePos, IndividualTurtle};
 use crate::{DrawCommand, LineInfo, TurtleColor};
 
 pub(crate) type Point = Point2D<f32>;
@@ -60,11 +60,13 @@ impl TurtleDraw {
             segments
         }
 
-        let mut cur_path = turtle.cvt.cur_path.clone();
-        turtle.cvt.cur_path = Vec::new();
+        // let mut cur_path = turtle.cvt.cur_path.clone();
+        // turtle.cvt.cur_path = Vec::new();
+        let mut cur_path = Vec::new();
         let mut iter = turtle.cmds.iter().peekable();
 
         turtle.ops.clear();
+        turtle.cvt = ConversionInfo::new();
 
         while let Some(element) = iter.next() {
             let last_element = iter.peek().is_none() && fraction < 1.;
@@ -89,7 +91,7 @@ impl TurtleDraw {
             match element {
                 DrawCommand::Line(line) => {
                     let (start, end) = Self::start_and_end(last_element, fraction, line);
-                    turtle.cvt.tpos = [end.x, end.y];
+                    turtle.cvt.position = [end.x, end.y];
                     if cur_path.is_empty() {
                         cur_path.push((line.pen_down, start));
                     }
@@ -116,7 +118,7 @@ impl TurtleDraw {
                     } else {
                         *end
                     };
-                    turtle.cvt.trot = rotation;
+                    turtle.cvt.angle = rotation;
                 }
                 DrawCommand::Dot(center, radius, color) => {
                     let center: Point = Point2D::new(center.x, center.y);
@@ -139,8 +141,8 @@ impl TurtleDraw {
                 DrawCommand::Circle(points) => {
                     let (path, final_pos, final_angle) =
                         Self::circle_path(last_element, fraction, points);
-                    turtle.cvt.tpos = final_pos.into();
-                    turtle.cvt.trot = final_angle;
+                    turtle.cvt.position = final_pos.into();
+                    turtle.cvt.angle = final_angle;
                     turtle.ops.push(TurtleDraw::DrawLines(
                         turtle.cvt.pencolor,
                         turtle.cvt.penwidth,
@@ -148,7 +150,7 @@ impl TurtleDraw {
                     ));
                 }
                 DrawCommand::SetPosition(pos) => {
-                    turtle.cvt.tpos = [pos.x as f32, pos.y as f32];
+                    turtle.cvt.position = [pos.x as f32, pos.y as f32];
                 }
                 DrawCommand::Text(pos, text) => {
                     let pos = Point::new(pos.x, pos.y);
@@ -245,8 +247,8 @@ impl TurtleDraw {
     }
 
     fn calculate_turtle<UI>(turtle: &IndividualTurtle<UI>) -> Vec<TurtleDraw> {
-        let angle = Angle::degrees(turtle.cvt.trot);
-        let transform = Transform2D::rotation(angle).then_translate(turtle.cvt.tpos.into());
+        let angle = Angle::degrees(turtle.cvt.angle);
+        let transform = Transform2D::rotation(angle).then_translate(turtle.cvt.position.into());
         let mut result = Vec::new();
 
         for poly in &turtle.turtle_shape.poly {
