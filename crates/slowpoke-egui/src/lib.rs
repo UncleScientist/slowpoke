@@ -1,14 +1,19 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
 use eframe::CreationContext;
-use egui::{pos2, vec2, Color32, Frame, Painter, Pos2, Rect, Stroke};
+use egui::{vec2, Color32, Painter, Pos2, Rect, Stroke};
 use slowpoke::{
-    DrawCommand, Handler, IndividualTurtle, LineInfo, PopupID, SlowpokeLib, TurtleColor, TurtleGui,
-    TurtleID, TurtleTask, TurtleUI, TurtleUserInterface,
+    Handler, LineSegment, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleGui, TurtleID,
+    TurtleTask, TurtleUI, TurtleUserInterface,
 };
 
 pub type Slowpoke = SlowpokeLib<EguiFramework>;
 pub type Turtle = slowpoke::Turtle;
+pub use slowpoke::TurtleShapeName; // TODO XXX Fix this -- we shouldn't need to do this?
 
 #[derive(Debug)]
 pub struct EguiFramework {
@@ -20,73 +25,63 @@ pub struct EguiFramework {
 struct EguiInternal;
 
 impl TurtleUI for EguiInternal {
-    fn generate_popup(&mut self, popupdata: &slowpoke::PopupData) -> PopupID {
+    fn generate_popup(&mut self, _popupdata: &slowpoke::PopupData) -> PopupID {
         todo!()
     }
 
-    fn resize(&mut self, width: isize, height: isize) {
+    fn resize(&mut self, _width: isize, _height: isize) {
         // TODO
     }
 
-    fn set_bg_color(&mut self, bgcolor: TurtleColor) {
+    fn set_bg_color(&mut self, _bgcolor: TurtleColor) {
         // TODO
     }
 }
 
-#[derive(Debug, Default)]
-struct EguiUI {
-    drawing: Vec<EguiCmd>,
-}
-
-#[derive(Debug)]
-enum EguiCmd {
-    Line(Pos2, Pos2),
-}
+#[derive(Default, Debug)]
+struct EguiUI;
 
 impl EguiUI {
-    fn convert(&mut self, pct: f32, cmds: &[DrawCommand], turtle: &IndividualTurtle<EguiUI>) {
-        let mut iter = cmds.iter().peekable();
-        let mut tpos = pos2(0.0, 0.0);
-        let mut trot = 0f32;
-
-        while let Some(element) = iter.next() {
-            let last_element = iter.peek().is_none() && pct < 1.;
-
-            match element {
-                DrawCommand::Line(line) => {
-                    let (start, end) = Self::start_and_end(last_element, pct, line);
-                    tpos = end;
-                    self.drawing.push(EguiCmd::Line(start, end));
-                }
-                _ => {}
-            }
+    fn draw(&self, painter: &Painter, cur_size: &Rect, ops: &[TurtleDraw]) {
+        fn points_to_pos(segment: &LineSegment) -> (Pos2, Pos2) {
+            (
+                Pos2 {
+                    x: segment.start.x,
+                    y: segment.start.y,
+                },
+                Pos2 {
+                    x: segment.end.x,
+                    y: segment.end.y,
+                },
+            )
         }
-    }
-
-    fn draw(&self, painter: &Painter, cur_size: &Rect) {
-        let center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
+        let win_center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
 
         let stroke = Stroke::new(0.25, Color32::WHITE);
-        for cmd in &self.drawing {
-            match cmd {
-                EguiCmd::Line(start, end) => {
-                    painter.line(vec![*start + center, *end + center], stroke);
+        for op in ops {
+            match op {
+                TurtleDraw::DrawLines(_, _, line_segments) => {
+                    let mut line_list = Vec::new();
+                    let (start, _) = points_to_pos(&line_segments[0]);
+                    line_list.push(start + win_center);
+                    for segment in line_segments {
+                        let (_, end) = points_to_pos(segment);
+                        line_list.push(end + win_center);
+                    }
+                    painter.line(line_list, stroke);
                 }
+                TurtleDraw::DrawDot(center, radius, color) => {
+                    let center = Pos2 {
+                        x: center.x,
+                        y: center.y,
+                    } + win_center;
+                    let color: EguiColor = color.into();
+                    painter.circle_filled(center, *radius, color);
+                }
+                TurtleDraw::DrawText(point2_d, _) => {}
+                TurtleDraw::FillPolygon(turtle_color, turtle_color1, _, line_segments) => {}
             }
         }
-    }
-
-    fn start_and_end(last_element: bool, pct: f32, line: &LineInfo) -> (Pos2, Pos2) {
-        (
-            pos2(line.begin.x as f32, line.begin.y as f32),
-            if last_element {
-                let end_x = line.begin.x as f32 + (line.end.x - line.begin.x) as f32 * pct;
-                let end_y = line.begin.y as f32 + (line.end.y - line.begin.y) as f32 * pct;
-                pos2(end_x, end_y)
-            } else {
-                pos2(line.end.x as f32, line.end.y as f32)
-            },
-        )
     }
 }
 
@@ -102,9 +97,7 @@ impl TurtleUserInterface for EguiFramework {
             turtle: HashMap::new(),
             title: format!(" {title} "),
             popups: HashMap::new(),
-            screen: EguiInternal {
-                ..EguiInternal::default()
-            },
+            screen: EguiInternal,
         };
         let _ = handler.new_turtle();
 
@@ -139,7 +132,7 @@ impl eframe::App for EguiFramework {
 
             for turtle in self.handler.turtle.values() {
                 let ui = turtle.ui.borrow();
-                ui.draw(painter, &cur_size);
+                ui.draw(painter, &cur_size, &turtle.ops);
             }
         });
         ctx.request_repaint_after(Duration::from_millis(10));
@@ -158,8 +151,6 @@ impl EguiFramework {
             let (pct, prog) = self.tt.progress(*tid);
             if turtle.has_new_cmd {
                 done = false;
-                let mut ui = turtle.ui.borrow_mut();
-                ui.convert(pct, &turtle.cmds, turtle);
                 if prog.is_done(pct) {
                     turtle.has_new_cmd = false;
                 }
@@ -167,5 +158,64 @@ impl EguiFramework {
         }
 
         !done
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone)]
+struct EguiColor(egui::Color32);
+
+impl Deref for EguiColor {
+    type Target = egui::Color32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for EguiColor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<TurtleColor> for EguiColor {
+    fn from(value: TurtleColor) -> Self {
+        (&value).into()
+    }
+}
+
+impl From<&TurtleColor> for EguiColor {
+    fn from(value: &TurtleColor) -> Self {
+        if let TurtleColor::Color(r, g, b) = value {
+            EguiColor(egui::Color32::from_rgb(
+                (*r * 255.0) as u8,
+                (*g * 255.0) as u8,
+                (*b * 255.0) as u8,
+            ))
+        } else {
+            todo!()
+        }
+    }
+}
+
+impl From<EguiColor> for TurtleColor {
+    fn from(value: EguiColor) -> Self {
+        let r = value.0.r() as f32 / 255.0;
+        let g = value.0.g() as f32 / 255.0;
+        let b = value.0.b() as f32 / 255.0;
+        TurtleColor::Color(r, g, b)
+    }
+}
+
+impl From<&EguiColor> for egui::Color32 {
+    fn from(value: &EguiColor) -> Self {
+        value.0
+    }
+}
+
+impl From<EguiColor> for egui::Color32 {
+    fn from(value: EguiColor) -> Self {
+        value.0
     }
 }
