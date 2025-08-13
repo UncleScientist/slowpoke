@@ -11,7 +11,7 @@ pub struct TurtleDotProps<'a> {
 }
 
 impl Turtle {
-    pub fn dot(&mut self) -> TurtleDotProps {
+    pub fn dot(&mut self) -> TurtleDotProps<'_> {
         TurtleDotProps {
             width: None,
             color: TurtleColor::CurrentColor,

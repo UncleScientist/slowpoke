@@ -11,7 +11,7 @@ pub struct TurtleCircleProps<'a> {
 }
 
 impl Turtle {
-    pub fn circle<R: Into<f64>>(&mut self, radius: R) -> TurtleCircleProps {
+    pub fn circle<R: Into<f64>>(&mut self, radius: R) -> TurtleCircleProps<'_> {
         TurtleCircleProps {
             radius: radius.into(),
             steps: 32,
