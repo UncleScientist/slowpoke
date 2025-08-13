@@ -10,3 +10,6 @@ slowpoke = { path = "../slowpoke" }
 
 [lints.clippy]
 all = "warn"
+
+[dev-dependencies]
+rand = "0.9.1"

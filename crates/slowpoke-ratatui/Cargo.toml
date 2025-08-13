@@ -12,3 +12,6 @@ crossterm = "0.28.1"
 
 [lints.clippy]
 all = "warn"
+
+[dev-dependencies]
+rand = "0.9.1"
