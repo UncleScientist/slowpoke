@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 eframe = "0.31.0"
 egui = "0.31.0"
+lyon_tessellation = "1.0.15"
 slowpoke = { path = "../slowpoke" }
 
 [lints.clippy]

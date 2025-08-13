@@ -5,7 +5,7 @@ use std::{
 };
 
 use eframe::CreationContext;
-use egui::{vec2, Painter, Pos2, Rect, Stroke};
+use egui::{vec2, Painter, Pos2, Rect, Stroke, Vec2};
 use slowpoke::{
     Handler, LineSegment, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleGui, TurtleID,
     TurtleTask, TurtleUI, TurtleUserInterface,
@@ -55,6 +55,17 @@ impl EguiUI {
                 },
             )
         }
+        fn get_path(center: &Vec2, segments: &[LineSegment]) -> Vec<Pos2> {
+            let mut line_list = Vec::new();
+            let (start, _) = points_to_pos(&segments[0]);
+            line_list.push(start + *center);
+            for segment in segments {
+                let (_, end) = points_to_pos(segment);
+                line_list.push(end + *center);
+            }
+            line_list
+        }
+
         let win_center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
 
         for op in ops {
@@ -63,13 +74,7 @@ impl EguiUI {
                     let color: EguiColor = color.into();
                     let stroke = Stroke::new(*width, color);
 
-                    let mut line_list = Vec::new();
-                    let (start, _) = points_to_pos(&line_segments[0]);
-                    line_list.push(start + win_center);
-                    for segment in line_segments {
-                        let (_, end) = points_to_pos(segment);
-                        line_list.push(end + win_center);
-                    }
+                    let line_list = get_path(&win_center, line_segments);
                     painter.line(line_list, stroke);
                 }
                 TurtleDraw::DrawDot(center, radius, color) => {
@@ -80,8 +85,13 @@ impl EguiUI {
                     let color: EguiColor = color.into();
                     painter.circle_filled(center, *radius, color);
                 }
-                TurtleDraw::DrawText(point2_d, _) => {}
-                TurtleDraw::FillPolygon(turtle_color, turtle_color1, _, line_segments) => {}
+                TurtleDraw::DrawText(_, _) => {}
+                TurtleDraw::FillPolygon(fill_color, line_color, _, line_segments) => {
+                    let _fill_color: EguiColor = fill_color.into();
+                    let _line_color: EguiColor = line_color.into();
+                    let _points = get_path(&win_center, line_segments);
+                    // TODO: convert points into polygons using lyon tessellation!
+                }
             }
         }
     }
