@@ -5,7 +5,7 @@ use std::{
 };
 
 use eframe::CreationContext;
-use egui::{vec2, Color32, Painter, Pos2, Rect, Stroke};
+use egui::{vec2, Painter, Pos2, Rect, Stroke};
 use slowpoke::{
     Handler, LineSegment, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleGui, TurtleID,
     TurtleTask, TurtleUI, TurtleUserInterface,
@@ -57,10 +57,12 @@ impl EguiUI {
         }
         let win_center = vec2(cur_size.max.x / 2.0, cur_size.max.y / 2.0);
 
-        let stroke = Stroke::new(0.25, Color32::WHITE);
         for op in ops {
             match op {
-                TurtleDraw::DrawLines(_, _, line_segments) => {
+                TurtleDraw::DrawLines(color, width, line_segments) => {
+                    let color: EguiColor = color.into();
+                    let stroke = Stroke::new(*width, color);
+
                     let mut line_list = Vec::new();
                     let (start, _) = points_to_pos(&line_segments[0]);
                     line_list.push(start + win_center);
