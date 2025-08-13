@@ -13,6 +13,7 @@ pub enum TurtleDraw {
     DrawLines(TurtleColor, f32, Vec<LineSegment>),
     DrawDot(Point, f32, TurtleColor),
     DrawText(Point, String),
+    /* fill color, line color, line width, list of segments */
     FillPolygon(TurtleColor, TurtleColor, f32, Vec<LineSegment>),
 }
 
