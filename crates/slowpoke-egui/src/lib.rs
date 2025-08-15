@@ -5,10 +5,10 @@ use std::{
 };
 
 use eframe::CreationContext;
-use egui::{vec2, Painter, Pos2, Rect, Stroke, Vec2};
+use egui::{epaint::PathStroke, vec2, Painter, Pos2, Rect, Shape, Stroke, Vec2};
 use slowpoke::{
-    Handler, LineSegment, PopupID, SlowpokeLib, TurtleColor, TurtleDraw, TurtleGui, TurtleID,
-    TurtleTask, TurtleUI, TurtleUserInterface,
+    GetPolyPath, Handler, LineSegment, PolygonPath, PopupID, SlowpokeLib, TurtleColor, TurtleDraw,
+    TurtleGui, TurtleID, TurtleTask, TurtleUI, TurtleUserInterface,
 };
 
 pub type Slowpoke = SlowpokeLib<EguiFramework>;
@@ -87,10 +87,29 @@ impl EguiUI {
                 }
                 TurtleDraw::DrawText(_, _) => {}
                 TurtleDraw::FillPolygon(fill_color, line_color, _, line_segments) => {
-                    let _fill_color: EguiColor = fill_color.into();
+                    let fill_color: EguiColor = fill_color.into();
                     let _line_color: EguiColor = line_color.into();
-                    let _points = get_path(&win_center, line_segments);
-                    // TODO: convert points into polygons using lyon tessellation!
+                    let path: PolygonPath = line_segments.as_slice().into();
+                    let path = path.get_path();
+                    for triangle in path.chunks(3) {
+                        let p0: Pos2 = Pos2 {
+                            x: triangle[0].0.x,
+                            y: triangle[0].0.y,
+                        } + win_center;
+                        let p1: Pos2 = Pos2 {
+                            x: triangle[1].0.x,
+                            y: triangle[1].0.y,
+                        } + win_center;
+                        let p2: Pos2 = Pos2 {
+                            x: triangle[2].0.x,
+                            y: triangle[2].0.y,
+                        } + win_center;
+                        painter.add(Shape::convex_polygon(
+                            vec![p0, p1, p2],
+                            fill_color,
+                            PathStroke::default(),
+                        ));
+                    }
                 }
             }
         }
