@@ -30,7 +30,7 @@ pub use gui::{
     popup::PopupData,
     TurtleGui,
 };
-pub use polygon::{PolygonPath, ShapeComponent};
+pub use polygon::{GetPolyPath, PolygonPath, ShapeComponent};
 pub use turtle::handler::{Handler, IndividualTurtle, TurtleUI};
 pub use turtle::task::{EventResult, TurtleTask};
 pub use turtle::types::{PopupID, TurtleID, TurtleThread};

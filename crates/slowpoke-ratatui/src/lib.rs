@@ -11,12 +11,7 @@ use crossterm::{
     execute,
 };
 
-use lyon_tessellation::{
-    geom::{euclid::default::Transform2D, point, Angle, Point},
-    geometry_builder::simple_builder,
-    path::Path,
-    FillOptions, FillTessellator, VertexBuffers,
-};
+use lyon_tessellation::geom::{euclid::default::Transform2D, Angle, Point};
 use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Position, Rect},
@@ -34,7 +29,7 @@ pub type Slowpoke = SlowpokeLib<RatatuiFramework>;
 pub type Turtle = slowpoke::Turtle;
 
 use slowpoke::{
-    CirclePos, DrawCommand, Handler, IndividualTurtle, PolygonPath, PopupData, PopupID,
+    CirclePos, DrawCommand, GetPolyPath, Handler, IndividualTurtle, PopupData, PopupID,
     SlowpokeLib, TurtleColor, TurtleEvent, TurtleFlags, TurtleGui, TurtleID, TurtleTask, TurtleUI,
     TurtleUserInterface,
 };
@@ -708,48 +703,6 @@ impl From<RatatuiColor> for ratatui::style::Color {
     }
 }
 
-trait GetPolyPath {
-    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)>;
-}
-
-impl GetPolyPath for PolygonPath {
-    // This code has been adapted from the example
-    // in the lyon_tesselation docs.
-    // See https://docs.rs/lyon_tessellation/latest/lyon_tessellation/struct.FillTessellator.html
-    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)> {
-        let mut path_builder = Path::builder();
-        let mut iter = self.path.iter();
-        let p = iter.next().expect("needs at least one point");
-        path_builder.begin(point(p[0], p[1]));
-        for p in iter {
-            path_builder.line_to(point(p[0], p[1]));
-        }
-        path_builder.end(true);
-        let path = path_builder.build();
-        let mut buffers: VertexBuffers<Point<f32>, u16> = VertexBuffers::new();
-        {
-            let mut vertex_builder = simple_builder(&mut buffers);
-            let mut tessellator = FillTessellator::new();
-            tessellator
-                .tessellate_path(&path, &FillOptions::default(), &mut vertex_builder)
-                .expect("tesselation failed");
-        }
-
-        let mut result = Vec::new();
-
-        for triangle in buffers.indices.as_slice().chunks(3) {
-            let p0 = triangle[0] as usize;
-            let p1 = triangle[1] as usize;
-            let p2 = triangle[2] as usize;
-            result.push((buffers.vertices[p0], buffers.vertices[p1]));
-            result.push((buffers.vertices[p1], buffers.vertices[p2]));
-            result.push((buffers.vertices[p2], buffers.vertices[p0]));
-        }
-
-        result
-    }
-}
-
 /*
  * This is a Rust interpretation of the triangle fill algorithm taken from
  * Gabriel Gambetta: https://gabrielgambetta.com/computer-graphics-from-scratch/07-filled-triangles.html
@@ -768,11 +721,19 @@ fn get_fill_lines(points: &[(Point<f32>, Point<f32>)]) -> Vec<(Point<f32>, Point
 
     let mut x01 = interpolate(triangle[0].y, triangle[0].x, triangle[1].y, triangle[1].x);
     let x12 = interpolate(triangle[1].y, triangle[1].x, triangle[2].y, triangle[2].x);
-    let x02 = interpolate(triangle[0].y, triangle[0].x, triangle[2].y, triangle[2].x);
+    let mut x02 = interpolate(triangle[0].y, triangle[0].x, triangle[2].y, triangle[2].x);
     x01.pop();
     x01.extend(x12);
 
+    if x01.len() < x02.len() {
+        x02.pop();
+    } else if x01.len() > x02.len() {
+        x01.len();
+    }
+
     let m = x01.len() / 2;
+
+    // in some geometries, we end up with an imbalance in the number of lines
     let (x_left, x_right) = if x02[m] < x01[m] {
         (x02, x01)
     } else {

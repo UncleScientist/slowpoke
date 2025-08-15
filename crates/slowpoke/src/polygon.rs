@@ -194,3 +194,52 @@ pub(crate) fn generate_default_shapes() -> HashMap<String, TurtleShape> {
 
     shapes
 }
+
+use lyon_tessellation::{
+    geom::{point, Point},
+    geometry_builder::simple_builder,
+    path::Path,
+    FillOptions, FillTessellator, VertexBuffers,
+};
+
+pub trait GetPolyPath {
+    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)>;
+}
+
+impl GetPolyPath for PolygonPath {
+    // This code has been adapted from the example
+    // in the lyon_tesselation docs.
+    // See https://docs.rs/lyon_tessellation/latest/lyon_tessellation/struct.FillTessellator.html
+    fn get_path(&self) -> Vec<(Point<f32>, Point<f32>)> {
+        let mut path_builder = Path::builder();
+        let mut iter = self.path.iter();
+        let p = iter.next().expect("needs at least one point");
+        path_builder.begin(point(p[0], p[1]));
+        for p in iter {
+            path_builder.line_to(point(p[0], p[1]));
+        }
+        path_builder.end(true);
+        let path = path_builder.build();
+        let mut buffers: VertexBuffers<Point<f32>, u16> = VertexBuffers::new();
+        {
+            let mut vertex_builder = simple_builder(&mut buffers);
+            let mut tessellator = FillTessellator::new();
+            tessellator
+                .tessellate_path(&path, &FillOptions::default(), &mut vertex_builder)
+                .expect("tesselation failed");
+        }
+
+        let mut result = Vec::new();
+
+        for triangle in buffers.indices.as_slice().chunks(3) {
+            let p0 = triangle[0] as usize;
+            let p1 = triangle[1] as usize;
+            let p2 = triangle[2] as usize;
+            result.push((buffers.vertices[p0], buffers.vertices[p1]));
+            result.push((buffers.vertices[p1], buffers.vertices[p2]));
+            result.push((buffers.vertices[p2], buffers.vertices[p0]));
+        }
+
+        result
+    }
+}
