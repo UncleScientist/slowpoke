@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::color_names::TurtleColor;
+use crate::{color_names::TurtleColor, LineSegment};
 
 const CLASSIC: [[f32; 2]; 5] = [[0., 0.], [-15., 6.], [-10., 0.], [-15., -6.], [0., 0.]];
 const ARROW: [[f32; 2]; 4] = [[0., 0.], [-10., 12.], [-10., -12.], [0., 0.]];
@@ -179,6 +179,17 @@ impl PolygonPath {
         Self {
             path: diagram.to_vec(),
         }
+    }
+}
+
+impl From<&[LineSegment]> for PolygonPath {
+    fn from(value: &[LineSegment]) -> Self {
+        let mut path = Vec::new();
+        path.push(value[0].start.into());
+        for v in value {
+            path.push(v.end.into());
+        }
+        Self { path }
     }
 }
 
